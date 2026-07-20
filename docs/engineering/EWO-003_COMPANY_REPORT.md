@@ -17,6 +17,8 @@
 > **Adenda 3 (2026-07-19, mismo día) — Cierre técnico de EWO-003:** el responsable de producto pidió una revisión de cierre completa (Tech Lead) antes de avanzar a EWO-004: consulta de miembros de la Empresa (API-0016, nunca implementada), protección contra revocar al último propietario activo (BR-EMP-001 como invariante permanente), y limpieza de un evento de auditoría declarado pero nunca emitido (`PERMISSION_CHANGED`, código muerto desde EWO-002). Los tres se corrigieron. `prisma format`/`prisma validate`/`prisma generate` ejecutados y en verde; `prisma migrate dev` sigue bloqueado por ausencia de Docker — documentado como pendiente real, no simulado. Ver sección 14 para el detalle completo.
 >
 > **Adenda 4 (2026-07-19, mismo día) — Primer commit de Git:** el responsable de producto autorizó explícitamente crear el primer commit del repositorio, condicionado a reconfirmar antes que el árbol estuviera en un estado válido y seguro. Se reconfirmó (`git status`, `pnpm run check`, `prisma validate`/`generate`, revisión de secretos), se descubrió y corrigió de raíz un defecto pre-existente que impedía el commit — el hook `pre-commit` (Husky + lint-staged) nunca había funcionado porque invocaba `eslint` desde la raíz, donde no se resuelve (sin `eslint.config.*` de raíz y sin `eslint` como dependencia de raíz) — y se creó el commit **`756358d`** con hooks activos (sin `--no-verify`). Estado formal actualizado a **BLOCKED**: el único criterio de cierre pendiente es la migración inicial real, que sigue requiriendo Docker. **No se hizo push, no se abrió PR, no se reescribió historia. EWO-004 no se inició.** Ver sección 15 para el detalle completo.
+>
+> **Adenda 5 (2026-07-19, mismo día) — Intento de cierre mediante migración inicial:** el responsable de producto pidió resolver el bloqueo restante levantando PostgreSQL con Docker y generando/aplicando la migración inicial real. Se reconfirmó el estado del repositorio (limpio, ambos commits presentes, hooks intactos) y se verificó Docker de forma más exhaustiva que en sesiones previas: no solo `docker`/`docker compose`/`docker info` en el shell Bash, sino también resolución de `docker` en el PATH de Windows vía PowerShell, servicio `com.docker.service` registrado, y el directorio de instalación `C:\Program Files\Docker`. **Los tres resultados fueron negativos** — Docker Desktop no está instalado en este entorno, no es un problema de PATH. Siguiendo la instrucción explícita de la propia Work Order ("si Docker sigue sin estar disponible, no simules la migración... mantén EWO-003 como BLOCKED"), no se generó ninguna migración, no se usó `db push`, no se escribió SQL manual, y **no hubo commit de cierre** — no hay nada nuevo que comitear. Ver sección 16 para el detalle completo. **Estado sin cambios: `BLOCKED`. EWO-004 no se inició.**
 
 ## 2. Resumen ejecutivo
 
@@ -277,11 +279,60 @@ pnpm run db:seed
 
 **EWO-004 no se inició.**
 
+## 16. Intento de cierre mediante migración inicial (quinta sesión, mismo día)
+
+El responsable de producto pidió resolver el único bloqueo restante de EWO-003: levantar PostgreSQL con Docker, generar y aplicar la migración inicial real, y solo entonces declarar `DONE`.
+
+### 16.1 Revisión inicial
+
+- `git status` — limpio, sin cambios pendientes.
+- `git log --oneline -5` — ambos commits presentes: `948d47f` (documentación) y `756358d` (fundación + auth + companies, incluida la corrección del hook).
+- `git cat-file -t 756358d` — confirma que el commit existe y es accesible.
+- Hooks (`.husky/pre-commit`, `.husky/commit-msg`, `scripts/lint-staged-eslint.mjs`) — presentes, sin reversión.
+- Ningún cambio inesperado en el árbol.
+
+### 16.2 Verificación de Docker (más exhaustiva que en sesiones previas)
+
+Se verificó Docker por tres vías independientes, no solo `docker --version` en el shell Bash como en sesiones anteriores:
+
+1. **Shell Bash:** `docker`, `docker compose`, `docker info` — los tres: `command not found`.
+2. **PATH de Windows (PowerShell):** `Get-Command docker` — no encontrado en ningún directorio del `PATH` de Windows (descarta que fuera solo un problema de configuración del shell Bash/Git).
+3. **Servicio de Windows:** `Get-Service -Name 'com.docker*','docker'` — ningún servicio de Docker registrado en el sistema.
+4. **Directorio de instalación:** `C:\Program Files\Docker` — no existe.
+
+**Conclusión: Docker Desktop no está instalado en este entorno de ejecución** — no es un problema de PATH ni de configuración, es una ausencia real y completa. No se inspeccionó `docker-compose.yml` en profundidad más allá de lo ya documentado en sesiones previas (servicio `postgres`, `redis`, puerto 5432/6379, credenciales de desarrollo `contaia`/`contaia_dev_only`), porque no levantar los servicios no depende de leer el archivo — depende de tener el binario de Docker, que no existe.
+
+### 16.3 Decisión: no se generó ninguna migración
+
+Siguiendo la instrucción explícita y literal de esta misma Work Order ("si Docker sigue sin estar disponible, no simules la migración y mantén EWO-003 como `BLOCKED`"):
+
+- **No** se ejecutó `prisma migrate dev --name init` (requeriría una base de datos sombra real, inalcanzable sin Docker).
+- **No** se usó `prisma db push` como sustituto.
+- **No** se escribió SQL de migración a mano.
+- **No** se insertaron datos ficticios ni se corrió el seed contra una base real (no existe una base real).
+- `prisma format`/`prisma validate`/`prisma generate` se dejan en el mismo estado ya verificado en la sesión anterior (sección 14.2) — sin cambios en `schema.prisma` desde entonces, por lo que no había nada nuevo que reformatear o regenerar.
+
+### 16.4 Sin commit de cierre
+
+Como no se generó ninguna migración ni se modificó ningún archivo, **no hay nada que comitear** — `git status` permanece limpio. No se creó el commit `chore: add initial database migration` porque no existe una migración real que registrar; crearlo de todas formas habría sido un commit vacío o, peor, uno que sugiere falsamente que la migración fue generada.
+
+### 16.5 Estado sin cambios
+
+**EWO-003 permanece `BLOCKED`.** El único criterio de cierre pendiente sigue siendo la migración inicial real, bloqueada exclusivamente por la ausencia confirmada y exhaustiva de Docker Desktop en este entorno. Comando exacto pendiente (sin cambios respecto a la sección 14.2):
+
+```
+docker compose up -d postgres redis
+pnpm --filter @contaia/database run migrate:dev -- --name init
+pnpm run db:seed
+```
+
+**EWO-004 no se inició.**
+
 ## 12. Resultado final
 
 **BLOCKED**
 
-Justificación: todas las validaciones ejecutables sobre el código en este entorno (lint, typecheck, pruebas unitarias — 89/89 en `apps/api` —, pruebas de integración — 21/21 sin Postgres real —, build, `prisma format`/`validate`/`generate`) pasan en verde de punta a punta, incluyendo Organización, Companies completo, perfil fiscal/domicilio/configuración regional, y las tres correcciones de cierre de la sección 14 (consulta de miembros, protección de último propietario, limpieza de evento muerto). El **primer commit de Git ya se creó** (`756358d`, sección 15), lo que resuelve uno de los dos pendientes que antes mantenían el estado en `IN PROGRESS`. Siguiendo el criterio explícito de esta Work Order (sección 18: "si algún criterio no puede completarse por una limitación real del entorno... déjalo como `BLOCKED`"), se declara **`BLOCKED`** porque queda un único criterio de cierre sin completar — la migración inicial real de Prisma — bloqueado exclusivamente por la ausencia de Docker/PostgreSQL en este entorno, no por ningún defecto del código; su procedimiento y comando exactos están documentados (secciones 14.2 y 15.4), listos para ejecutarse en cuanto haya Docker. "Estado de empresa" (activar/desactivar) permanece explícitamente fuera de alcance, reconfirmado dos veces con el responsable de producto (secciones 3 y 13.1) — no es un pendiente, es alcance excluido. **EWO-004 no se inició.**
+Justificación: todas las validaciones ejecutables sobre el código en este entorno (lint, typecheck, pruebas unitarias — 89/89 en `apps/api` —, pruebas de integración — 21/21 sin Postgres real —, build, `prisma format`/`validate`/`generate`) pasan en verde de punta a punta, incluyendo Organización, Companies completo, perfil fiscal/domicilio/configuración regional, y las tres correcciones de cierre de la sección 14 (consulta de miembros, protección de último propietario, limpieza de evento muerto). El **primer commit de Git ya se creó** (`756358d`, sección 15), lo que resuelve uno de los dos pendientes que antes mantenían el estado en `IN PROGRESS`. Siguiendo el criterio explícito de esta Work Order (sección 18: "si algún criterio no puede completarse por una limitación real del entorno... déjalo como `BLOCKED`"), se declara **`BLOCKED`** porque queda un único criterio de cierre sin completar — la migración inicial real de Prisma — bloqueado exclusivamente por la ausencia de Docker/PostgreSQL en este entorno, no por ningún defecto del código; su procedimiento y comando exactos están documentados (secciones 14.2 y 15.4), listos para ejecutarse en cuanto haya Docker. "Estado de empresa" (activar/desactivar) permanece explícitamente fuera de alcance, reconfirmado dos veces con el responsable de producto (secciones 3 y 13.1) — no es un pendiente, es alcance excluido. **Reconfirmado en una quinta sesión (sección 16):** se intentó explícitamente resolver este bloqueo y se verificó Docker por cuatro vías independientes (shell Bash, PATH de Windows, servicio de Windows, directorio de instalación) — las cuatro negativas. No se generó migración, no hubo commit de cierre, el estado `BLOCKED` no cambia. **EWO-004 no se inició.**
 
 ---
 
