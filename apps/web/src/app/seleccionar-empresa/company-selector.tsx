@@ -27,7 +27,9 @@ const ROLE_LABELS: Record<string, string> = {
 export function CompanySelector(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const destination = searchParams.get('next') ?? '/';
+  const rawDestination = searchParams.get('next');
+  // El destino por defecto es el dashboard de la empresa seleccionada
+  // (/{companyId}/inicio) — se resuelve en el onClick con el companyId real.
 
   const session = useSession();
   const activeCompanyId = useSessionStore((state) => state.activeCompanyId);
@@ -94,7 +96,7 @@ export function CompanySelector(): React.JSX.Element {
               variant={isActive ? 'secondary' : 'primary'}
               onClick={() => {
                 setActiveCompany(membership.companyId);
-                router.push(destination);
+                router.push(rawDestination ?? `/${membership.companyId}/inicio`);
               }}
             >
               {isActive ? 'Continuar' : 'Entrar'}

@@ -73,6 +73,20 @@ export interface MfaEnrollmentCompleteData {
   recoveryCodes: string[];
 }
 
+export interface UpdateProfileInput {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+}
+
+export interface UpdateProfileResponse {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  avatar: string | null;
+}
+
 export interface SessionSummary {
   id: string;
   userAgent: string | null;

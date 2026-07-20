@@ -3,6 +3,8 @@ import type {
   LoginResponseData,
   MfaEnrollmentCompleteData,
   MfaSetupData,
+  UpdateProfileInput,
+  UpdateProfileResponse,
   UserProfile,
 } from '@contaia/types';
 
@@ -92,6 +94,17 @@ export async function completeMfaEnrollment(
 
 export async function fetchCurrentUser(): Promise<UserProfile> {
   return apiRequest<UserProfile>('/users/me');
+}
+
+export async function updateProfile(input: UpdateProfileInput): Promise<UpdateProfileResponse> {
+  return apiRequest<UpdateProfileResponse>('/users/me', { method: 'PATCH', body: input });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiRequest('/auth/change-password', {
+    method: 'POST',
+    body: { currentPassword, newPassword },
+  });
 }
 
 export async function fetchInvitationPreview(token: string): Promise<InvitationPreview> {

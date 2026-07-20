@@ -22,6 +22,7 @@ import { AuthenticationGuard } from '../../common/guards/authentication.guard';
 import type { RequestUser } from '../../common/interfaces/request-context.interface';
 import { REFRESH_TOKEN_COOKIE } from '../../common/security/cookie.constants';
 
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import {
   MfaChallengeVerifyDto,
@@ -251,6 +252,24 @@ export class AuthenticationController {
   ): Promise<{ revoked: true }> {
     await this.authService.revokeSession(user.id, sessionId, this.buildContext(req));
     return { revoked: true };
+  }
+
+  @Post('change-password')
+  @UseGuards(AuthenticationGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cambiar contraseña desde el perfil (requiere contraseña actual)' })
+  async changePassword(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ): Promise<{ changed: true }> {
+    await this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+      this.buildContext(req),
+    );
+    return { changed: true };
   }
 
   @Post('password-reset/request')

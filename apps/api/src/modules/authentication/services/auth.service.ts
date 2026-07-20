@@ -428,6 +428,29 @@ export class AuthService {
     );
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    context: RequestAuditContext,
+  ): Promise<void> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new InvalidCredentialsException();
+    }
+
+    const valid = await verifyPassword(user.passwordHash, currentPassword);
+    if (!valid) {
+      throw new InvalidCredentialsException();
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await this.usersRepository.updatePassword(userId, passwordHash);
+    await this.sessionsRepository.revokeAllForUser(userId);
+
+    this.events.emit(AUTH_EVENTS.PASSWORD_CHANGED, new PasswordChangedEvent(userId, context));
+  }
+
   async confirmPasswordReset(
     token: string,
     newPassword: string,
