@@ -2,19 +2,21 @@
 
 ## 1. Metadatos
 
-| Campo              | Valor                                                                                                                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Work Order         | EWO-003 — Organization & Company Management                                                                                                                                                                                                               |
-| Fecha de ejecución | 2026-07-19                                                                                                                                                                                                                                                |
-| Ejecutado por      | Claude Code (autónomo, dentro del alcance definido y confirmado)                                                                                                                                                                                          |
-| Entorno            | Windows 11 Pro, pnpm 11.15.0, sin Docker Desktop instalado (mismo bloqueo de infraestructura ya documentado en EWO-001/EWO-002)                                                                                                                           |
-| Resultado final    | **IN PROGRESS** — todas las validaciones de código (`pnpm run check`: lint, typecheck, test, test:integration, build) pasan en verde; no se declara `DONE` porque la migración inicial real y el commit inicial de Git siguen pendientes (ver sección 14) |
+| Campo              | Valor                                                                                                                                                                                                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work Order         | EWO-003 — Organization & Company Management                                                                                                                                                                                                                                                        |
+| Fecha de ejecución | 2026-07-19                                                                                                                                                                                                                                                                                         |
+| Ejecutado por      | Claude Code (autónomo, dentro del alcance definido y confirmado)                                                                                                                                                                                                                                   |
+| Entorno            | Windows 11 Pro, pnpm 11.15.0, sin Docker Desktop instalado (mismo bloqueo de infraestructura ya documentado en EWO-001/EWO-002)                                                                                                                                                                    |
+| Resultado final    | **BLOCKED** — código completo y `pnpm run check` (lint, typecheck, test, test:integration, build) en verde; primer commit de Git creado (`756358d`); único bloqueo restante: la migración inicial real de Prisma requiere Docker/PostgreSQL, no disponible en este entorno (ver secciones 14 y 15) |
 
 > **Adenda (2026-07-19, mismo día):** el responsable de producto pidió cerrar la inconsistencia documental de BR-EMP-004 registrada en la sección 9 antes de iniciar EWO-004. Corrección de trazabilidad documental únicamente, sin cambio de comportamiento del sistema ni nueva decisión arquitectónica: BR-EMP-004 quedó definida en `docs/04_BUSINESS_RULES.md` sección 4.3 (Unicidad y especificidad de la Membresía por empresa), consistente con el comportamiento que el sistema ya implementaba y que esta Work Order y EWO-002 ya usaban. Ver sección 9 (nota) y `MASTER_CONTEXT.md` para el registro completo.
 >
 > **Adenda 2 (2026-07-19, mismo día) — Ampliación de alcance de EWO-003:** el responsable de producto envió un texto de Work Order EWO-003 más detallado, que amplía el alcance ya entregado (perfil fiscal, domicilio fiscal, configuración regional, nombre comercial) y vuelve a pedir explícitamente "estado de empresa" (activar/desactivar). Se confirmó con el responsable de producto, mediante `AskUserQuestion`, mantener la exclusión de "estado de empresa" ya decidida (sección 3) — la documentación aprobada tiene prioridad sobre el prompt, tal como el propio texto de la Work Order indica. Se implementó el resto del alcance ampliado. Ver sección 13 para el detalle completo.
 >
-> **Adenda 3 (2026-07-19, mismo día) — Cierre técnico de EWO-003:** el responsable de producto pidió una revisión de cierre completa (Tech Lead) antes de avanzar a EWO-004: consulta de miembros de la Empresa (API-0016, nunca implementada), protección contra revocar al último propietario activo (BR-EMP-001 como invariante permanente), y limpieza de un evento de auditoría declarado pero nunca emitido (`PERMISSION_CHANGED`, código muerto desde EWO-002). Los tres se corrigieron. `prisma format`/`prisma validate`/`prisma generate` ejecutados y en verde; `prisma migrate dev` sigue bloqueado por ausencia de Docker — documentado como pendiente real, no simulado. Resultado final: **IN PROGRESS**, no `DONE`, porque la migración inicial real y el primer commit de Git (el repositorio no tiene ningún commit todavía, ni de esta Work Order ni de EWO-001/EWO-002) siguen sin poder completarse en este entorno. Ver sección 14 para el detalle completo.
+> **Adenda 3 (2026-07-19, mismo día) — Cierre técnico de EWO-003:** el responsable de producto pidió una revisión de cierre completa (Tech Lead) antes de avanzar a EWO-004: consulta de miembros de la Empresa (API-0016, nunca implementada), protección contra revocar al último propietario activo (BR-EMP-001 como invariante permanente), y limpieza de un evento de auditoría declarado pero nunca emitido (`PERMISSION_CHANGED`, código muerto desde EWO-002). Los tres se corrigieron. `prisma format`/`prisma validate`/`prisma generate` ejecutados y en verde; `prisma migrate dev` sigue bloqueado por ausencia de Docker — documentado como pendiente real, no simulado. Ver sección 14 para el detalle completo.
+>
+> **Adenda 4 (2026-07-19, mismo día) — Primer commit de Git:** el responsable de producto autorizó explícitamente crear el primer commit del repositorio, condicionado a reconfirmar antes que el árbol estuviera en un estado válido y seguro. Se reconfirmó (`git status`, `pnpm run check`, `prisma validate`/`generate`, revisión de secretos), se descubrió y corrigió de raíz un defecto pre-existente que impedía el commit — el hook `pre-commit` (Husky + lint-staged) nunca había funcionado porque invocaba `eslint` desde la raíz, donde no se resuelve (sin `eslint.config.*` de raíz y sin `eslint` como dependencia de raíz) — y se creó el commit **`756358d`** con hooks activos (sin `--no-verify`). Estado formal actualizado a **BLOCKED**: el único criterio de cierre pendiente es la migración inicial real, que sigue requiriendo Docker. **No se hizo push, no se abrió PR, no se reescribió historia. EWO-004 no se inició.** Ver sección 15 para el detalle completo.
 
 ## 2. Resumen ejecutivo
 
@@ -91,7 +93,7 @@ Reconfirmado al inicio de esta Work Order: Docker sigue sin estar instalado. Est
 ## 8. Deuda no crítica pendiente
 
 - **Migración real y verificación con Docker** — igual que EWO-001/EWO-002, sigue bloqueado por ausencia de Docker en este entorno. Comando exacto pendiente documentado en la sección 14.2.
-- **Primer commit de Git** — el repositorio no tiene ningún commit todavía (ni de EWO-001, ni de EWO-002, ni de esta Work Order). Commit recomendado en la sección 14.4; no ejecutado, a la espera de confirmación explícita.
+- ✅ **CERRADO (sección 15):** primer commit de Git creado (`756358d`) con hooks activos, tras autorización explícita. Incluye la corrección del hook `pre-commit` que nunca había funcionado.
 - **Organización — administración completa** (editar nombre, eliminar, transferir Company entre Organizaciones, invitar usuarios a nivel Organización) — explícitamente fuera de alcance por la decisión de la sección 3; queda para una Work Order futura si el negocio lo requiere.
 - **Activación/baja de Empresa** — explícitamente fuera de alcance por la decisión de la sección 3, **reconfirmada en la sección 13.1** ante una segunda Work Order que volvió a pedirla; requiere que primero se apruebe una regla de negocio (quién puede desactivar, efecto sobre Membership/sesiones activas, reversibilidad) antes de construirse.
 - **Transferencia de ownership** — la Work Order pedía explícitamente no implementarla salvo que la documentación ya la exigiera; no la exige (BR-PERM-003 solo cubre la ausencia de permisos técnicos extra de `isOwner`, no un flujo de transferencia). No implementada. La protección contra perder al último propietario (sección 14.1) sí se implementó, por ser un invariante ya aprobado, distinto de un flujo de transferencia.
@@ -216,17 +218,70 @@ Nota sobre el mensaje sugerido en la sección 15 de la Work Order ("feat: comple
 
 **Frontend:** `packages/types/src/companies.ts` (nuevo, ampliado en la sección 13); `apps/web/src/lib/companies-client.ts` (nuevo, ampliado); `apps/web/src/hooks/use-companies.ts`/`use-company.ts`/`use-create-company.ts`/`use-update-company.ts`/`use-update-fiscal-profile.ts` (nuevo)/`use-update-address.ts` (nuevo)/`use-update-settings.ts` (nuevo); `apps/web/src/app/crear-empresa/**` (nuevo); `apps/web/src/app/empresas/**` (nuevo, `[companyId]/` reestructurado en 4 secciones en la sección 13: `company-general-section.tsx`, `company-fiscal-section.tsx`, `company-address-section.tsx`, `company-settings-section.tsx`); `apps/web/src/app/seleccionar-empresa/company-selector.tsx` (indicador de empresa activa agregado en la sección 13).
 
-**Infraestructura de desarrollo:** `.claude/launch.json` (nuevo, en la raíz de `contai/` — permite levantar `apps/web` con el navegador de vista previa; no existía ningún launch config en el repositorio).
+**Infraestructura de desarrollo:** `.claude/launch.json` (nuevo, en la raíz de `contai/` — permite levantar `apps/web` con el navegador de vista previa; no existía ningún launch config en el repositorio). `scripts/lint-staged-eslint.mjs` (nuevo, sección 15.2 — corrige el hook `pre-commit` que nunca había funcionado); `package.json` (`lint-staged` reconfigurado).
 
 **Backend (cierre, sección 14):** `apps/api/src/modules/roles-permissions/repositories/memberships.repository.ts` (`findAllForCompany`, `countActiveOwners`); `apps/api/src/modules/roles-permissions/services/memberships.service.ts` (`listMembersForCompany`, protección de último propietario en `revoke`, +spec); `apps/api/src/modules/roles-permissions/memberships.controller.ts` (`GET companies/:companyId/memberships`); `apps/api/src/common/exceptions/auth.exceptions.ts` (`LastOwnerException`); `apps/api/src/common/events/auth.events.ts` (`PERMISSION_CHANGED` eliminado); `apps/api/test/auth.e2e-spec.ts` (prueba nueva).
 
 **Documentación:** este reporte; `MASTER_CONTEXT.md` (sección de historial de cambios).
 
+## 15. Primer commit de Git y estado formal BLOCKED (cuarta sesión, mismo día)
+
+El responsable de producto autorizó explícitamente crear el primer commit del repositorio, condicionado a reconfirmar antes que el árbol de trabajo estuviera en un estado válido y seguro. Secuencia ejecutada:
+
+### 15.1 Reconfirmación previa
+
+- `git status` — rama `master`, **sin ningún commit** todavía; 321 archivos sin seguimiento (todo el árbol).
+- `git diff` — vacío por definición (no hay `HEAD` contra el cual comparar).
+- `pnpm run check` — verde de punta a punta (lint 12/12, typecheck 12/12, unit 89/89 en `apps/api`, integración 21/21 en `apps/api` + 2 omitidas en `packages/database` por falta de Postgres, build 7/7).
+- `prisma validate` — "The schema is valid"; `prisma generate` — cliente generado sin errores.
+- **Revisión de secretos** — `.env` y `apps/web/.env.local` correctamente ignorados (probado con `git check-ignore -v`); el único archivo de entorno preparado es `.env.example`, con solo valores de ejemplo (`dev_only_change_me_...`); ningún `node_modules/`, `dist/`, `.next/`, `generated/`, `coverage/`, log, `.pem`, `.key`, token ni credencial aparece en el conjunto preparado (321 archivos).
+
+### 15.2 Defecto pre-existente descubierto y corregido: el hook `pre-commit` nunca había funcionado
+
+Al intentar el commit, el hook `pre-commit` (Husky → `pnpm exec lint-staged`) falló. Causa raíz: la configuración de `lint-staged` en `package.json` invocaba `eslint --fix` **desde la raíz** del monorepo, pero:
+
+1. `eslint` no es una dependencia de la raíz — no se resuelve desde `./node_modules/.bin` (`Command "eslint" not found`).
+2. No existe ningún `eslint.config.*` en la raíz — cada paquete tiene el suyo, y ESLint v9 (flat config) resuelve la configuración desde el `cwd`, no desde la ubicación del archivo.
+
+Este hook nunca había funcionado (los cero commits del repo lo confirman). Corrección **de raíz, sin `--no-verify`**:
+
+- Nuevo `scripts/lint-staged-eslint.mjs`: agrupa los archivos preparados por workspace y corre `pnpm --filter "./<workspace>" exec eslint --fix --no-warn-ignored` en cada grupo (así cada archivo se valida con la configuración plana de su propio paquete). Omite los workspaces sin `eslint.config.*` (`packages/eslint-config`, `packages/typescript-config`, que no se lintean en ninguna parte) y procesa en lotes para no exceder el límite de longitud de línea de comandos de Windows en un commit grande.
+- `package.json` (`lint-staged`): se reemplaza `eslint --fix` de raíz por `node scripts/lint-staged-eslint.mjs`, y se corrige además un solapamiento de globs que causaba una condición de carrera (los mismos archivos `.ts/.js` los tocaban dos entradas concurrentes) — ahora eslint y prettier corren en serie sobre el mismo glob.
+
+Ambos cambios forman parte del commit `756358d`. Con el hook corregido, `lint-staged` corrió ESLint por-workspace y Prettier sobre los archivos preparados; Prettier reformateó parte del árbol (tablas Markdown, formato de código) y re-preparó los archivos — comportamiento esperado del hook.
+
+### 15.3 Commit creado
+
+| Campo     | Valor                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Hash      | `756358df9893f3947fbc769935c071aabee20ef0` (`756358d`)                                                                         |
+| Rama      | `master`                                                                                                                       |
+| Mensaje   | `feat: establish ContaIA foundation and company management` (+ cuerpo y `Co-Authored-By`)                                      |
+| Archivos  | 322 archivos, 41 008 inserciones                                                                                               |
+| Hooks     | `pre-commit` (lint-staged) y `commit-msg` (commitlint, Conventional Commits) — **ambos activos y en verde**, sin `--no-verify` |
+| Push / PR | **Ninguno** — no se hizo push, no se abrió PR, no se reescribió historia, no se crearon ramas                                  |
+
+Nota: en un primer intento el mensaje de commit se rechazó por `commit-msg` (commitlint) debido a un error de sintaxis del propio comando (se uso sintaxis de here-string de PowerShell en un shell Bash); corregido con un heredoc válido, el segundo intento paso commitlint sin cambios de contenido.
+
+Tras el commit se re-ejecutó `pnpm run check` sobre el estado ya comiteado (reformateado por Prettier) — **verde de punta a punta** (89/89 unit, 21/21 integración, build 7/7, exit 0), confirmando que el reformateo del hook no rompió nada.
+
+### 15.4 Estado formal y único bloqueo restante
+
+**EWO-003: `BLOCKED`.** Código completo, todas las validaciones en verde, primer commit creado. El único criterio de cierre pendiente es la **migración inicial real de Prisma**, que requiere Docker/PostgreSQL — no disponible en este entorno (reconfirmado: `docker` / `docker compose` no encontrados). No se declara `DONE` hasta que esa migración se genere, aplique y verifique. Comando exacto pendiente (sección 14.2):
+
+```
+docker compose up -d postgres redis
+pnpm --filter @contaia/database run migrate:dev -- --name init
+pnpm run db:seed
+```
+
+**EWO-004 no se inició.**
+
 ## 12. Resultado final
 
-**IN PROGRESS**
+**BLOCKED**
 
-Justificación: todas las validaciones ejecutables sobre el código en este entorno (lint, typecheck, pruebas unitarias — 89/89 en `apps/api` —, pruebas de integración — 21/21 sin Postgres real —, build, `prisma format`/`validate`/`generate`) pasan en verde de punta a punta, incluyendo Organización, Companies completo, perfil fiscal/domicilio/configuración regional, y las tres correcciones de cierre de la sección 14 (consulta de miembros, protección de último propietario, limpieza de evento muerto). Siguiendo el criterio explícito de esta Work Order (sección 18: "si algún criterio no puede completarse por una limitación real del entorno, no marques EWO-003 como DONE"), **no se declara `DONE`** porque dos criterios reales siguen sin completarse por limitaciones del entorno, no por defectos del código: (1) no existe ninguna migración Prisma real generada ni aplicada — Docker sigue sin estar disponible, y (2) el repositorio no tiene ningún commit de Git todavía. Tampoco se declara `BLOCKED`, porque ninguna validación de código falló y ambos pendientes tienen un procedimiento y comando exactos ya documentados (secciones 14.2 y 14.4), listos para ejecutarse en cuanto el entorno lo permita o se autorice explícitamente. "Estado de empresa" (activar/desactivar) permanece explícitamente fuera de alcance, reconfirmado dos veces con el responsable de producto (secciones 3 y 13.1) — no es un pendiente, es alcance excluido.
+Justificación: todas las validaciones ejecutables sobre el código en este entorno (lint, typecheck, pruebas unitarias — 89/89 en `apps/api` —, pruebas de integración — 21/21 sin Postgres real —, build, `prisma format`/`validate`/`generate`) pasan en verde de punta a punta, incluyendo Organización, Companies completo, perfil fiscal/domicilio/configuración regional, y las tres correcciones de cierre de la sección 14 (consulta de miembros, protección de último propietario, limpieza de evento muerto). El **primer commit de Git ya se creó** (`756358d`, sección 15), lo que resuelve uno de los dos pendientes que antes mantenían el estado en `IN PROGRESS`. Siguiendo el criterio explícito de esta Work Order (sección 18: "si algún criterio no puede completarse por una limitación real del entorno... déjalo como `BLOCKED`"), se declara **`BLOCKED`** porque queda un único criterio de cierre sin completar — la migración inicial real de Prisma — bloqueado exclusivamente por la ausencia de Docker/PostgreSQL en este entorno, no por ningún defecto del código; su procedimiento y comando exactos están documentados (secciones 14.2 y 15.4), listos para ejecutarse en cuanto haya Docker. "Estado de empresa" (activar/desactivar) permanece explícitamente fuera de alcance, reconfirmado dos veces con el responsable de producto (secciones 3 y 13.1) — no es un pendiente, es alcance excluido. **EWO-004 no se inició.**
 
 ---
 
@@ -252,7 +307,7 @@ Justificación: todas las validaciones ejecutables sobre el código en este ento
 - Unicidad incondicional de `Membership` (sección 9) — riesgo conocido para un futuro flujo de revocar-y-reinvitar, no para esta Work Order.
 - ✅ **CERRADO (adenda, mismo día):** BR-EMP-004 sin definir — ver sección 9.
 - (Sección 13) Verificación visual en navegador de las 4 pestañas del perfil de Empresa con datos reales poblados no pudo completarse por un comportamiento del `onlineManager` de TanStack Query específico de este entorno de vista previa — mitigado con pruebas unitarias que cubren la forma de datos exacta que consumen esas pantallas; recomendable repetir la verificación visual en un entorno con backend/Postgres reales.
-- (Sección 14) Repositorio sin ningún commit de Git — riesgo operativo real (nada versionado hasta que se ejecute el primer commit), no técnico; commit recomendado ya preparado, pendiente de confirmación explícita.
+- ✅ **CERRADO (sección 15):** repositorio sin ningún commit — resuelto con el primer commit `756358d`. Se descubrió y corrigió de paso que el hook `pre-commit` (lint-staged) nunca había funcionado (invocaba `eslint` desde la raíz, donde no se resuelve).
 
 **Mejoras futuras recomendadas:**
 
