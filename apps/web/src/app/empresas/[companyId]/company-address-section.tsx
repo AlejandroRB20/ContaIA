@@ -30,6 +30,19 @@ interface CompanyAddressSectionProps {
   canEdit: boolean;
 }
 
+function getDefaultValues(data: CompanyDetail): FormValues {
+  return {
+    street: data.address?.street ?? '',
+    exteriorNumber: data.address?.exteriorNumber ?? '',
+    interiorNumber: data.address?.interiorNumber ?? '',
+    neighborhood: data.address?.neighborhood ?? '',
+    municipality: data.address?.municipality ?? '',
+    state: data.address?.state ?? '',
+    postalCode: data.address?.postalCode ?? '',
+    country: data.address?.country ?? 'MX',
+  };
+}
+
 const FIELD_LABELS: Record<keyof FormValues, string> = {
   street: 'Calle',
   exteriorNumber: 'Número exterior',
@@ -51,23 +64,14 @@ export function CompanyAddressSection({
   const [isEditing, setIsEditing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const defaults: FormValues = {
-    street: data.address?.street ?? '',
-    exteriorNumber: data.address?.exteriorNumber ?? '',
-    interiorNumber: data.address?.interiorNumber ?? '',
-    neighborhood: data.address?.neighborhood ?? '',
-    municipality: data.address?.municipality ?? '',
-    state: data.address?.state ?? '',
-    postalCode: data.address?.postalCode ?? '',
-    country: data.address?.country ?? 'MX',
-  };
+  const defaults = getDefaultValues(data);
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults });
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset(defaults);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+    reset(getDefaultValues(data));
+  }, [data, reset]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);

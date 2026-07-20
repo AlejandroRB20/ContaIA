@@ -1,3 +1,4 @@
+import type { OrganizationDetail } from '@contaia/types';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -10,13 +11,6 @@ interface AuditContext {
   correlationId: string;
   ipAddress?: string;
   deviceInfo?: string;
-}
-
-export interface OrganizationCompanySummary {
-  id: string;
-  name: string;
-  role: string;
-  isOwner: boolean;
 }
 
 @Injectable()
@@ -46,14 +40,17 @@ export class OrganizationsService {
    * (BR-ORG-002, BR-GLB-001: el aislamiento por Company se sostiene tambien
    * dentro de una misma Organizacion).
    */
-  async getOrganization(organizationId: string, requestingUserId: string) {
+  async getOrganization(
+    organizationId: string,
+    requestingUserId: string,
+  ): Promise<OrganizationDetail> {
     const organization = await this.organizationsRepository.findById(organizationId);
     if (!organization) {
       throw new NotFoundException('Organización no encontrada.');
     }
 
     const memberships = await this.membershipsRepository.findAllForUser(requestingUserId);
-    const companies: OrganizationCompanySummary[] = memberships
+    const companies: OrganizationDetail['companies'] = memberships
       .filter((membership) => membership.company.organizationId === organizationId)
       .map((membership) => ({
         id: membership.company.id,

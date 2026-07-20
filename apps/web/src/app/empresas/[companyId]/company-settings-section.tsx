@@ -24,6 +24,15 @@ interface CompanySettingsSectionProps {
   canEdit: boolean;
 }
 
+function getDefaultValues(data: CompanyDetail): FormValues {
+  return {
+    timeZone: data.settings?.timeZone ?? 'America/Mexico_City',
+    baseCurrency: data.settings?.baseCurrency ?? 'MXN',
+    language: data.settings?.language ?? 'es-MX',
+    country: data.settings?.country ?? 'MX',
+  };
+}
+
 /** Sección "Configuración" regional/operativa del perfil de Empresa (EWO-003 sección 5.8). */
 export function CompanySettingsSection({
   companyId,
@@ -34,19 +43,14 @@ export function CompanySettingsSection({
   const [isEditing, setIsEditing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const defaults: FormValues = {
-    timeZone: data.settings?.timeZone ?? 'America/Mexico_City',
-    baseCurrency: data.settings?.baseCurrency ?? 'MXN',
-    language: data.settings?.language ?? 'es-MX',
-    country: data.settings?.country ?? 'MX',
-  };
+  const defaults = getDefaultValues(data);
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults });
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset(defaults);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+    reset(getDefaultValues(data));
+  }, [data, reset]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);

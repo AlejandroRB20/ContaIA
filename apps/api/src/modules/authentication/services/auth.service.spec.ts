@@ -21,6 +21,7 @@ const CONFIG = {
 
 function buildService(overrides: {
   usersRepository?: Partial<jest.Mocked<UsersRepository>>;
+  sessionsRepository?: Partial<jest.Mocked<SessionsRepository>>;
   tokenService?: Partial<jest.Mocked<TokenService>>;
   membershipsRepository?: Partial<jest.Mocked<MembershipsRepository>>;
   mfaService?: Partial<jest.Mocked<MfaService>>;
@@ -32,7 +33,10 @@ function buildService(overrides: {
     ...overrides.usersRepository,
   } as unknown as jest.Mocked<UsersRepository>;
 
-  const sessionsRepository = {} as jest.Mocked<SessionsRepository>;
+  const sessionsRepository = {
+    revokeAllForUser: jest.fn(),
+    ...overrides.sessionsRepository,
+  } as unknown as jest.Mocked<SessionsRepository>;
   const authTokensRepository = {
     createEmailVerification: jest.fn(),
   } as unknown as jest.Mocked<AuthTokensRepository>;
@@ -63,7 +67,16 @@ function buildService(overrides: {
     CONFIG,
   );
 
-  return { service, usersRepository, tokenService, membershipsRepository, mfaService, events, res };
+  return {
+    service,
+    usersRepository,
+    sessionsRepository,
+    tokenService,
+    membershipsRepository,
+    mfaService,
+    events,
+    res,
+  };
 }
 
 describe('AuthService', () => {
@@ -262,6 +275,63 @@ describe('AuthService', () => {
         mfaChallengeToken: 'mfa-enrollment-token',
       });
       expect(tokenService.issueTokens).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changePassword', () => {
+    const ACTIVE_USER = {
+      id: 'user-1',
+      status: UserStatus.ACTIVE,
+      passwordHash: '',
+    };
+
+    beforeAll(async () => {
+      ACTIVE_USER.passwordHash = await hashPassword('Contraseña@Actual1');
+    });
+
+    it('actualiza la contraseña y revoca todas las sesiones cuando la contraseña actual es correcta', async () => {
+      const { service, usersRepository, sessionsRepository, events } = buildService({
+        usersRepository: {
+          findById: jest.fn().mockResolvedValue(ACTIVE_USER),
+          updatePassword: jest.fn(),
+        },
+        sessionsRepository: { revokeAllForUser: jest.fn() },
+      });
+
+      await service.changePassword('user-1', 'Contraseña@Actual1', 'NuevaContraseña@2', CONTEXT);
+
+      expect(usersRepository.updatePassword).toHaveBeenCalledWith('user-1', expect.any(String));
+      expect(sessionsRepository.revokeAllForUser).toHaveBeenCalledWith('user-1');
+      expect(events.emit).toHaveBeenCalledWith(
+        'auth.password_changed',
+        expect.objectContaining({ userId: 'user-1' }),
+      );
+    });
+
+    it('rechaza si el usuario no existe', async () => {
+      const { service } = buildService({
+        usersRepository: { findById: jest.fn().mockResolvedValue(null) },
+      });
+
+      await expect(
+        service.changePassword('usuario-inexistente', 'cualquiera', 'NuevaContraseña@2', CONTEXT),
+      ).rejects.toThrow();
+    });
+
+    it('rechaza si la contraseña actual es incorrecta', async () => {
+      const { service, sessionsRepository } = buildService({
+        usersRepository: {
+          findById: jest.fn().mockResolvedValue(ACTIVE_USER),
+          updatePassword: jest.fn(),
+        },
+        sessionsRepository: { revokeAllForUser: jest.fn() },
+      });
+
+      await expect(
+        service.changePassword('user-1', 'ContraseñaIncorrecta@1', 'NuevaContraseña@2', CONTEXT),
+      ).rejects.toThrow();
+
+      expect(sessionsRepository.revokeAllForUser).not.toHaveBeenCalled();
     });
   });
 

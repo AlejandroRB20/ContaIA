@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useSession } from '@/hooks/use-session';
+import { safeInternalPath } from '@/lib/safe-navigation';
 import { useSessionStore } from '@/store/use-session-store';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -27,7 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function CompanySelector(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawDestination = searchParams.get('next');
+  const destination = safeInternalPath(searchParams.get('next'), '');
   // El destino por defecto es el dashboard de la empresa seleccionada
   // (/{companyId}/inicio) — se resuelve en el onClick con el companyId real.
 
@@ -96,7 +97,7 @@ export function CompanySelector(): React.JSX.Element {
               variant={isActive ? 'secondary' : 'primary'}
               onClick={() => {
                 setActiveCompany(membership.companyId);
-                router.push(rawDestination ?? `/${membership.companyId}/inicio`);
+                router.push(destination || `/${membership.companyId}/inicio`);
               }}
             >
               {isActive ? 'Continuar' : 'Entrar'}

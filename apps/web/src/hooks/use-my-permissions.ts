@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { fetchMyPermissions } from '@/lib/roles-client';
@@ -14,7 +14,6 @@ import { useSessionStore } from '@/store/use-session-store';
  */
 export function useMyPermissions(companyId: string | null) {
   const setPermissions = useSessionStore((state) => state.setPermissions);
-  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['permissions', companyId],
@@ -29,5 +28,5 @@ export function useMyPermissions(companyId: string | null) {
     }
   }, [query.data, setPermissions]);
 
-  return { permissions: query.data ?? [], isLoading: query.isLoading, queryClient };
+  return { permissions: query.data ?? [], isLoading: query.isLoading };
 }

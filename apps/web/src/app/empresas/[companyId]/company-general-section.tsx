@@ -43,16 +43,16 @@ export function CompanyGeneralSection({
       rfc: data.rfc ?? '',
     },
   });
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset({
+    reset({
       name: data.name,
       tradeName: data.tradeName ?? '',
       businessActivity: data.businessActivity,
       rfc: data.rfc ?? '',
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, reset]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);

@@ -111,4 +111,17 @@ describe('Auth (e2e)', () => {
       .get('/api/v1/companies/00000000-0000-4000-8000-000000000001/memberships')
       .expect(401);
   });
+
+  it('POST /api/v1/auth/change-password sin sesion responde 401 (EWO-004)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/change-password')
+      .send({ currentPassword: 'Cualquiera@1', newPassword: 'NuevaCualquiera@1' })
+      .expect(401);
+  });
+
+  it('GET /api/v1/companies/:companyId/my-permissions sin sesion responde 401 (EWO-004)', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/companies/00000000-0000-4000-8000-000000000001/my-permissions')
+      .expect(401);
+  });
 });

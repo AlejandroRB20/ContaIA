@@ -12,6 +12,7 @@ import { useMfaChallenge } from '@/hooks/use-mfa-challenge';
 import { useMfaEnrollment } from '@/hooks/use-mfa-enrollment';
 import { fetchCurrentUser } from '@/lib/auth-client';
 import { ApiError } from '@/lib/http';
+import { safeInternalPath } from '@/lib/safe-navigation';
 
 const credentialsSchema = z.object({
   email: z.string().email('Ingresa un correo válido.'),
@@ -40,7 +41,7 @@ type Step =
 export function LoginForm(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const destination = searchParams.get('next') ?? '/';
+  const destination = safeInternalPath(searchParams.get('next'));
 
   const [step, setStep] = useState<Step>({ name: 'credentials' });
   const [formError, setFormError] = useState<string | null>(null);

@@ -39,11 +39,11 @@ export function CompanyFiscalSection({
     resolver: zodResolver(schema),
     defaultValues: { taxRegime: data.fiscalProfile?.taxRegime ?? '' },
   });
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset({ taxRegime: data.fiscalProfile?.taxRegime ?? '' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+    reset({ taxRegime: data.fiscalProfile?.taxRegime ?? '' });
+  }, [data, reset]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
