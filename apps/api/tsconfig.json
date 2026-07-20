@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@contaia/typescript-config/nestjs.json",
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "incremental": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test"]
+}

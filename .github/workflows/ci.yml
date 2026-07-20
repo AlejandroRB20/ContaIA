@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+# EWO-001 (docs/25_DEVOPS.md seccion 4/14): instalacion reproducible, lint,
+# typecheck, pruebas unitarias y build. No despliega, no usa credenciales
+# reales, no configura produccion (fuera de alcance de EWO-001). Las
+# pruebas de integracion (packages/database, apps/api) que requieren
+# PostgreSQL/Redis reales se ejecutan localmente via `pnpm test:integration`
+# y quedan como mejora futura de este workflow (docs/22_INFRASTRUCTURE_
+# IMPLEMENTATION_PLAN.md seccion 6), no incluida aqui.
+
+jobs:
+  ci:
+    name: Lint, typecheck, test y build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Instalar dependencias (lockfile congelado)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generar cliente de Prisma
+        run: pnpm run db:generate
+        env:
+          DATABASE_URL: postgresql://contaia:contaia_ci_only@localhost:5432/contaia
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Formato (verificacion, sin escribir)
+        run: pnpm run format:check
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Pruebas unitarias
+        run: pnpm run test:unit
+        env:
+          DATABASE_URL: postgresql://contaia:contaia_ci_only@localhost:5432/contaia
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          REDIS_ENABLED: 'false'
+          JWT_ACCESS_SECRET: ci_only_jwt_access_secret_32chars_minimum
+          MFA_ENCRYPTION_KEY: ci_only_mfa_encryption_key_32chars_minimum
+          CSRF_SECRET: ci_only_csrf_secret_32chars_minimum_value
+
+      - name: Build
+        run: pnpm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          JWT_ACCESS_SECRET: ci_only_jwt_access_secret_32chars_minimum
+          MFA_ENCRYPTION_KEY: ci_only_mfa_encryption_key_32chars_minimum
+          CSRF_SECRET: ci_only_csrf_secret_32chars_minimum_value

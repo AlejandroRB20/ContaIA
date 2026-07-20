@@ -1,0 +1,49 @@
+{
+  "name": "@contaia/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Frontend de ContaIA (apps/web). EWO-001: pagina tecnica de estado unicamente — ver docs/19_FRONTEND_IMPLEMENTATION_PLAN.md.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "next dev -p ${WEB_PORT:-3000}",
+    "build": "next build",
+    "start": "next start -p ${WEB_PORT:-3000}",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "clean": "rimraf .next dist"
+  },
+  "dependencies": {
+    "@contaia/config": "workspace:*",
+    "@contaia/types": "workspace:*",
+    "@contaia/ui": "workspace:*",
+    "@hookform/resolvers": "^3.9.1",
+    "@tanstack/react-query": "^5.64.2",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.2",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@contaia/eslint-config": "workspace:*",
+    "@contaia/typescript-config": "workspace:*",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.18.0",
+    "jsdom": "^26.0.0",
+    "postcss": "^8.5.1",
+    "rimraf": "^6.0.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}

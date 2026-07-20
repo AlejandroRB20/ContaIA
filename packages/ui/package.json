@@ -1,0 +1,45 @@
+{
+  "name": "@contaia/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fundamentos visuales compartidos de ContaIA: utilidad de clases y preset de Tailwind con los tokens semanticos de docs/13_DESIGN_SYSTEM.md. Sin componentes shadcn/ui instalados todavia (EWO-001 no implementa UI de negocio) — preparado para que un EWO de UI los agregue con `npx shadcn add` sin reconfigurar la base.",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tailwind-preset": {
+      "types": "./dist/tailwind-preset.d.ts",
+      "default": "./dist/tailwind-preset.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "test": "echo \"@contaia/ui: sin pruebas propias en EWO-001 (sin componentes todavia)\" && exit 0",
+    "test:unit": "pnpm run test",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@contaia/eslint-config": "workspace:*",
+    "@contaia/typescript-config": "workspace:*",
+    "@types/react": "^19.0.7",
+    "eslint": "^9.18.0",
+    "react": "^19.0.0",
+    "rimraf": "^6.0.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3"
+  }
+}

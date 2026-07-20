@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "ContaIA Internal Package",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "declaration": true,
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}

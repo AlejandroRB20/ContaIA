@@ -1,0 +1,49 @@
+{
+  "name": "@contaia/database",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paquete de base de datos de ContaIA: esquema Prisma, cliente reutilizable, migraciones y seed. Ver docs/21_DATABASE_MIGRATION_PLAN.md.",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "scripts": {
+    "generate": "dotenv -e ../../.env -- prisma generate",
+    "migrate": "dotenv -e ../../.env -- prisma migrate deploy",
+    "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "studio": "dotenv -e ../../.env -- prisma studio",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "dotenv -e ../../.env -- vitest run --config vitest.integration.config.ts",
+    "clean": "rimraf dist generated"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "argon2": "^0.41.1"
+  },
+  "devDependencies": {
+    "@contaia/eslint-config": "workspace:*",
+    "@contaia/typescript-config": "workspace:*",
+    "@types/node": "^22.10.7",
+    "dotenv-cli": "^8.0.0",
+    "eslint": "^9.18.0",
+    "prisma": "^6.2.1",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}

@@ -1,0 +1,60 @@
+# Infraestructura local de ContaIA (EWO-001).
+#
+# Alcance deliberado: solo PostgreSQL y Redis. MinIO se excluye a proposito
+# en esta fase — ningun modulo funcional del MVP en EWO-001 usa
+# almacenamiento de objetos todavia (STORAGE_ENABLED=false por defecto,
+# packages/validation/src/env/storage.ts) y docs/22_INFRASTRUCTURE_
+# IMPLEMENTATION_PLAN.md (seccion 9) pide explicitamente no anadir
+# servicios que no aporten valor inmediato al entorno local. Se agregara en
+# el EWO que implemente el modulo Documents/Files.
+#
+# Objetivo principal: desarrollo local estable (docs/22, seccion 9), no
+# produccion.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: contaia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-contaia}
+      POSTGRES_USER: ${POSTGRES_USER:-contaia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contaia_dev_only}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - contaia_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-contaia} -d ${POSTGRES_DB:-contaia}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - contaia_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: contaia-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - contaia_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - contaia_network
+
+volumes:
+  contaia_postgres_data:
+    name: contaia_postgres_data
+  contaia_redis_data:
+    name: contaia_redis_data
+
+networks:
+  contaia_network:
+    name: contaia_network
+    driver: bridge

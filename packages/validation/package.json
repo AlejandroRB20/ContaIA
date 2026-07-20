@@ -1,0 +1,35 @@
+{
+  "name": "@contaia/validation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Esquemas Zod compartidos: variables de entorno agrupadas por dominio (docs/20_BACKEND_IMPLEMENTATION_PLAN.md seccion 2, docs/19_FRONTEND_IMPLEMENTATION_PLAN.md seccion 2). Sin logica de negocio.",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@contaia/eslint-config": "workspace:*",
+    "@contaia/typescript-config": "workspace:*",
+    "eslint": "^9.18.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}

@@ -1,0 +1,476 @@
+// Esquema Prisma de ContaIA.
+//
+// EWO-001 (Project Foundation) dejo unicamente `SystemMetadata`, una entidad
+// tecnica sin significado de negocio, para validar la infraestructura.
+//
+// EWO-002 (Authentication & Authorization) agrega el primer bloque de
+// entidades de dominio real: Identity (User, Session, credenciales de
+// recuperacion) y Roles & Permissions (Role, Permission, RolePermission,
+// Membership), mas Company en su forma minima (ver docs/engineering/
+// EWO-002_AUTH_REPORT.md, seccion de alcance, para el porque Company no
+// incluye todavia el resto de sus campos de negocio) e Invitation/AuditLog
+// como soporte transversal de esos dos modulos.
+//
+// EWO-003 (Organization & Company Management) completa Company con los
+// campos de negocio protegidos por BR-EMP-003 (razon social — ya cubierta
+// por `name` — y giro, agregado aqui como `businessActivity`) y agrega
+// Organization (BR-ORG-001/002, docs/01_PRD.md seccion 11): agrupador de una
+// o varias Company administradas por el mismo conjunto de usuarios. El
+// aislamiento de datos sigue siendo por Company (BR-GLB-001) — Organization
+// nunca fusiona datos entre Company. Alcance deliberadamente minimo: solo
+// los campos y endpoints ya documentados (API-0009/API-0010); sin
+// administracion completa de Organization (editar, eliminar, transferir),
+// ver docs/engineering/EWO-003_COMPANY_REPORT.md.
+//
+// Decision de multi-tenancy (docs/09_DATABASE_DESIGN.md seccion 3 y 5,
+// BR-USR-002, BR-EMP-004): Usuario<->Empresa es N:M via Membership, que
+// lleva el Rol y el atributo isOwner — nunca un companyId/isOwner directo
+// en User. Ver brain/DECISIONS.md para el registro completo de esta y las
+// demas decisiones de EWO-002.
+//
+// Convenciones ya fijadas en docs/21_DATABASE_MIGRATION_PLAN.md (seccion 3):
+// tablas en snake_case plural, claves primarias UUID opacas, timestamps en
+// UTC (timestamptz). Entidades de negocio definitivas nunca se eliminan
+// fisicamente (BR-INT-002) — por eso User/Company usan `deletedAt` en vez de
+// un borrado real; Session/PasswordReset/EmailVerification/Invitation son
+// tecnicas de corta vida y si se purgan (fuera del alcance de EWO-002).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Entidad tecnica minima para validar que la infraestructura de base de
+/// datos funciona de extremo a extremo (migracion, escritura, lectura).
+/// No es una entidad de dominio de negocio.
+model SystemMetadata {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Clave unica del parametro tecnico (por ejemplo: "foundation.bootstrapped_at").
+  key String @unique @db.VarChar(200)
+
+  /// Valor asociado, almacenado como texto plano.
+  value String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("system_metadata")
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+  DECLINED
+}
+
+/// Los seis roles oficiales del MVP (docs/04_BUSINESS_RULES.md seccion 5).
+/// "Propietario" nunca es un valor de este enum — es el atributo `isOwner`
+/// de Membership (BR-PERM-003).
+enum RoleName {
+  ADMINISTRADOR
+  CONTADOR
+  AUXILIAR
+  SUPERVISOR
+  AUDITOR
+  ESTUDIANTE
+}
+
+/// Persona con una identidad unica en ContaIA (BR-USR-002). Puede sostener
+/// varias Membership (una por Empresa en la que participa). Un Usuario sin
+/// ninguna Membership y con `isPlatformAdmin=true` es el "Administrador de
+/// plataforma" (personal interno de ContaIA, BR-SEC-004/BR-AUD-003) — nunca
+/// hereda una Membership de Empresa cliente por defecto.
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique @db.VarChar(255)
+  passwordHash       String     @map("password_hash") @db.Text
+  firstName          String     @map("first_name") @db.VarChar(120)
+  lastName           String     @map("last_name") @db.VarChar(120)
+  phone              String?    @db.VarChar(30)
+  avatar             String?    @db.Text
+  /// Estado de la CUENTA global del usuario en toda la plataforma — distinto
+  /// de `Membership.membershipStatus` (estado de la pertenencia a una
+  /// Empresa concreta). Nombre explicito para evitar cualquier ambiguedad
+  /// entre ambos conceptos.
+  accountStatus      UserStatus @default(PENDING_VERIFICATION) @map("account_status")
+  emailVerified      Boolean    @default(false) @map("email_verified")
+  emailVerifiedAt    DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  isPlatformAdmin    Boolean    @default(false) @map("is_platform_admin")
+  mfaEnabled         Boolean    @default(false) @map("mfa_enabled")
+  /// Secreto TOTP cifrado (AES-256-GCM, MFA_ENCRYPTION_KEY) — nunca en claro.
+  mfaSecretEncrypted String?    @map("mfa_secret_encrypted") @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  memberships        Membership[]
+  sessions           Session[]
+  passwordResets     PasswordReset[]
+  emailVerifications EmailVerification[]
+  sentInvitations    Invitation[]        @relation("InvitationInvitedBy")
+  mfaRecoveryCodes   MfaRecoveryCode[]
+  auditLogsAsActor   AuditLog[]          @relation("AuditLogActor")
+
+  @@map("users")
+}
+
+/// Agrupador de una o varias Company administradas por el mismo conjunto de
+/// usuarios (BR-ORG-001) — formaliza el "Despacho contable" de
+/// docs/01_PRD.md seccion 11. El aislamiento de datos sigue siendo por
+/// Company (BR-GLB-001, BR-ORG-002): Organization nunca fusiona datos entre
+/// sus Company. Toda Company pertenece a exactamente una Organization —
+/// implicita (creada junto con la primera Company del usuario) o explicita
+/// (agrupando una Company nueva bajo una Organization ya existente que el
+/// usuario administra), Workflow 4 de docs/06_SYSTEM_WORKFLOWS.md.
+model Organization {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(255)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  companies Company[]
+
+  @@map("organizations")
+}
+
+/// Unidad de aislamiento de datos (docs/09_DATABASE_DESIGN.md seccion 3).
+/// `name` sostiene la razon social (BR-EMP-003); `businessActivity` es el
+/// giro, agregado en EWO-003 — ambos protegidos: solo un Administrador de
+/// esa Company los modifica (BR-EMP-003, BR-CFG-001). `version` sostiene el
+/// bloqueo optimista de `PATCH /companies/{companyId}` (docs/08_API_DESIGN.md
+/// seccion 9.2, API-0014: "Idempotencia: Si (If-Match)"), mismo patron que
+/// `Membership.version`. Activacion/baja de Company queda deliberadamente
+/// fuera de alcance (ver docs/engineering/EWO-003_COMPANY_REPORT.md):
+/// `status`/`deletedAt` se mantienen en el esquema para una Work Order
+/// futura con regla de negocio aprobada, sin exponerse todavia en ningun
+/// endpoint.
+model Company {
+  id               String        @id @default(uuid()) @db.Uuid
+  organizationId   String        @map("organization_id") @db.Uuid
+  name             String        @db.VarChar(255)
+  tradeName        String?       @map("trade_name") @db.VarChar(255)
+  businessActivity String        @map("business_activity") @db.VarChar(255)
+  rfc              String?       @db.VarChar(13)
+  status           CompanyStatus @default(ACTIVE)
+  version          Int           @default(1)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  fiscalProfile CompanyFiscalProfile?
+  address       CompanyAddress?
+  settings      CompanySettings?
+  memberships   Membership[]
+  invitations   Invitation[]
+  auditLogs     AuditLog[]
+
+  @@index([organizationId])
+  @@map("companies")
+}
+
+/// Perfil fiscal de la Company (EWO-003, seccion 5.7 de la Work Order —
+/// sin respaldo en docs/09_DATABASE_DESIGN.md, que no modela ningun campo
+/// de negocio de Empresa mas alla de `companyId`; disenado desde la propia
+/// especificacion de la Work Order). `taxRegime` es texto libre/codigo, sin
+/// catalogo de regimenes SAT hardcodeado (CLAUDE.md regla 6: ninguna
+/// informacion fiscal no validada por el usuario) — el catalogo oficial de
+/// regimenes queda para una Work Order fiscal futura. El codigo postal
+/// fiscal para CFDI es el mismo que `CompanyAddress.postalCode` (domicilio
+/// fiscal) — no se duplica aqui. Relacion 1:1, parte del mismo agregado que
+/// `Company`: el bloqueo optimista de sus cambios usa `Company.version`
+/// (docs/07_SOFTWARE_ARCHITECTURE.md seccion 5: Company es el aggregate
+/// root), no un version propio.
+model CompanyFiscalProfile {
+  id        String  @id @default(uuid()) @db.Uuid
+  companyId String  @unique @map("company_id") @db.Uuid
+  taxRegime String? @map("tax_regime") @db.VarChar(100)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("company_fiscal_profiles")
+}
+
+/// Domicilio fiscal de la Company (EWO-003, seccion 5.7 — mismo alcance de
+/// disenio propio que `CompanyFiscalProfile`, sin respaldo documental
+/// previo). Relacion 1:1, mismo aggregate root que `Company` (ver
+/// comentario de `CompanyFiscalProfile`).
+model CompanyAddress {
+  id             String  @id @default(uuid()) @db.Uuid
+  companyId      String  @unique @map("company_id") @db.Uuid
+  street         String? @db.VarChar(255)
+  exteriorNumber String? @map("exterior_number") @db.VarChar(20)
+  interiorNumber String? @map("interior_number") @db.VarChar(20)
+  neighborhood   String? @db.VarChar(120)
+  municipality   String? @db.VarChar(120)
+  state          String? @db.VarChar(120)
+  postalCode     String? @map("postal_code") @db.VarChar(10)
+  country        String  @default("MX") @db.VarChar(2)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("company_addresses")
+}
+
+/// Configuracion regional/operativa de la Company (EWO-003, seccion 5.8 —
+/// mismo alcance de disenio propio, sin respaldo documental previo).
+/// Valores iniciales coherentes con una empresa mexicana (seccion 5.8 de
+/// la Work Order), configurables — nunca hardcodeados en logica de negocio.
+/// Relacion 1:1, mismo aggregate root que `Company`.
+model CompanySettings {
+  id           String @id @default(uuid()) @db.Uuid
+  companyId    String @unique @map("company_id") @db.Uuid
+  timeZone     String @default("America/Mexico_City") @map("time_zone") @db.VarChar(60)
+  baseCurrency String @default("MXN") @map("base_currency") @db.VarChar(3)
+  language     String @default("es-MX") @db.VarChar(10)
+  country      String @default("MX") @db.VarChar(2)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("company_settings")
+}
+
+/// Catalogo global de roles (no un valor libre) — RBAC evaluado siempre
+/// como (Usuario, companyId, Rol) (docs/08_API_DESIGN.md seccion 7).
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        RoleName @unique
+  description String   @db.Text
+  isSystem    Boolean  @default(true) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+  memberships     Membership[]
+  invitations     Invitation[]
+
+  @@map("roles")
+}
+
+/// Permiso granular (ej. "journal.approve"). Nunca hardcodeado en el
+/// codigo del backend — se evalua siempre contra este catalogo + RolePermission.
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.VarChar(100)
+  description String @db.Text
+  module      String @db.VarChar(60)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// La relacion (Usuario, Empresa, Rol) — punto real de multi-tenencia
+/// (docs/09_DATABASE_DESIGN.md seccion 5). `isOwner` es metadato informativo
+/// sin permisos tecnicos adicionales (BR-PERM-003). `version` sostiene
+/// bloqueo optimista en cambios de rol (docs/08_API_DESIGN.md seccion 13).
+model Membership {
+  id               String           @id @default(uuid()) @db.Uuid
+  userId           String           @map("user_id") @db.Uuid
+  companyId        String           @map("company_id") @db.Uuid
+  roleId           String           @map("role_id") @db.Uuid
+  isOwner          Boolean          @default(false) @map("is_owner")
+  /// Estado de la PERTENENCIA de este Usuario a esta Empresa — distinto de
+  /// `User.accountStatus` (estado de la cuenta global). Nombre explicito
+  /// para evitar cualquier ambiguedad entre ambos conceptos.
+  membershipStatus MembershipStatus @default(PENDING) @map("membership_status")
+  invitedAt        DateTime?        @map("invited_at") @db.Timestamptz(6)
+  acceptedAt       DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  version          Int              @default(1)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Baja logica de la Membership (BR-INT-002: nunca eliminacion fisica) —
+  /// distinta de `membershipStatus=REVOKED`, que es una transicion normal
+  /// del ciclo de vida de negocio; `deletedAt` es para correccion de datos
+  /// (ej. una invitacion aceptada por error), fuera de los listados
+  /// normales incluso como "revocada".
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("memberships")
+}
+
+/// Respaldo del refresh token (aleatorio, no JWT) — el access token JWT de
+/// corta duracion nunca se persiste (docs/20_BACKEND_IMPLEMENTATION_PLAN.md
+/// seccion 2/18). `refreshTokenHash` es un hash SHA-256 del token real
+/// (alta entropia — no requiere Argon2id, a diferencia de las contraseñas).
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(64)
+  userAgent        String?   @map("user_agent") @db.Text
+  ipAddress        String?   @map("ip_address") @db.VarChar(45)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// Autorreferencia — encadena la sesion previa cuando el refresh token rota.
+  rotatedFromId    String?   @map("rotated_from_id") @db.Uuid
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
+model EmailVerification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("email_verifications")
+}
+
+/// Puerta de entrada a una Empresa cuando no existe todavia Membership
+/// (BR-USR-001: rol explicito, sin acceso hasta aceptar). No existe un
+/// endpoint publico de "crear empresa" en EWO-002 — solo aceptar invitacion.
+model Invitation {
+  id              String           @id @default(uuid()) @db.Uuid
+  companyId       String           @map("company_id") @db.Uuid
+  email           String           @db.VarChar(255)
+  roleId          String           @map("role_id") @db.Uuid
+  invitedByUserId String           @map("invited_by_user_id") @db.Uuid
+  status          InvitationStatus @default(PENDING)
+  tokenHash       String           @unique @map("token_hash") @db.VarChar(64)
+  expiresAt       DateTime         @map("expires_at") @db.Timestamptz(6)
+  acceptedAt      DateTime?        @map("accepted_at") @db.Timestamptz(6)
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role    @relation(fields: [roleId], references: [id])
+  invitedBy User    @relation("InvitationInvitedBy", fields: [invitedByUserId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId])
+  @@index([email])
+  @@map("invitations")
+}
+
+/// Codigos de un solo uso para completar login cuando el TOTP no esta
+/// disponible. `codeHash` es SHA-256 del codigo real.
+model MfaRecoveryCode {
+  id       String    @id @default(uuid()) @db.Uuid
+  userId   String    @map("user_id") @db.Uuid
+  codeHash String    @map("code_hash") @db.VarChar(64)
+  usedAt   DateTime? @map("used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, codeHash])
+  @@map("mfa_recovery_codes")
+}
+
+/// Evidencia inmutable de toda accion sensible (docs/09_DATABASE_DESIGN.md
+/// seccion 5, BR-TRZ-001/002). Append-only aplicado a nivel de aplicacion —
+/// el repositorio de este modelo (AuditService) nunca expone update/delete.
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorUserId   String?  @map("actor_user_id") @db.Uuid
+  companyId     String?  @map("company_id") @db.Uuid
+  action        String   @db.VarChar(100)
+  resourceType  String   @map("resource_type") @db.VarChar(60)
+  resourceId    String?  @map("resource_id") @db.Uuid
+  result        String   @db.VarChar(30)
+  beforeState   Json?    @map("before_state")
+  afterState    Json?    @map("after_state")
+  ipAddress     String?  @map("ip_address") @db.VarChar(45)
+  deviceInfo    String?  @map("device_info") @db.Text
+  reason        String?  @db.Text
+  correlationId String   @map("correlation_id") @db.VarChar(100)
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
+
+  actor   User?    @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([actorUserId])
+  @@index([companyId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}

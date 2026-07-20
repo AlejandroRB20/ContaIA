@@ -1,0 +1,13 @@
+{
+  "name": "@contaia/typescript-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configuraciones de TypeScript compartidas para el monorepo de ContaIA (base, Next.js, NestJS, paquetes internos).",
+  "license": "UNLICENSED",
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "nestjs.json",
+    "internal-package.json"
+  ]
+}
