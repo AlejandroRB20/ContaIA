@@ -92,8 +92,11 @@ Usuario hace click "Cambiar empresa"
   → setActiveCompany(nuevoCompanyId) [Zustand, permissions = []]
   → router.push(`/${nuevoCompanyId}/inicio`)
   → useMyPermissions carga nuevos permisos para la nueva clave de caché
-  → TanStack Query invalida automáticamente toda caché con el companyId anterior
-    al hacer nuevas peticiones con el nuevo companyId en la clave
+  → TanStack Query NO invalida la caché anterior: la clave incluye companyId
+    (queryKey: ['permissions', companyId]), por lo que cada Empresa tiene su
+    propia entrada de caché independiente; la entrada previa permanece hasta
+    su gcTime, o se reutiliza de inmediato si el usuario vuelve a esa Empresa
+    dentro del staleTime
 ```
 
 ---
@@ -158,8 +161,56 @@ git commit -m "feat(database): generate initial Prisma migration (EWO-001/002/00
 
 ---
 
-## 10. Historial de cambios del informe
+## 10. Adenda — Corrección del bypass de Administrador de plataforma y determinación de alcance de API-0053
 
-| Fecha      | Cambio                                                           | Responsable                  |
-| ---------- | ---------------------------------------------------------------- | ---------------------------- |
-| 2026-07-20 | Creación del informe de EWO-004 — User, RBAC & Workspace Context | Claude Code (implementación) |
+_(2026-07-21, sesión posterior al cierre inicial de este informe)_
+
+### 10.1 Conflicto detectado
+
+Los guards (`CompanyGuard`, `PermissionGuard`, `RoleGuard`, `OwnershipGuard`) retornan `true` para `request.user.isPlatformAdmin` sin adjuntar `request.membership` — comportamiento correcto y ya documentado (`brain/DECISIONS.md` D-002: el Administrador de plataforma ve todas las Empresas sin tener Membership en ninguna). Sin embargo, cuatro endpoints company-scoped leían `request.membership` a través del decorador `@Company()` asumiendo que siempre existía, lo que producía un error 500 no controlado cuando un Administrador de plataforma los invocaba:
+
+- `GET /v1/companies/:companyId`
+- `PATCH /v1/companies/:companyId`
+- `POST /v1/companies/:companyId/invitations`
+- `GET /v1/companies/:companyId/my-permissions`
+
+### 10.2 Determinación de alcance de API-0053
+
+Se investigó, con evidencia documental explícita, si la solución definitiva (acceso de soporte JIT, `POST /admin/support-access`, API-0053) pertenece al alcance de EWO-004:
+
+- `docs/19_FRONTEND_IMPLEMENTATION_PLAN.md` línea 228 y `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` línea 244 ubican el módulo Administration (que contiene API-0053) en **Fase 8** (prioridad Media), fuera del alcance ya implementado de EWO-004.
+- `docs/11_SECURITY_ARCHITECTURE.md` línea 744 y `docs/14_INFORMATION_ARCHITECTURE.md` línea 720 confirman que API-0053 pertenece al módulo Administration (Acceso JIT de soporte, BR-SEC-004/BR-AUD-003).
+- El alcance aprobado de EWO-004 (sección 1 de este informe) es exclusivamente Workspace Context — sin mención de Administration ni de acceso de soporte.
+- Ningún documento de planificación (Roadmap, PRD, AWO, EWO, `MASTER_CONTEXT.md`, `brain/`) asigna API-0053 a EWO-004.
+
+**Conclusión: API-0053 no pertenece al alcance de EWO-004. Pertenece al módulo Administration (Fase 8), pendiente de una Work Order futura.**
+
+### 10.3 Corrección aplicada (dentro del alcance de EWO-004)
+
+Sin implementar acceso JIT ni API-0053, se aplicó una protección temporal y mínima:
+
+- `apps/api/src/common/decorators/company.decorator.ts`: el decorador `@Company()` ahora lanza `PlatformAdminWithoutSupportAccessException` (403) cuando `request.membership` no existe, en vez de devolver `undefined` y provocar un 500 no controlado.
+- `apps/api/src/common/exceptions/auth.exceptions.ts`: nueva excepción `PlatformAdminWithoutSupportAccessException`, con mensaje explícito que referencia BR-SEC-004 y aclara que la funcionalidad de soporte aún no está disponible.
+- Al ser un parámetro (`@Company()`) resuelto por NestJS antes de ejecutar el cuerpo del método del controlador, la excepción se lanza antes de cualquier lectura o escritura — `PATCH /v1/companies/:companyId` no persiste ningún cambio antes del 403.
+- No se creó Membership ficticia, rol sintético, `isOwner` artificial ni permisos derivados de un rol inexistente. No se modificó `CompanyGuard`, `PermissionGuard`, `RoleGuard` ni `OwnershipGuard` — el bypass de Administrador de plataforma en los guards permanece exactamente como estaba documentado (D-002). No se mezcló Platform RBAC con Company RBAC. No se modificó Workspace Context. No se modificó el schema de Prisma. No se creó ningún endpoint nuevo. No se cambió ningún contrato público existente.
+
+### 10.4 Corrección factual de este mismo informe
+
+La sección 5 de este informe (versión original) afirmaba que "TanStack Query invalida automáticamente toda caché con el companyId anterior" al cambiar de Empresa. Esto era impreciso: la clave de consulta (`queryKey: ['permissions', companyId]`) hace que cada Empresa tenga su propia entrada de caché independiente — TanStack Query no invalida la entrada anterior, simplemente consulta una clave distinta. Corregido directamente en la sección 5 de este documento.
+
+### 10.5 Pruebas agregadas
+
+- `apps/api/src/common/decorators/company.decorator.spec.ts`: 3 pruebas unitarias de `extractMembership()` (Membership presente, ausente, `undefined`).
+
+### 10.6 Estado
+
+Esta adenda no cambia el estado de EWO-004: continúa **BLOCKED** por el mismo motivo desde EWO-001 (migración inicial de Prisma pendiente por ausencia de Docker/PostgreSQL). Ningún criterio de código está pendiente.
+
+---
+
+## 11. Historial de cambios del informe
+
+| Fecha      | Cambio                                                                                                                                                                                                                                                                                                          | Responsable                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 2026-07-20 | Creación del informe de EWO-004 — User, RBAC & Workspace Context                                                                                                                                                                                                                                                | Claude Code (implementación)                                                                            |
+| 2026-07-21 | Adenda: corrección del bypass 500 de Administrador de plataforma en cuatro endpoints company-scoped (403 controlado vía `@Company()`); determinación de alcance de API-0053 (pertenece a Administration/Fase 8, no a EWO-004); corrección factual de la sección 5 sobre invalidación de caché de TanStack Query | Responsable de producto de ContaIA (orden de investigación y corrección) / Claude Code (implementación) |

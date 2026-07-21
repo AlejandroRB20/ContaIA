@@ -34,8 +34,9 @@ export default function CompanyLayout({ children }: CompanyLayoutProps): React.J
   const session = useSession();
   const setActiveCompany = useSessionStore((state) => state.setActiveCompany);
   const activeCompanyId = useSessionStore((state) => state.activeCompanyId);
+  const membership = session.data?.memberships.find((item) => item.companyId === companyId);
 
-  useMyPermissions(companyId);
+  useMyPermissions(membership ? companyId : null);
 
   useEffect(() => {
     if (session.isLoading || !companyId) return;
@@ -45,7 +46,6 @@ export default function CompanyLayout({ children }: CompanyLayoutProps): React.J
       return;
     }
 
-    const membership = session.data.memberships.find((m) => m.companyId === companyId);
     if (!membership) {
       router.replace(`/seleccionar-empresa?next=${encodeURIComponent(pathname)}`);
       return;
@@ -59,6 +59,7 @@ export default function CompanyLayout({ children }: CompanyLayoutProps): React.J
     session.isError,
     session.data,
     companyId,
+    membership,
     activeCompanyId,
     setActiveCompany,
     router,
@@ -81,7 +82,6 @@ export default function CompanyLayout({ children }: CompanyLayoutProps): React.J
     );
   }
 
-  const membership = session.data.memberships.find((m) => m.companyId === companyId);
   if (!membership) {
     return (
       <div className="flex min-h-dvh items-center justify-center">

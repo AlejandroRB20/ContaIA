@@ -57,6 +57,22 @@ export class MembershipNotFoundException extends ForbiddenException {
   }
 }
 
+/**
+ * BR-SEC-004, BR-AUD-003: un Administrador de plataforma no tiene Membership
+ * en ninguna Empresa cliente. El acceso a datos de empresa requiere el flujo
+ * de soporte (API-0053 POST /admin/support-access) que aun no esta
+ * implementado. Hasta entonces, los endpoints company-scoped que dependen de
+ * un contexto de Membership (rol, isOwner, roleId) devuelven 403.
+ */
+export class PlatformAdminWithoutSupportAccessException extends ForbiddenException {
+  constructor() {
+    super(
+      'El acceso de soporte a empresas cliente requiere registrar un motivo (BR-SEC-004). ' +
+        'Esta funcionalidad aún no está disponible.',
+    );
+  }
+}
+
 export class EmailAlreadyRegisteredException extends ConflictException {
   constructor() {
     super('Ya existe una cuenta con este correo electrónico.');
