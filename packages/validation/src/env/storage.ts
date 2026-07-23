@@ -2,9 +2,8 @@ import { z } from 'zod';
 
 /**
  * Variables de almacenamiento de objetos compatible con S3 (MinIO en local).
- * Reservado para cuando el modulo Documents/Files lo requiera (fuera del
- * alcance de EWO-001) — se valida aqui para no fragmentar la validacion
- * de entorno mas adelante.
+ * Activo desde EWO-005 (modulo Documents/Files) — docker-compose.yml levanta
+ * MinIO y STORAGE_ENABLED=true por defecto en desarrollo.
  */
 export const storageEnvSchema = z.object({
   STORAGE_ENABLED: z
