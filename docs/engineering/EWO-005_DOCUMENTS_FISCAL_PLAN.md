@@ -6,7 +6,7 @@
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | EWO            | EWO-005                                                                                                                                                                                                                                     |
 | Título         | Documents & Fiscal (Carga de documentos, procesamiento XML y extracción de CFDI)                                                                                                                                                            |
-| Estado         | **PLANNING** — plan técnico aprobado para inicio en la siguiente sesión                                                                                                                                                                     |
+| Estado         | **APPROVED** — correcciones de auditoría aplicadas el 2026-07-23; listo para iniciar implementación                                                                                                                                         |
 | Fase           | Fase 3 del Plan de Implementación (`docs/19_FRONTEND_IMPLEMENTATION_PLAN.md`, sección 17)                                                                                                                                                   |
 | Fecha del plan | 2026-07-22                                                                                                                                                                                                                                  |
 | Fuentes        | `docs/04_BUSINESS_RULES.md` §4.5–4.7, `docs/06_SYSTEM_WORKFLOWS.md` §6-7, `docs/08_API_DESIGN.md` §9.5/§14, `docs/09_DATABASE_DESIGN.md` §10, `docs/19_FRONTEND_IMPLEMENTATION_PLAN.md` §4/§17, `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` §3 |
@@ -50,7 +50,12 @@ El módulo no timbra ni valida ante el SAT (BR-CFDI-001). No genera Pólizas. No
 | `Cfdi`     | Datos extraídos del XML fiscal; `(companyId, folioFiscal)` único — deduplicación a nivel de dato |
 | `Job`      | Operación asíncrona (extracción XML, generación de reportes futuros); expuesto via API-0055      |
 
-Enumeraciones nuevas: `DocumentStatus` (`PENDING_UPLOAD`, `PROCESSING`, `PROCESSED`, `REJECTED`), `JobStatus` (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`), `JobType` (`XML_EXTRACTION`).
+Enumeraciones nuevas:
+
+- `DocumentStatus`: `PENDING_UPLOAD`, `PROCESSING`, `PROCESSED`, `REJECTED`
+- `DocumentFileType`: `XML`, `PDF`, `OTHER` — tipo del archivo cargado; no ampliar valores sin evidencia funcional
+- `JobStatus`: `QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`
+- `JobType`: `XML_EXTRACTION`
 
 ### 2.3 Frontend
 
@@ -69,17 +74,21 @@ Servicios nuevos: `documentsService` (grupo 9.5 de `docs/08_API_DESIGN.md`), `fi
 
 ## 3. Fuera de alcance
 
-| Ítem                                                 | Razón                                                                                       | EWO prevista    |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- |
-| Vinculación CFDI → Póliza (BR-CFDI-003)              | Depende de `JournalEntriesService` (Accounting module)                                      | EWO-006         |
-| Catálogo de Cuentas y Pólizas                        | Phase 5 del plan de implementación                                                          | EWO-006         |
-| Timbrado o validación ante el SAT/PAC                | Prohibido en el MVP (BR-CFDI-001, BR-GLB-005)                                               | Etapa 4         |
-| Ejercicios fiscales (FiscalYear)                     | Lógicamente es extensión de Companies; se agrega en EWO-006 cuando Contabilidad lo requiera | EWO-006         |
-| Módulo de Reportes                                   | Phase 7 — depende de Accounting                                                             | EWO-007         |
-| Módulo de IA / Asistente                             | Phase 6 — depende de Accounting                                                             | EWO-007+        |
-| Administration / Notificaciones                      | Phase 8                                                                                     | EWO-008         |
-| Configuración de infraestructura MinIO en producción | Fuera del MVP — no fija proveedor cloud (`docs/20` §2)                                      | Infraestructura |
-| E2E / Playwright                                     | Testing strategy define scope de E2E fuera del MVP de cada EWO                              | Separado        |
+| Ítem                                                 | Razón                                                                                                                                                        | EWO prevista    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| Vinculación CFDI → Póliza (BR-CFDI-003)              | Depende de `JournalEntriesService` (Accounting module)                                                                                                       | EWO-006         |
+| Catálogo de Cuentas y Pólizas                        | Phase 5 del plan de implementación                                                                                                                           | EWO-006         |
+| Timbrado o validación ante el SAT/PAC                | Prohibido en el MVP (BR-CFDI-001, BR-GLB-005)                                                                                                                | Etapa 4         |
+| Ejercicios fiscales (FiscalYear)                     | Lógicamente es extensión de Companies; se agrega en EWO-006 cuando Contabilidad lo requiera                                                                  | EWO-006         |
+| Módulo de Reportes                                   | Phase 7 — depende de Accounting                                                                                                                              | EWO-007         |
+| Módulo de IA / Asistente                             | Phase 6 — depende de Accounting                                                                                                                              | EWO-007+        |
+| Administration / Notificaciones                      | Phase 8                                                                                                                                                      | EWO-008         |
+| Configuración de infraestructura MinIO en producción | Fuera del MVP — no fija proveedor cloud (`docs/20` §2)                                                                                                       | Infraestructura |
+| E2E / Playwright                                     | Testing strategy define scope de E2E fuera del MVP de cada EWO                                                                                               | Separado        |
+| `FiscalModule` (módulo NestJS propio)                | docs/20 §3 lo lista como módulo independiente; EWO-005 sólo implementa CfdiModule; FiscalModule, si se requiere como orquestador propio, es scope de EWO-006 | EWO-006         |
+| Webhook MinIO (`s3:ObjectCreated:*`)                 | Añade configuración de infraestructura, complica trazabilidad y pruebas; no necesario para MVP                                                               | EWO-006+        |
+| Borrado físico automático de objetos en MinIO        | No declarado en docs/08 ni en EWO-005; puede ser deuda futura si se requiere limpieza de REJECTED                                                            | EWO posterior   |
+| Adaptador S3 producción (`S3StorageAdapter`)         | `StorageAdapter` lo hará posible sin cambios en lógica de negocio; se implementa en infraestructura productiva                                               | Infraestructura |
 
 ---
 
@@ -91,6 +100,7 @@ Servicios nuevos: `documentsService` (grupo 9.5 de `docs/08_API_DESIGN.md`), `fi
 Cliente (browser)
   │
   ├─ 1. POST /companies/{companyId}/documents (API-0023)
+  │       Headers: Idempotency-Key: <uuid>
   │       Body: { filename, mimeType, fileType }
   │       → Backend crea Document en PENDING_UPLOAD
   │       → StorageAdapter.getPresignedUploadUrl()
@@ -99,16 +109,26 @@ Cliente (browser)
   ├─ 2. PUT <presignedUrl>   (cliente → MinIO/S3 directo, nunca pasa por NestJS)
   │       ← 200 OK (del almacenamiento de objetos)
   │
-  ├─ 3. Webhook o polling GET /jobs/{jobId} (API-0055) cada N segundos
-  │       → BullMQ worker xml-extraction se dispara al completar el upload
-  │       → XmlValidationService.validate()
-  │             Si inválido → Document.status = REJECTED + rejectionReason
-  │             Si válido XML → CfdiService.extract() → Document.status = PROCESSED + Cfdi record
+  ├─ 3. POST /documents/{documentId}/confirm-upload   ← TRIGGER DEL WORKER (decisión D-01)
+  │       → Backend valida: documento pertenece a empresa activa; estado permite confirmación;
+  │         objeto existe en almacenamiento; tamaño y metadatos coherentes.
+  │       → Crea o actualiza Job (idempotente: no genera múltiples Jobs activos)
+  │       → Encola trabajo en cola BullMQ `xml-extraction`
+  │       → Document.status = PROCESSING
+  │       ← 202: { jobId }
+  │
+  ├─ 4. GET /jobs/{jobId} (API-0055) — polling cada N segundos hasta estado terminal
+  │       → Worker xml-extraction ejecuta:
+  │             XmlValidationService.validate()
+  │               Si inválido → Document.status = REJECTED + rejectionReason
+  │               Si válido XML → CfdiService.extract() → Document.status = PROCESSED + Cfdi record
   │       ← { status: COMPLETED|FAILED, resourceId, resourceType }
   │
-  └─ 4. GET /documents/{documentId}/cfdi (API-0027)
+  └─ 5. GET /documents/{documentId}/cfdi (API-0027)   [sólo CONTADOR, AUXILIAR]
           ← datos extraídos del CFDI (emisor, receptor, conceptos, folioFiscal, etc.)
 ```
+
+> **Decisión D-01 — trigger del worker BullMQ:** se usa el endpoint `POST /documents/{id}/confirm-upload` en lugar de un webhook de MinIO. Razón: el webhook añade configuración de infraestructura externa, complica la trazabilidad de errores y no es necesario para el MVP. El endpoint es consistente con el contrato REST ya documentado en `docs/08_API_DESIGN.md` y permite entregar el `jobId` al cliente en la misma respuesta HTTP. Los webhooks de MinIO podrán evaluarse en una etapa futura si el volumen de cargas justifica eliminar el round-trip del cliente.
 
 ### 4.2 Deduplicación de CFDI (Workflow 7, sección 13 de docs/08)
 
@@ -125,27 +145,36 @@ CfdiService.extract(documentId, companyId)
 ### 4.3 Inversión de dependencias — StorageAdapter
 
 ```typescript
-// packages/database/src/storage/storage.interface.ts
+// apps/api/src/modules/storage/storage.interface.ts   ← ubicación CORRECTA (capa de aplicación NestJS)
 interface StorageAdapter {
   getPresignedUploadUrl(key: string, expiresInSeconds: number): Promise<string>;
   getPresignedDownloadUrl(key: string, expiresInSeconds: number): Promise<string>;
   deleteObject(key: string): Promise<void>;
 }
 
-// apps/api/src/modules/storage/minio.adapter.ts  (implementación concreta)
-// apps/api/src/modules/storage/s3.adapter.ts      (producción futura)
+// apps/api/src/modules/storage/minio.adapter.ts  (implementación concreta — dev/test)
+// apps/api/src/modules/storage/s3.adapter.ts      (producción futura — misma interfaz)
 ```
 
-`DocumentsModule` inyecta `StorageAdapter` como token, nunca el cliente concreto de MinIO — coherente con el principio de inversión de dependencias de `docs/07_SOFTWARE_ARCHITECTURE.md` §5 y `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` §4.
+`StorageAdapter` pertenece a la **capa de aplicación NestJS** (`apps/api/`), no al paquete de base de datos (`packages/database/`). `packages/database/` define únicamente el schema de Prisma y los tipos de entidades — nunca un contrato de infraestructura de almacenamiento.
+
+`DocumentsModule` inyecta `StorageAdapter` como token NestJS, nunca el cliente concreto de MinIO (`Minio.Client`) directamente — coherente con el principio de inversión de dependencias de `docs/07_SOFTWARE_ARCHITECTURE.md` §5 y `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` §4. Esta abstracción permite sustituir `MinioStorageAdapter` por `S3StorageAdapter` en producción sin modificar ningún servicio de negocio.
 
 ### 4.4 Impacto sobre la guarda de RBAC
 
-Dos nuevos permisos deben registrarse en la tabla `permissions` y asignarse a roles:
+Tres nuevos permisos deben registrarse en la tabla `permissions` y asignarse a roles:
 
-| Permiso           | Descripción                    | Roles (`docs/04_BUSINESS_RULES.md` §4.1)               |
-| ----------------- | ------------------------------ | ------------------------------------------------------ |
-| `document.upload` | Cargar documentos a la Empresa | ADMINISTRADOR, CONTADOR, AUXILIAR                      |
-| `document.read`   | Consultar documentos y CFDI    | ADMINISTRADOR, CONTADOR, AUXILIAR, SUPERVISOR, AUDITOR |
+| Permiso           | Descripción                                                                                      | Roles (`docs/04_BUSINESS_RULES.md` §4.1)               |
+| ----------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `document.upload` | Cargar documentos a la Empresa                                                                   | ADMINISTRADOR, CONTADOR, AUXILIAR                      |
+| `document.read`   | Consultar metadatos del documento, estado, motivo de rechazo y descarga del archivo original     | ADMINISTRADOR, CONTADOR, AUXILIAR, SUPERVISOR, AUDITOR |
+| `cfdi.read`       | Acceder a los datos fiscales extraídos del CFDI (emisor, receptor, conceptos, folioFiscal, etc.) | CONTADOR, AUXILIAR                                     |
+
+**Distinción crítica (`docs/08_API_DESIGN.md` §9.5):**
+
+- `document.read` protege API-0024 (lista), API-0025 (detalle de metadatos) y API-0026 (descarga del archivo). SUPERVISOR y AUDITOR sí pueden ver el listado y descargar el archivo.
+- `cfdi.read` protege API-0027 (datos CFDI de un documento) y API-0028 (lista de CFDI). **SUPERVISOR y AUDITOR no deben acceder a estos endpoints** — el contrato de API los restringe explícitamente a AUXILIAR y CONTADOR.
+- `PermissionGuard` aplica el permiso granular correcto por endpoint. No se crea ninguna lógica condicional basada directamente en roles.
 
 Los guards existentes (`PermissionGuard`, `CompanyGuard`) son suficientes — no se crea ningún guard nuevo.
 
@@ -194,13 +223,17 @@ apps/api/src/modules/storage/
 
 apps/api/src/modules/jobs/
   jobs.module.ts
-  jobs.controller.ts
+  jobs.controller.ts          (API-0055 polling)
   jobs.service.ts
   jobs.service.spec.ts
 
 apps/api/src/workers/
   xml-extraction.worker.ts
   xml-extraction.worker.spec.ts
+
+apps/api/src/modules/roles-permissions/seeds/
+  permissions.seed.ts         ← NUEVO (el directorio seeds/ no existe todavía — debe crearse)
+                                Añade los permisos: document.upload, document.read, cfdi.read
 ```
 
 **Frontend:**
@@ -237,14 +270,15 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 
 ### 5.2 Modificados (a editar)
 
-| Archivo                                                            | Cambio                                                                               |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `apps/api/src/app.module.ts`                                       | Importar DocumentsModule, CfdiModule, XmlProcessingModule, StorageModule, JobsModule |
-| `docker-compose.yml`                                               | Agregar servicio `minio` (imagen `minio/minio`) con health check y volumen local     |
-| `packages/database/prisma/schema.prisma`                           | Agregar modelos Document, Cfdi, Job + enums                                          |
-| `apps/api/src/modules/roles-permissions/seeds/permissions.seed.ts` | Agregar permisos `document.upload` / `document.read`                                 |
-| `apps/web/src/app/[companyId]/app-shell.tsx`                       | Agregar ítems de navegación Documentos y Fiscal                                      |
-| `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` línea 246                 | Actualizar nota de migración (ahora aplicada)                                        |
+| Archivo                                            | Cambio                                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `apps/api/src/app.module.ts`                       | Importar DocumentsModule, CfdiModule, XmlProcessingModule, StorageModule, JobsModule |
+| `docker-compose.yml`                               | Agregar servicio `minio` (imagen `minio/minio`) con health check y volumen local     |
+| `packages/database/prisma/schema.prisma`           | Agregar modelos Document, Cfdi, Job + enums (incluido DocumentFileType)              |
+| `apps/web/src/app/[companyId]/app-shell.tsx`       | Agregar ítems de navegación Documentos y Fiscal                                      |
+| `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` línea 246 | ✅ YA APLICADO — nota de migración actualizada al 2026-07-22 (EWO-004 DONE)          |
+
+> `apps/api/src/modules/roles-permissions/seeds/permissions.seed.ts` fue reclasificado a **§5.1 (archivo nuevo)**. El directorio `seeds/` no existe en el repositorio y debe crearse junto con el archivo.
 
 ---
 
@@ -252,21 +286,24 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 
 ### 6.1 Orden recomendado
 
-| Paso | Tarea                                                                                                   | Dependencia                             |
-| ---- | ------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 1    | Extender `docker-compose.yml` con servicio MinIO                                                        | Ninguna                                 |
-| 2    | Añadir modelos `Document`, `Cfdi`, `Job` a `schema.prisma` + generar migración                          | MinIO disponible para integration tests |
-| 3    | Implementar `StorageModule` (interfaz + adaptador MinIO) + pruebas unitarias                            | Paso 2                                  |
-| 4    | Implementar `XmlProcessingModule` (`XmlValidationService` + `CfdiExtractorService`) + pruebas unitarias | Ninguna (sin DB)                        |
-| 5    | Implementar `JobsModule` (`JobsService` + controlador API-0055)                                         | Paso 2                                  |
-| 6    | Implementar `DocumentsModule` (servicio + controlador API-0023 a 0026 + repositorio) + pruebas          | Pasos 2, 3, 5                           |
-| 7    | Implementar `CfdiModule` (servicio + controlador API-0027, 0028 + repositorio) + pruebas                | Pasos 2, 4                              |
-| 8    | Implementar worker BullMQ `xml-extraction` que orquesta pasos 4 + 7                                     | Pasos 4, 5, 6, 7                        |
-| 9    | Seed de permisos `document.upload` / `document.read`                                                    | Paso 2                                  |
-| 10   | Frontend: hooks + servicios (`useDocumentUpload`, `useJobStatus`, `useCfdi`)                            | Pasos 6, 7, 8                           |
-| 11   | Frontend: páginas de documentos y fiscal                                                                | Paso 10                                 |
-| 12   | Integration tests (con MinIO y PostgreSQL reales, dentro de contenedor)                                 | Pasos 1–9                               |
-| 13   | `pnpm run check` completo (lint, typecheck, test, build)                                                | Pasos 1–12                              |
+| Paso | Tarea                                                                                                                                                                                                                                                                                                               | Dependencia                        |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 1    | Añadir modelos `Document`, `Cfdi`, `Job` + enums (`DocumentStatus`, `DocumentFileType`, `JobStatus`, `JobType`) a `schema.prisma` + generar y aplicar migración Prisma. Si Prisma falla desde Windows, usar el mismo procedimiento Linux/Docker validado en EWO-004 (`node:22-bookworm-slim` en `contaia_network`). | Ninguna                            |
+| 2    | Crear `apps/api/src/modules/roles-permissions/seeds/permissions.seed.ts` con permisos `document.upload`, `document.read` y `cfdi.read` asignados a los roles correctos (§4.4).                                                                                                                                      | Paso 1                             |
+| 3    | Extender `docker-compose.yml` con servicio `minio` (imagen `minio/minio`) con health check, volumen local y bucket inicial.                                                                                                                                                                                         | Ninguna (paralelo con paso 1)      |
+| 4    | Implementar contrato `StorageAdapter` en `apps/api/src/modules/storage/storage.interface.ts` + `StorageModule`.                                                                                                                                                                                                     | Paso 1                             |
+| 5    | Implementar `MinioStorageAdapter` en `apps/api/src/modules/storage/minio.adapter.ts` + pruebas unitarias.                                                                                                                                                                                                           | Pasos 3, 4                         |
+| 6    | Implementar `DocumentsModule` (servicio + controlador API-0023 a 0026 + repositorio) + pruebas unitarias.                                                                                                                                                                                                           | Pasos 1, 4, 5                      |
+| 7    | Implementar `JobsModule` (`JobsService` + controlador API-0055 polling).                                                                                                                                                                                                                                            | Paso 1                             |
+| 8    | Implementar endpoint `POST /documents/{id}/confirm-upload` en `DocumentsController`: validar existencia del objeto, crear Job, encolar en BullMQ `xml-extraction`. Idempotente — no genera múltiples Jobs activos.                                                                                                  | Pasos 6, 7                         |
+| 9    | Implementar `XmlProcessingModule` (`XmlValidationService` + `CfdiExtractorService`) + pruebas unitarias con CFDI 4.0 reales.                                                                                                                                                                                        | Ninguna (sin DB)                   |
+| 10   | Implementar worker BullMQ `xml-extraction` dentro del mismo proceso NestJS (mismo proceso que el servidor HTTP, via `@Processor` + `BullModule.registerQueue`). Orquesta: XmlValidationService → CfdiExtractorService → actualizar Document y crear Cfdi. Separación a proceso independiente es evolución futura.   | Pasos 7, 8, 9                      |
+| 11   | Implementar `CfdiModule` (servicio + controlador API-0027, 0028 + repositorio con permiso `cfdi.read`) + pruebas unitarias.                                                                                                                                                                                         | Pasos 1, 9                         |
+| 12   | Verificar guards RBAC para los tres permisos nuevos en endpoints de DocumentsModule y CfdiModule. Reutilizar cadena `AuthenticationGuard → CompanyGuard → PermissionGuard` sin modificarla.                                                                                                                         | Pasos 2, 6, 8, 11                  |
+| 13   | Pruebas unitarias backend: cobertura mínima ≥80% en todos los servicios nuevos.                                                                                                                                                                                                                                     | Pasos 6–12                         |
+| 14   | Frontend: hooks + servicios (`useDocumentUpload`, `useDocuments`, `useDocument`, `useJobStatus`, `useCfdiList`, `useCfdi`).                                                                                                                                                                                         | Pasos 6–11 (una vez la API exista) |
+| 15   | Frontend: páginas UI-0012 a UI-0016 + ítems de navegación en `app-shell.tsx`.                                                                                                                                                                                                                                       | Paso 14                            |
+| 16   | Integration tests (flujo completo: API-0023 → confirm-upload → polling API-0055 → API-0027; deduplicación 409; rechazo XML) con MinIO y PostgreSQL reales dentro del contenedor Linux.                                                                                                                              | Pasos 1–15                         |
 
 ### 6.2 Dependencias de npm a agregar
 
@@ -296,20 +333,20 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 
 Los siguientes comportamientos deben estar verificados antes de declarar EWO-005 DONE:
 
-| #   | Criterio                                                                                                         | Regla de negocio                      |
-| --- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| 1   | Un usuario con Membresía puede cargar un XML válido y obtener un `documentId` + URL prefirmada                   | BR-DOC-001, BR-DOC-002, API-0023      |
-| 2   | El archivo se sube directamente al almacenamiento de objetos (MinIO en dev) sin pasar por NestJS                 | `docs/12_FRONTEND_ARCHITECTURE.md` §9 |
-| 3   | El worker procesa el XML: si es CFDI válido → `Document.status = PROCESSED` + `Cfdi` record                      | BR-XML-001, BR-CFDI-002               |
-| 4   | Si el XML está mal formado → `Document.status = REJECTED` + `rejectionReason` visible                            | BR-XML-001                            |
-| 5   | Campos no determinables en el CFDI aparecen en `ambiguousFields[]`, nunca inferidos                              | BR-XML-002                            |
-| 6   | Cargar un XML con `folioFiscal` ya existente en la misma Empresa → 409 DUPLICATE                                 | `docs/08_API_DESIGN.md` §13           |
-| 7   | Un documento de la Empresa A no es visible para la Empresa B                                                     | BR-DOC-001, BR-GLB-001                |
-| 8   | `GET /documents/{documentId}/download` devuelve URL prefirmada de duración corta, no una ruta pública permanente | `docs/08_API_DESIGN.md` §14           |
-| 9   | Ninguna pantalla ni endpoint ofrece timbrado o validación ante el SAT                                            | BR-CFDI-001                           |
-| 10  | Usuario con Rol AUDITOR o SUPERVISOR puede leer pero no cargar (`document.upload` requerido para carga)          | `docs/04_BUSINESS_RULES.md` §4.1      |
-| 11  | El estado del Job es consultable vía API-0055 hasta un estado terminal                                           | `docs/08_API_DESIGN.md` §15           |
-| 12  | `pnpm run check` verde en los 9 paquetes (lint, typecheck, test, test:integration, build)                        | Estándar del proyecto                 |
+| #   | Criterio                                                                                                                                                                                                                                                   | Regla de negocio                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 1   | Un usuario con Membresía puede cargar un XML válido y obtener un `documentId` + URL prefirmada                                                                                                                                                             | BR-DOC-001, BR-DOC-002, API-0023                               |
+| 2   | El archivo se sube directamente al almacenamiento de objetos (MinIO en dev) sin pasar por NestJS                                                                                                                                                           | `docs/12_FRONTEND_ARCHITECTURE.md` §9                          |
+| 3   | El worker procesa el XML: si es CFDI válido → `Document.status = PROCESSED` + `Cfdi` record                                                                                                                                                                | BR-XML-001, BR-CFDI-002                                        |
+| 4   | Si el XML está mal formado → `Document.status = REJECTED` + `rejectionReason` visible                                                                                                                                                                      | BR-XML-001                                                     |
+| 5   | Campos no determinables en el CFDI aparecen en `ambiguousFields[]`, nunca inferidos                                                                                                                                                                        | BR-XML-002                                                     |
+| 6   | Cargar un XML con `folioFiscal` ya existente en la misma Empresa → 409 DUPLICATE                                                                                                                                                                           | `docs/08_API_DESIGN.md` §13                                    |
+| 7   | Un documento de la Empresa A no es visible para la Empresa B                                                                                                                                                                                               | BR-DOC-001, BR-GLB-001                                         |
+| 8   | `GET /documents/{documentId}/download` devuelve URL prefirmada de duración corta, no una ruta pública permanente                                                                                                                                           | `docs/08_API_DESIGN.md` §14                                    |
+| 9   | Ninguna pantalla ni endpoint ofrece timbrado o validación ante el SAT                                                                                                                                                                                      | BR-CFDI-001                                                    |
+| 10  | Usuario con Rol AUDITOR o SUPERVISOR puede leer metadatos y descargar el archivo (`document.read`), pero no puede cargar (`document.upload`) ni acceder a datos CFDI extraídos (`cfdi.read`) — API-0027 y API-0028 devuelven 403 para SUPERVISOR y AUDITOR | `docs/08_API_DESIGN.md` §9.5, `docs/04_BUSINESS_RULES.md` §4.1 |
+| 11  | El estado del Job es consultable vía API-0055 hasta un estado terminal                                                                                                                                                                                     | `docs/08_API_DESIGN.md` §15                                    |
+| 12  | `pnpm run check` verde en los 9 paquetes (lint, typecheck, test, test:integration, build)                                                                                                                                                                  | Estándar del proyecto                                          |
 
 ---
 
@@ -324,7 +361,7 @@ EWO-005 se declara **DONE** cuando:
 - [ ] Páginas de documentos y fiscal renderizan con datos reales (no placeholders) en el frontend.
 - [ ] Worker BullMQ `xml-extraction` procesa un CFDI real de prueba de punta a punta.
 - [ ] Deduplicación verificada en integration test.
-- [ ] Permisos `document.upload` / `document.read` presentes en la tabla `permissions` y asignados a los roles correctos.
+- [ ] Permisos `document.upload`, `document.read` y `cfdi.read` presentes en la tabla `permissions` y asignados a los roles correctos (§4.4).
 - [ ] `pnpm run check` verde.
 - [ ] `docs/engineering/EWO-005_DOCUMENTS_FISCAL_REPORT.md` creado con el informe de cierre.
 - [ ] `MASTER_CONTEXT.md` actualizado con la entrada de historial de EWO-005.
@@ -385,7 +422,7 @@ EWO-005 se declara **DONE** cuando:
 
 ### 11.3 Impacto sobre autenticación y RBAC
 
-EWO-005 **no modifica** ningún guard, decorator ni lógica de RBAC existente. Únicamente agrega dos permisos nuevos (`document.upload`, `document.read`) a la tabla `permissions` y los asigna a los roles correspondientes mediante un seed ejecutable. La cadena de guards `AuthenticationGuard → CompanyGuard → PermissionGuard` se mantiene sin cambios.
+EWO-005 **no modifica** ningún guard, decorator ni lógica de RBAC existente. Únicamente agrega tres permisos nuevos (`document.upload`, `document.read`, `cfdi.read`) a la tabla `permissions` y los asigna a los roles correspondientes mediante un seed ejecutable (`permissions.seed.ts`, archivo nuevo — ver §5.1). La cadena de guards `AuthenticationGuard → CompanyGuard → PermissionGuard` se mantiene sin cambios.
 
 No se crea ningún endpoint sin protección de RBAC. No se modifica el Workspace Context. No se toca el `schema.prisma` de entidades de identidad o RBAC.
 
@@ -400,3 +437,11 @@ No se crea ningún endpoint sin protección de RBAC. No se modifica el Workspace
 3. **MinIO en `docker-compose.yml`:** agregar el servicio MinIO es el único cambio de infraestructura de desarrollo local autorizado. No modifica el comportamiento de PostgreSQL ni Redis. El healthcheck de MinIO debe verificarse antes de ejecutar integration tests.
 
 4. **Clave de idempotencia en API-0023:** la carga de documentos es una mutación de creación y debe aceptar el encabezado `Idempotency-Key` (`docs/08_API_DESIGN.md` §13). Si el mismo `Idempotency-Key` se recibe dos veces, el servidor devuelve la respuesta original del primer `documentId` sin crear un segundo documento.
+
+5. **Nomenclatura "Files" vs "DocumentsModule":** `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` §3, §16 y el diagrama Mermaid §18.6 denominan la Fase 3 como "Files". `DocumentsModule` es el nombre técnico del módulo NestJS de esta EWO. No son dos módulos distintos: "Files" es el nombre histórico de la fase en la documentación de planificación; `DocumentsModule` es el nombre oficial del módulo de código. No existe un módulo NestJS llamado `FilesModule`.
+
+6. **`FiscalModule` — exclusión explícita:** `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` §3 lista "Fiscal" como módulo independiente con su propia `FiscalService`. EWO-005 **no implementa** ese módulo. La funcionalidad CFDI se cubre con `CfdiModule`; si se necesita una capa de orquestación `FiscalModule` adicional, se evaluará en EWO-006 una vez `CfdiModule` esté estable. La entrada de §3 (fuera de alcance) documenta esta decisión.
+
+7. **Worker BullMQ — mismo proceso:** en EWO-005 el worker `xml-extraction` operará dentro del mismo proceso NestJS que el servidor HTTP, mediante `@Processor()` + `BullModule.registerQueue()`. No se crea un proceso Node.js separado. La separación a proceso independiente es una evolución futura que no requiere cambios en los contratos de los servicios gracias al diseño modular.
+
+8. **`DocumentFileType` — enum nuevo:** se añade el enum `DocumentFileType` (valores: `XML`, `PDF`, `OTHER`) al schema de Prisma. No ampliar valores sin evidencia funcional aprobada por el responsable de producto. Este enum no estaba en el plan original y se agregó en la corrección de auditoría del 2026-07-23.
