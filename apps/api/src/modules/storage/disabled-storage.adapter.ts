@@ -1,5 +1,5 @@
 import { StorageError } from './storage.errors';
-import type { PresignedUrl, StorageAdapter } from './storage.interface';
+import type { ObjectMetadata, PresignedUrl, StorageAdapter } from './storage.interface';
 
 /**
  * Adapter activo cuando STORAGE_ENABLED=false — permite arrancar la
@@ -17,6 +17,10 @@ export class DisabledStorageAdapter implements StorageAdapter {
   }
 
   async exists(_key: string): Promise<boolean> {
+    throw this.disabledError();
+  }
+
+  async getMetadata(_key: string): Promise<ObjectMetadata | null> {
     throw this.disabledError();
   }
 

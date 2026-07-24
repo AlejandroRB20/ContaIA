@@ -9,7 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Logger } from '@nestjs/common';
 
 import { StorageError } from './storage.errors';
-import type { PresignedUrl, StorageAdapter } from './storage.interface';
+import type { ObjectMetadata, PresignedUrl, StorageAdapter } from './storage.interface';
 
 export interface S3StorageAdapterConfig {
   readonly endpoint: string;
@@ -86,6 +86,30 @@ export class S3StorageAdapter implements StorageAdapter {
         return false;
       }
       throw this.toStorageError(error, 'comprobar la existencia del objeto');
+    }
+  }
+
+  /**
+   * Mismo HEAD que `exists()`, pero capturando la respuesta para exponer
+   * `ContentLength`/`ContentType`/`ETag` — nunca el cuerpo del objeto (HEAD
+   * no lo transmite). `contentType`/`etag` se normalizan a `null` cuando el
+   * backend S3-compatible no los reporta.
+   */
+  async getMetadata(key: string): Promise<ObjectMetadata | null> {
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return {
+        sizeBytes: response.ContentLength ?? 0,
+        contentType: response.ContentType ?? null,
+        etag: response.ETag ?? null,
+      };
+    } catch (error) {
+      if (this.isNotFound(error)) {
+        return null;
+      }
+      throw this.toStorageError(error, 'obtener la metadata del objeto');
     }
   }
 

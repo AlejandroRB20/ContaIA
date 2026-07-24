@@ -20,6 +20,10 @@ describe('DisabledStorageAdapter', () => {
     await expect(adapter.exists('key')).rejects.toMatchObject({ code: 'STORAGE_DISABLED' });
   });
 
+  it('getMetadata falla con STORAGE_DISABLED (no devuelve null)', async () => {
+    await expect(adapter.getMetadata('key')).rejects.toMatchObject({ code: 'STORAGE_DISABLED' });
+  });
+
   it('deleteObject falla con STORAGE_DISABLED', async () => {
     await expect(adapter.deleteObject('key')).rejects.toMatchObject({ code: 'STORAGE_DISABLED' });
   });

@@ -32,8 +32,11 @@ import { UploadDocumentDto } from './dto/upload-document.dto';
 /**
  * docs/08_API_DESIGN.md seccion 9.5 — Documents y CFDI. Bloque A: API-0023
  * (iniciar carga). Bloque B: API-0024 (listado, company-scoped) y API-0025
- * (consulta individual, ruta plana). Sin `@Controller({ path: 'companies' })`
- * ni guards a nivel de clase porque las rutas mezclan forma company-scoped
+ * (consulta individual, ruta plana). Bloque C: confirm-upload (ruta plana,
+ * docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md seccion 4.1 paso 3 —
+ * solo la verificacion de Storage y la transicion de estado; sin Jobs ni
+ * BullMQ en este bloque). Sin `@Controller({ path: 'companies' })` ni
+ * guards a nivel de clase porque las rutas mezclan forma company-scoped
  * (`companies/:companyId/documents`) y forma plana (`documents/:documentId`,
  * sin companyId en el path, mismo patron de `MembershipsController` para
  * `/memberships/{id}`) — cada ruta declara su propia cadena de guards.
@@ -123,5 +126,40 @@ export class DocumentsController {
     @CurrentUser() user: RequestUser,
   ): Promise<DocumentDetailResponseDto> {
     return this.documentsService.getById(documentId, user.id);
+  }
+
+  @Post('documents/:documentId/confirm-upload')
+  @UseGuards(AuthenticationGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Confirmar que un Documento se cargo correctamente al almacenamiento',
+    description:
+      'Ruta plana (sin companyId en el path) — la autorizacion tenant y el permiso document.upload se resuelven dentro del servicio. Sin body: tamaño y content type se verifican exclusivamente contra el almacenamiento de objetos, nunca contra datos enviados por el cliente. Idempotente.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Documento confirmado (o ya confirmado previamente).',
+    type: DocumentDetailResponseDto,
+  })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Sesion invalida o ausente.' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description:
+      'Documento inexistente o el actor no tiene Membership activa con document.upload en su Empresa (mismo codigo en ambos casos, para no filtrar existencia).',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description:
+      'No fue posible verificar la carga en el almacenamiento (objeto ausente, vacio o inconsistente).',
+  })
+  @ApiResponse({
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    description: 'El almacenamiento de objetos no esta disponible.',
+  })
+  async confirmUpload(
+    @Param('documentId') documentId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<DocumentDetailResponseDto> {
+    return this.documentsService.confirmUpload(documentId, user.id);
   }
 }

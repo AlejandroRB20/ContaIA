@@ -1,4 +1,4 @@
-import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
 /**
  * Excepcion de dominio de Documents ante cualquier fallo del almacenamiento
@@ -30,5 +30,22 @@ export class DocumentStorageUnavailableException extends ServiceUnavailableExcep
 export class DocumentNotFoundException extends NotFoundException {
   constructor() {
     super('Documento no encontrado.');
+  }
+}
+
+/**
+ * Bloque C — API-0023.5 (confirm-upload). Cubre todos los casos en que la
+ * carga no puede confirmarse: objeto inexistente en Storage, archivo
+ * vacio, tamaño o content type inconsistentes con lo declarado al iniciar
+ * la carga, metadata invalida, o un Documento cuyo estado ya es `REJECTED`
+ * (resultado terminal negativo de una etapa posterior — BR-XML-001 —
+ * confirmarlo de nuevo no debe leerse como exito). Un unico mensaje
+ * publico generico — la causa especifica se registra solo en el log
+ * interno (`DocumentsService`), nunca en la respuesta (BR-SEC-003, mismo
+ * principio que `DocumentStorageUnavailableException`).
+ */
+export class DocumentUploadNotVerifiedException extends ConflictException {
+  constructor() {
+    super('No fue posible verificar la carga del documento en el almacenamiento.');
   }
 }

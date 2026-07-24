@@ -13,6 +13,18 @@ export interface PresignedUrl {
 }
 
 /**
+ * Metadata minima y generica de un objeto, obtenida sin descargar su
+ * contenido (HEAD, no GET) — nunca credenciales, URLs ni headers crudos de
+ * la peticion. `contentType`/`etag` son `null` cuando el almacenamiento no
+ * los reporta (no todo backend S3-compatible garantiza ambos).
+ */
+export interface ObjectMetadata {
+  readonly sizeBytes: number;
+  readonly contentType: string | null;
+  readonly etag: string | null;
+}
+
+/**
  * Contrato de almacenamiento de objetos S3-compatible (MinIO en desarrollo,
  * S3 en produccion futura) — inversion de dependencias: ningun consumidor
  * (futuro DocumentsModule) debe importar tipos del SDK de AWS directamente,
@@ -29,6 +41,13 @@ export interface StorageAdapter {
 
   /** Comprueba existencia del objeto mediante HEAD, sin descargar su contenido. */
   exists(key: string): Promise<boolean>;
+
+  /**
+   * Metadata del objeto (tamaño, content type, ETag) mediante HEAD, sin
+   * descargar su contenido — nunca lee ni interpreta el archivo. Devuelve
+   * `null` si el objeto no existe (mismo criterio que `exists()`).
+   */
+  getMetadata(key: string): Promise<ObjectMetadata | null>;
 
   /** Elimina el objeto. Idempotente: eliminar un objeto ya ausente no falla. */
   deleteObject(key: string): Promise<void>;

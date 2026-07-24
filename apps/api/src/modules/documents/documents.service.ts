@@ -1,19 +1,50 @@
 import { randomUUID } from 'node:crypto';
 
-import type { DocumentFileType, DocumentStatus } from '@contaia/database';
+import { DocumentStatus, type DocumentFileType } from '@contaia/database';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { StorageError } from '../storage/storage.errors';
-import { STORAGE_ADAPTER, type StorageAdapter } from '../storage/storage.interface';
+import {
+  STORAGE_ADAPTER,
+  type ObjectMetadata,
+  type StorageAdapter,
+} from '../storage/storage.interface';
 
 import { DocumentsAuthorizationService } from './documents-authorization.service';
-import { DocumentNotFoundException, DocumentStorageUnavailableException } from './documents.errors';
+import {
+  DocumentNotFoundException,
+  DocumentStorageUnavailableException,
+  DocumentUploadNotVerifiedException,
+} from './documents.errors';
 import type { DocumentListFilters, DocumentSummary } from './documents.repository';
 import { DocumentsRepository } from './documents.repository';
 import type { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import type { UploadDocumentDto } from './dto/upload-document.dto';
 
 const DOCUMENT_READ_PERMISSION = 'document.read';
+/**
+ * confirm-upload es la continuacion del mismo flujo iniciado con
+ * document.upload (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md
+ * seccion 4.1, paso 3) — no existe un permiso separado para "confirmar"
+ * en el catalogo (packages/database/prisma/seed.ts); se reutiliza el
+ * mismo permiso que gate-ea el paso 1 de la misma operacion.
+ */
+const DOCUMENT_CONFIRM_PERMISSION = 'document.upload';
+
+/**
+ * Comparacion segura y minima de tipos MIME (Bloque C, seccion 5): el SDK
+ * de AWS documenta `ContentType` unicamente como "a standard MIME type
+ * describing the format of the object data", sin garantizar ausencia de
+ * parametros (`; charset=utf-8`) ni una capitalizacion especifica — no hay
+ * ninguna fuente normativa del proyecto que exija igualdad exacta. Se
+ * normaliza a minusculas, sin espacios, y se compara solo el tipo MIME
+ * principal (la porcion antes del primer `;`) — nunca coincidencia
+ * parcial (`includes`/`startsWith`).
+ */
+function normalizeMimeType(value: string): string {
+  const [mainType] = value.split(';');
+  return (mainType ?? '').trim().toLowerCase();
+}
 
 export interface InitiateUploadResult {
   documentId: string;
@@ -47,13 +78,16 @@ export interface PaginatedDocumentsResult {
 }
 
 /**
- * Bloques A y B de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
+ * Bloques A, B y C de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
  * `initiateUpload` (Bloque A): inicia la carga devolviendo una URL
  * prefirmada. `listForCompany`/`getById` (Bloque B): listado paginado y
- * consulta individual, ambos tenant-safe. `companyId`/`uploadedByUserId`
- * siempre llegan ya resueltos por el controlador (via
- * `@Company()`/`@CurrentUser()`) — este servicio nunca los toma del body
- * ni del query.
+ * consulta individual, ambos tenant-safe. `confirmUpload` (Bloque C):
+ * verifica el objeto en Storage y transiciona PENDING_UPLOAD -> PROCESSING
+ * — nunca dispara Jobs ni BullMQ (fuera de alcance de este bloque; la
+ * transicion queda preparada para que un bloque futuro lo haga).
+ * `companyId`/`uploadedByUserId` siempre llegan ya resueltos por el
+ * controlador (via `@Company()`/`@CurrentUser()`) — este servicio nunca los
+ * toma del body ni del query.
  */
 @Injectable()
 export class DocumentsService {
@@ -156,6 +190,133 @@ export class DocumentsService {
     );
 
     return this.toSummaryResult(document);
+  }
+
+  /**
+   * Bloque C — confirm-upload (ruta plana, sin `companyId` en el path,
+   * mismo patron de `getById`). Flujo: cargar -> autorizar -> validar
+   * estado -> verificar Storage -> transicion atomica -> mapear respuesta.
+   * Nunca confia en datos del cliente: el body de esta operacion esta
+   * deliberadamente vacio (el controlador no declara ningun DTO de
+   * entrada) — tamaño y content type se toman EXCLUSIVAMENTE de Storage.
+   */
+  async confirmUpload(documentId: string, actorUserId: string): Promise<DocumentSummaryResult> {
+    const document = await this.documentsRepository.findById(documentId);
+    if (!document) {
+      throw new DocumentNotFoundException();
+    }
+
+    await this.documentsAuthorization.assertHasPermission(
+      actorUserId,
+      document.companyId,
+      DOCUMENT_CONFIRM_PERMISSION,
+    );
+
+    if (document.status !== DocumentStatus.PENDING_UPLOAD) {
+      return this.resolveNonPendingConfirmation(document);
+    }
+
+    const metadata = await this.verifyUploadedObject(document);
+
+    const transitioned = await this.documentsRepository.confirmUpload(
+      document.id,
+      document.companyId,
+      metadata.sizeBytes,
+    );
+    if (transitioned) {
+      const confirmed = await this.documentsRepository.findById(document.id);
+      if (!confirmed) {
+        throw new DocumentNotFoundException();
+      }
+      return this.toSummaryResult(confirmed);
+    }
+
+    // Perdimos la carrera contra una confirmacion concurrente — el
+    // documento ya no esta en PENDING_UPLOAD. Se re-consulta y se clasifica
+    // igual que cualquier otro estado no pendiente (idempotente si es
+    // PROCESSING/PROCESSED, conflicto si termino en REJECTED).
+    this.logger.warn(
+      `Confirmacion de carga para el Documento ${document.id} perdio la carrera contra otra solicitud concurrente.`,
+    );
+    const current = await this.documentsRepository.findById(document.id);
+    if (!current) {
+      throw new DocumentNotFoundException();
+    }
+    return this.resolveNonPendingConfirmation(current);
+  }
+
+  /**
+   * El documento ya no esta en PENDING_UPLOAD — por una confirmacion
+   * propia previa, ajena, o una carrera concurrente perdida. `PROCESSING`
+   * y `PROCESSED` son estados aguas abajo de una carga ya verificada
+   * exitosamente (docs/09_DATABASE_DESIGN.md: PENDING_UPLOAD -> PROCESSING
+   * -> PROCESSED | REJECTED) — la pregunta que confirm-upload responde
+   * ("¿la carga se verifico correctamente?") ya es afirmativa para ambos,
+   * asi que se devuelven idempotentemente sin error. `REJECTED` es un
+   * resultado terminal NEGATIVO (BR-XML-001, formato invalido detectado
+   * en una etapa posterior) — tratarlo como confirmacion exitosa seria
+   * enganoso; se rechaza con el mismo conflicto publico y generico que
+   * cualquier otra verificacion fallida (Bloque C, seccion 2: "no deben
+   * tratarse automaticamente como una confirmacion exitosa").
+   */
+  private resolveNonPendingConfirmation(document: DocumentSummary): DocumentSummaryResult {
+    if (document.status === DocumentStatus.REJECTED) {
+      throw new DocumentUploadNotVerifiedException();
+    }
+    return this.toSummaryResult(document);
+  }
+
+  /**
+   * Verifica el objeto en Storage antes de confirmar — nunca confia en
+   * tamaño/content type enviados por el cliente (no existen: el body de
+   * confirm-upload esta vacio). Solo usa el contrato publico de
+   * `StorageAdapter` (`getMetadata`, HEAD) — nunca el SDK de AWS, el
+   * cliente MinIO, el bucket ni credenciales directamente.
+   */
+  private async verifyUploadedObject(document: DocumentSummary): Promise<ObjectMetadata> {
+    let metadata: ObjectMetadata | null;
+    try {
+      metadata = await this.storageAdapter.getMetadata(document.storageReference);
+    } catch (error) {
+      throw this.translateStorageError(error);
+    }
+
+    if (!metadata) {
+      this.logger.warn(
+        `Confirmacion fallida para el Documento ${document.id}: objeto ausente en Storage.`,
+      );
+      throw new DocumentUploadNotVerifiedException();
+    }
+
+    if (metadata.sizeBytes <= 0) {
+      this.logger.warn(
+        `Confirmacion fallida para el Documento ${document.id}: tamaño reportado por Storage invalido (${metadata.sizeBytes}).`,
+      );
+      throw new DocumentUploadNotVerifiedException();
+    }
+
+    // Sin whitelist de MIME types ni limite de tamaño aprobados todavia
+    // (docs/08_API_DESIGN.md seccion 14.9, docs/11_SECURITY_ARCHITECTURE.md
+    // seccion 16 — "pendiente de validacion", mismo hallazgo de Bloque A/B).
+    // La unica validacion de consistencia posible hoy es contra lo
+    // declarado al iniciar la carga, no contra una regla externa inexistente.
+    // Comparacion normalizada, no exacta: el SDK de AWS solo documenta
+    // `HeadObjectOutput.ContentType` como "A standard MIME type describing
+    // the format of the object data" (sin garantia sobre parametros como
+    // `charset`) y no existe ninguna fuente normativa del proyecto que
+    // exija igualdad exacta — se aplica la comparacion segura minima
+    // (minusculas, sin espacios, solo el tipo MIME principal antes de `;`).
+    if (
+      metadata.contentType &&
+      normalizeMimeType(metadata.contentType) !== normalizeMimeType(document.mimeType)
+    ) {
+      this.logger.warn(
+        `Confirmacion fallida para el Documento ${document.id}: content type de Storage no coincide con el declarado al iniciar la carga.`,
+      );
+      throw new DocumentUploadNotVerifiedException();
+    }
+
+    return metadata;
   }
 
   private toSummaryResult(document: DocumentSummary): DocumentSummaryResult {

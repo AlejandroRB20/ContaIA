@@ -51,6 +51,17 @@ function buildController(
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     }),
+    confirmUpload: jest.fn().mockResolvedValue({
+      id: '44444444-4444-4444-4444-444444444444',
+      originalFilename: 'factura.xml',
+      fileType: DocumentFileType.XML,
+      mimeType: 'application/xml',
+      sizeBytes: 2048,
+      status: DocumentStatus.PROCESSING,
+      rejectionReason: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }),
     ...overrides.documentsService,
   } as unknown as jest.Mocked<DocumentsService>;
 
@@ -182,6 +193,55 @@ describe('DocumentsController', () => {
       await controller.getById('doc-1', user);
 
       expect(documentsService.getById).toHaveBeenCalledWith('doc-1', USER_ID);
+    });
+  });
+
+  describe('metadata de la ruta confirmUpload', () => {
+    const handler = DocumentsController.prototype.confirmUpload;
+
+    it('declara la ruta y el metodo correctos (POST documents/:documentId/confirm-upload)', () => {
+      expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(
+        'documents/:documentId/confirm-upload',
+      );
+      expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(1); // RequestMethod.POST
+    });
+
+    it('declara UNICAMENTE AuthenticationGuard — nunca CompanyGuard (no hay companyId en el path)', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, handler);
+      expect(guards).toEqual([AuthenticationGuard]);
+    });
+
+    it('no declara ningun permiso a nivel de decorador (se resuelve dentro del service)', () => {
+      const permissions = Reflect.getMetadata(PERMISSIONS_METADATA_KEY, handler);
+      expect(permissions).toBeUndefined();
+    });
+
+    it('declara el codigo HTTP 200 OK (accion sobre un recurso existente, no creacion)', () => {
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(HttpStatus.OK);
+    });
+
+    it('no acepta body: el metodo solo declara documentId y el usuario autenticado', () => {
+      expect(DocumentsController.prototype.confirmUpload.length).toBe(2);
+    });
+  });
+
+  describe('confirmUpload — delegacion', () => {
+    it('delega en DocumentsService.confirmUpload con el documentId de la ruta y el userId autenticado', async () => {
+      const { controller, documentsService } = buildController();
+      const user = { id: USER_ID } as RequestUser;
+
+      await controller.confirmUpload('doc-1', user);
+
+      expect(documentsService.confirmUpload).toHaveBeenCalledWith('doc-1', USER_ID);
+    });
+
+    it('devuelve exactamente lo que produce el service', async () => {
+      const { controller } = buildController();
+      const user = { id: USER_ID } as RequestUser;
+
+      const result = await controller.confirmUpload('doc-1', user);
+
+      expect(result.status).toBe(DocumentStatus.PROCESSING);
     });
   });
 });

@@ -17,11 +17,13 @@ export interface DocumentListFilters {
 }
 
 /**
- * Forma "segura" de un Documento — nunca incluye `storageReference`,
- * `checksumSha256` ni `uploadedByUserId`. `companyId` SI se incluye (a
- * diferencia del DTO de respuesta): el service lo necesita para autorizar
- * la ruta plana `GET /documents/{documentId}` antes de construir la
- * respuesta publica, que lo omite.
+ * Representacion interna de un Documento — nunca `checksumSha256` ni
+ * `uploadedByUserId`. `companyId` y `storageReference` SI se incluyen (a
+ * diferencia del DTO de respuesta publico): el service los necesita para
+ * autorizar la ruta plana `GET /documents/{documentId}` y para verificar
+ * el objeto en Storage al confirmar la carga (Bloque C), respectivamente.
+ * Ninguno de los dos llega jamas a un DTO de respuesta —
+ * `DocumentsService.toSummaryResult()` los excluye explicitamente al mapear.
  */
 export interface DocumentSummary {
   id: string;
@@ -30,6 +32,7 @@ export interface DocumentSummary {
   fileType: DocumentFileType;
   mimeType: string;
   sizeBytes: number | null;
+  storageReference: string;
   status: DocumentStatus;
   rejectionReason: string | null;
   createdAt: Date;
@@ -43,6 +46,7 @@ const DOCUMENT_SUMMARY_SELECT = {
   fileType: true,
   mimeType: true,
   sizeBytes: true,
+  storageReference: true,
   status: true,
   rejectionReason: true,
   createdAt: true,
@@ -50,12 +54,13 @@ const DOCUMENT_SUMMARY_SELECT = {
 } as const;
 
 /**
- * Bloque A + B de EWO-005. Bloque A: crear el Documento inicial y compensar
- * (eliminar) el registro recien creado si la generacion de la URL
+ * Bloques A, B y C de EWO-005. Bloque A: crear el Documento inicial y
+ * compensar (eliminar) el registro recien creado si la generacion de la URL
  * prefirmada falla despues del insert. Bloque B: listar (tenant-safe,
  * paginado) y consultar por id (sin filtro de companyId — el service lo
  * usa para resolver la Empresa antes de autorizar, nunca para devolver
- * datos directamente). Descargar, confirmar carga y eliminar documentos
+ * datos directamente). Bloque C: transicion condicional PENDING_UPLOAD ->
+ * PROCESSING al confirmar la carga. Descargar y eliminar documentos
  * existentes quedan para bloques posteriores.
  */
 @Injectable()
@@ -122,5 +127,25 @@ export class DocumentsRepository {
       where: { id },
       select: DOCUMENT_SUMMARY_SELECT,
     });
+  }
+
+  /**
+   * Transicion condicional PENDING_UPLOAD -> PROCESSING, atomica via WHERE
+   * (id, companyId, status=PENDING_UPLOAD) — evita condiciones de carrera
+   * entre confirmaciones simultaneas: si dos solicitudes llegan a la vez,
+   * solo una puede ganar la transicion (Prisma/PostgreSQL serializan el
+   * UPDATE). Devuelve `false` cuando el documento ya no estaba en
+   * PENDING_UPLOAD en el momento del update (perdida de carrera, o ya
+   * confirmado por una solicitud anterior) — la llamante decide como
+   * proceder (normalmente: re-consultar y tratarlo como idempotente, nunca
+   * lanzar un error de "no encontrado" solo por esto).
+   */
+  async confirmUpload(id: string, companyId: string, sizeBytes: number): Promise<boolean> {
+    const result = await prisma.document.updateMany({
+      where: { id, companyId, status: DocumentStatus.PENDING_UPLOAD },
+      data: { status: DocumentStatus.PROCESSING, sizeBytes },
+    });
+
+    return result.count > 0;
   }
 }

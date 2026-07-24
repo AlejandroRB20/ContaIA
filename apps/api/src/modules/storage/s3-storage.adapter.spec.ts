@@ -184,6 +184,70 @@ describe('S3StorageAdapter', () => {
     });
   });
 
+  describe('getMetadata', () => {
+    it('devuelve sizeBytes/contentType/etag cuando HEAD responde correctamente', async () => {
+      send.mockResolvedValue({
+        ContentLength: 2048,
+        ContentType: 'application/xml',
+        ETag: '"abc123"',
+      });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getMetadata('key');
+
+      expect(result).toEqual({ sizeBytes: 2048, contentType: 'application/xml', etag: '"abc123"' });
+      const command = send.mock.calls[0][0];
+      expect(command).toBeInstanceOf(HeadObjectCommand);
+      expect(command.input).toEqual({ Bucket: 'contaia-documents', Key: 'key' });
+    });
+
+    it('normaliza contentType/etag ausentes a null (backend S3-compatible que no los reporta)', async () => {
+      send.mockResolvedValue({ ContentLength: 512 });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getMetadata('key');
+
+      expect(result).toEqual({ sizeBytes: 512, contentType: null, etag: null });
+    });
+
+    it('devuelve null unicamente cuando el objeto no existe (404 / NotFound) — nunca lanza', async () => {
+      send.mockRejectedValue({ name: 'NotFound', $metadata: { httpStatusCode: 404 } });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getMetadata('key-inexistente');
+
+      expect(result).toBeNull();
+    });
+
+    it('NO devuelve null ante acceso denegado (403) — propaga el error', async () => {
+      send.mockRejectedValue({ name: 'Forbidden', $metadata: { httpStatusCode: 403 } });
+      const adapter = buildAdapter();
+
+      await expect(adapter.getMetadata('key')).rejects.toMatchObject({
+        code: 'STORAGE_OPERATION_FAILED',
+      });
+    });
+
+    it('NO devuelve null ante un error de red — propaga el error', async () => {
+      send.mockRejectedValue(new Error('connect ETIMEDOUT'));
+      const adapter = buildAdapter();
+
+      await expect(adapter.getMetadata('key')).rejects.toMatchObject({
+        code: 'STORAGE_OPERATION_FAILED',
+      });
+    });
+
+    it('no descarga el cuerpo del objeto (HEAD, no GET) — nunca usa GetObjectCommand', async () => {
+      send.mockResolvedValue({ ContentLength: 100 });
+      const adapter = buildAdapter();
+
+      await adapter.getMetadata('key');
+
+      const command = send.mock.calls[0][0];
+      expect(command).not.toBeInstanceOf(GetObjectCommand);
+    });
+  });
+
   describe('deleteObject', () => {
     it('elimina con el bucket y key correctos', async () => {
       send.mockResolvedValue({});
