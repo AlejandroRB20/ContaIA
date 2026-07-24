@@ -22,6 +22,7 @@ export type {
   Invitation,
   MfaRecoveryCode,
   AuditLog,
+  Document,
 } from '../generated/client/index.js';
 
 export {
@@ -30,4 +31,6 @@ export {
   MembershipStatus,
   InvitationStatus,
   RoleName,
+  DocumentStatus,
+  DocumentFileType,
 } from '../generated/client/index.js';

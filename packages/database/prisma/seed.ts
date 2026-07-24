@@ -64,6 +64,12 @@ const PERMISSION_CATALOG: Array<{ key: string; description: string; module: stri
   { key: 'sat.upload', description: 'Cargar informacion hacia el SAT', module: 'sat' },
   { key: 'cfdi.generate', description: 'Generar/cargar CFDI', module: 'cfdi' },
   { key: 'cfdi.cancel', description: 'Cancelar CFDI', module: 'cfdi' },
+  { key: 'document.upload', description: 'Cargar documentos a la empresa', module: 'document' },
+  {
+    key: 'document.read',
+    description: 'Consultar documentos y su estado',
+    module: 'document',
+  },
   { key: 'users.invite', description: 'Invitar usuarios a la empresa', module: 'users' },
   { key: 'users.remove', description: 'Remover usuarios de la empresa', module: 'users' },
   { key: 'users.update', description: 'Actualizar el rol de un usuario', module: 'users' },
@@ -104,6 +110,8 @@ const ROLE_PERMISSIONS: Partial<Record<RoleName, string[]>> = {
     'sat.upload',
     'cfdi.generate',
     'cfdi.cancel',
+    'document.upload',
+    'document.read',
   ],
   [RoleName.AUXILIAR]: [
     'company.read',
@@ -112,9 +120,17 @@ const ROLE_PERMISSIONS: Partial<Record<RoleName, string[]>> = {
     'inventory.create',
     'inventory.update',
     'cfdi.generate',
+    'document.upload',
+    'document.read',
   ],
-  [RoleName.SUPERVISOR]: ['company.read', 'journal.read', 'journal.approve', 'sat.download'],
-  [RoleName.AUDITOR]: ['company.read', 'journal.read', 'sat.download'],
+  [RoleName.SUPERVISOR]: [
+    'company.read',
+    'journal.read',
+    'journal.approve',
+    'sat.download',
+    'document.read',
+  ],
+  [RoleName.AUDITOR]: ['company.read', 'journal.read', 'sat.download', 'document.read'],
 };
 
 async function seedSystemMetadata(): Promise<void> {

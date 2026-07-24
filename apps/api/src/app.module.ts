@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthenticationModule } from './modules/authentication/authentication.module';
 import { CompaniesModule } from './modules/companies/companies.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { RolesPermissionsModule } from './modules/roles-permissions/roles-permissions.module';
 import { UsersModule } from './modules/users/users.module';
@@ -35,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     RolesPermissionsModule,
     AuditModule,
+    DocumentsModule,
   ],
   providers: [
     {
