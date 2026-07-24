@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const redisEnvSchema = z.object({
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   REDIS_ENABLED: z
-    .string()
+    .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
 });

@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { DocumentStatus, type DocumentFileType } from '@contaia/database';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import { JobsError } from '../jobs/jobs.errors';
+import { JobsService } from '../jobs/jobs.service';
 import { StorageError } from '../storage/storage.errors';
 import {
   STORAGE_ADAPTER,
@@ -13,6 +15,7 @@ import {
 import { DocumentsAuthorizationService } from './documents-authorization.service';
 import {
   DocumentNotFoundException,
+  DocumentProcessingUnavailableException,
   DocumentStorageUnavailableException,
   DocumentUploadNotVerifiedException,
 } from './documents.errors';
@@ -78,16 +81,17 @@ export interface PaginatedDocumentsResult {
 }
 
 /**
- * Bloques A, B y C de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
+ * Bloques A, B, C y D de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
  * `initiateUpload` (Bloque A): inicia la carga devolviendo una URL
  * prefirmada. `listForCompany`/`getById` (Bloque B): listado paginado y
- * consulta individual, ambos tenant-safe. `confirmUpload` (Bloque C):
- * verifica el objeto en Storage y transiciona PENDING_UPLOAD -> PROCESSING
- * — nunca dispara Jobs ni BullMQ (fuera de alcance de este bloque; la
- * transicion queda preparada para que un bloque futuro lo haga).
- * `companyId`/`uploadedByUserId` siempre llegan ya resueltos por el
- * controlador (via `@Company()`/`@CurrentUser()`) — este servicio nunca los
- * toma del body ni del query.
+ * consulta individual, ambos tenant-safe. `confirmUpload` (Bloque C + D):
+ * verifica el objeto en Storage, transiciona PENDING_UPLOAD -> PROCESSING,
+ * y asegura (crea o recupera, encola) el Job de extraccion XML — nunca
+ * procesa el XML en si (fuera de alcance de este bloque; el Job queda
+ * preparado para que un worker futuro lo consuma). `companyId`/
+ * `uploadedByUserId` siempre llegan ya resueltos por el controlador (via
+ * `@Company()`/`@CurrentUser()`) — este servicio nunca los toma del body ni
+ * del query.
  */
 @Injectable()
 export class DocumentsService {
@@ -97,6 +101,7 @@ export class DocumentsService {
     private readonly documentsRepository: DocumentsRepository,
     private readonly documentsAuthorization: DocumentsAuthorizationService,
     @Inject(STORAGE_ADAPTER) private readonly storageAdapter: StorageAdapter,
+    private readonly jobsService: JobsService,
   ) {}
 
   async initiateUpload(
@@ -193,12 +198,14 @@ export class DocumentsService {
   }
 
   /**
-   * Bloque C — confirm-upload (ruta plana, sin `companyId` en el path,
-   * mismo patron de `getById`). Flujo: cargar -> autorizar -> validar
-   * estado -> verificar Storage -> transicion atomica -> mapear respuesta.
-   * Nunca confia en datos del cliente: el body de esta operacion esta
-   * deliberadamente vacio (el controlador no declara ningun DTO de
-   * entrada) — tamaño y content type se toman EXCLUSIVAMENTE de Storage.
+   * Bloques C + D — confirm-upload (ruta plana, sin `companyId` en el
+   * path, mismo patron de `getById`). Flujo: cargar -> autorizar ->
+   * validar estado -> verificar Storage -> transicion atomica -> asegurar
+   * el Job de extraccion -> mapear respuesta. Nunca confia en datos del
+   * cliente: el body de esta operacion esta deliberadamente vacio (el
+   * controlador no declara ningun DTO de entrada) — tamaño y content type
+   * se toman EXCLUSIVAMENTE de Storage. Jamas se toca JobsService antes de
+   * que `assertHasPermission` haya resuelto (Bloque D, seccion 7).
    */
   async confirmUpload(documentId: string, actorUserId: string): Promise<DocumentSummaryResult> {
     const document = await this.documentsRepository.findById(documentId);
@@ -228,6 +235,12 @@ export class DocumentsService {
       if (!confirmed) {
         throw new DocumentNotFoundException();
       }
+      // El Documento ya quedo en PROCESSING de forma irreversible (Bloque
+      // D, seccion 8: "no reviertas automaticamente el documento a
+      // PENDING_UPLOAD") — si esto falla, el cliente ve un 503 seguro y
+      // reintentable; una confirmacion posterior repara el Job faltante
+      // via la rama PROCESSING de `resolveNonPendingConfirmation`.
+      await this.ensureXmlExtractionJob(confirmed);
       return this.toSummaryResult(confirmed);
     }
 
@@ -252,18 +265,44 @@ export class DocumentsService {
    * exitosamente (docs/09_DATABASE_DESIGN.md: PENDING_UPLOAD -> PROCESSING
    * -> PROCESSED | REJECTED) — la pregunta que confirm-upload responde
    * ("¿la carga se verifico correctamente?") ya es afirmativa para ambos,
-   * asi que se devuelven idempotentemente sin error. `REJECTED` es un
-   * resultado terminal NEGATIVO (BR-XML-001, formato invalido detectado
-   * en una etapa posterior) — tratarlo como confirmacion exitosa seria
-   * enganoso; se rechaza con el mismo conflicto publico y generico que
-   * cualquier otra verificacion fallida (Bloque C, seccion 2: "no deben
-   * tratarse automaticamente como una confirmacion exitosa").
+   * asi que se devuelven idempotentemente sin error. `PROCESSING`
+   * ADEMAS asegura el Job (Bloque D, seccion 12): repara el caso
+   * "Documento en PROCESSING, Job persistente o encolado ausente" (fallo
+   * parcial de una confirmacion anterior) — nunca vuelve a tocar Storage,
+   * solo Jobs. `PROCESSED` no toca Jobs en absoluto (la extraccion ya
+   * termino). `REJECTED` es un resultado terminal NEGATIVO (BR-XML-001,
+   * formato invalido detectado en una etapa posterior) — tratarlo como
+   * confirmacion exitosa seria enganoso; se rechaza con el mismo conflicto
+   * publico y generico que cualquier otra verificacion fallida (Bloque C,
+   * seccion 2), y tampoco toca Jobs.
    */
-  private resolveNonPendingConfirmation(document: DocumentSummary): DocumentSummaryResult {
+  private async resolveNonPendingConfirmation(
+    document: DocumentSummary,
+  ): Promise<DocumentSummaryResult> {
     if (document.status === DocumentStatus.REJECTED) {
       throw new DocumentUploadNotVerifiedException();
     }
+    if (document.status === DocumentStatus.PROCESSING) {
+      await this.ensureXmlExtractionJob(document);
+    }
     return this.toSummaryResult(document);
+  }
+
+  /**
+   * Traduce cualquier `JobsError` (persistencia o encolado fallidos) a una
+   * excepcion publica segura — nunca expone queue name, jobId de BullMQ,
+   * codigo de Prisma ni el error crudo (Bloque D, seccion 13).
+   */
+  private async ensureXmlExtractionJob(document: DocumentSummary): Promise<void> {
+    try {
+      await this.jobsService.ensureXmlExtractionJob(document.companyId, document.id);
+    } catch (error) {
+      const code = error instanceof JobsError ? error.code : 'UNKNOWN';
+      this.logger.error(
+        `No fue posible asegurar el Job de extraccion XML para el Documento ${document.id} (jobsErrorCode=${code}).`,
+      );
+      throw new DocumentProcessingUnavailableException();
+    }
   }
 
   /**

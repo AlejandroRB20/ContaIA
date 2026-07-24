@@ -1,11 +1,14 @@
 import { DocumentStatus, DocumentFileType, type Document } from '@contaia/database';
 
+import { JobsError } from '../jobs/jobs.errors';
+import { JobsService } from '../jobs/jobs.service';
 import { StorageError } from '../storage/storage.errors';
 import type { PresignedUrl, StorageAdapter } from '../storage/storage.interface';
 
 import { DocumentsAuthorizationService } from './documents-authorization.service';
 import {
   DocumentNotFoundException,
+  DocumentProcessingUnavailableException,
   DocumentStorageUnavailableException,
   DocumentUploadNotVerifiedException,
 } from './documents.errors';
@@ -70,6 +73,7 @@ function buildService(
     documentsRepository?: Partial<jest.Mocked<DocumentsRepository>>;
     documentsAuthorization?: Partial<jest.Mocked<DocumentsAuthorizationService>>;
     storageAdapter?: Partial<jest.Mocked<StorageAdapter>>;
+    jobsService?: Partial<jest.Mocked<JobsService>>;
   } = {},
 ) {
   const documentsRepository = {
@@ -101,9 +105,19 @@ function buildService(
     ...overrides.storageAdapter,
   } as unknown as jest.Mocked<StorageAdapter>;
 
-  const service = new DocumentsService(documentsRepository, documentsAuthorization, storageAdapter);
+  const jobsService = {
+    ensureXmlExtractionJob: jest.fn().mockResolvedValue(undefined),
+    ...overrides.jobsService,
+  } as unknown as jest.Mocked<JobsService>;
 
-  return { service, documentsRepository, documentsAuthorization, storageAdapter };
+  const service = new DocumentsService(
+    documentsRepository,
+    documentsAuthorization,
+    storageAdapter,
+    jobsService,
+  );
+
+  return { service, documentsRepository, documentsAuthorization, storageAdapter, jobsService };
 }
 
 describe('DocumentsService', () => {
@@ -803,13 +817,11 @@ describe('DocumentsService', () => {
       const { service, documentsRepository } = buildService({
         documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
         storageAdapter: {
-          getMetadata: jest
-            .fn()
-            .mockResolvedValue({
-              sizeBytes: 1024,
-              contentType: 'application/xml; charset=utf-8',
-              etag: null,
-            }),
+          getMetadata: jest.fn().mockResolvedValue({
+            sizeBytes: 1024,
+            contentType: 'application/xml; charset=utf-8',
+            etag: null,
+          }),
         },
       });
 
@@ -825,13 +837,11 @@ describe('DocumentsService', () => {
       const { service, documentsRepository } = buildService({
         documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
         storageAdapter: {
-          getMetadata: jest
-            .fn()
-            .mockResolvedValue({
-              sizeBytes: 1024,
-              contentType: 'application/pdf; charset=utf-8',
-              etag: null,
-            }),
+          getMetadata: jest.fn().mockResolvedValue({
+            sizeBytes: 1024,
+            contentType: 'application/pdf; charset=utf-8',
+            etag: null,
+          }),
         },
       });
 
@@ -991,6 +1001,214 @@ describe('DocumentsService', () => {
       // (del documento cargado por id), nunca con un valor que pudiera
       // haber llegado por parametro adicional del llamador.
       expect(storageAdapter.getMetadata).toHaveBeenCalledWith(summary.storageReference);
+    });
+  });
+
+  describe('confirmUpload — Bloque D: asegurar el Job de extraccion XML', () => {
+    it('primera confirmacion (PENDING_UPLOAD -> PROCESSING): asegura el Job despues de transicionar', async () => {
+      const pending = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const confirmed = buildSummary({ status: DocumentStatus.PROCESSING, sizeBytes: 3000 });
+      const findById = jest.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(confirmed);
+      const { service, jobsService } = buildService({
+        documentsRepository: { findById, confirmUpload: jest.fn().mockResolvedValue(true) },
+        storageAdapter: {
+          getMetadata: jest
+            .fn()
+            .mockResolvedValue({ sizeBytes: 3000, contentType: 'application/xml', etag: null }),
+        },
+      });
+
+      await service.confirmUpload(pending.id, USER_ID);
+
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledWith(
+        confirmed.companyId,
+        confirmed.id,
+      );
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledTimes(1);
+    });
+
+    it('documento ya en PROCESSING: asegura (crea/recupera/reencola) el Job sin volver a consultar Storage', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PROCESSING, sizeBytes: 4096 });
+      const { service, jobsService, storageAdapter } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      const result = await service.confirmUpload(summary.id, USER_ID);
+
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledWith(
+        summary.companyId,
+        summary.id,
+      );
+      expect(storageAdapter.getMetadata).not.toHaveBeenCalled();
+      expect(result.status).toBe(DocumentStatus.PROCESSING);
+    });
+
+    it('PROCESSING repara la ausencia del Job (mismo llamado que la confirmacion normal; JobsService decide crear o recuperar)', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PROCESSING });
+      const { service, jobsService } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      await service.confirmUpload(summary.id, USER_ID);
+
+      // DocumentsService no distingue "reparar" de "asegurar" — siempre
+      // delega la idempotencia a JobsService.ensureXmlExtractionJob.
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledTimes(1);
+    });
+
+    it('documento en PROCESSED: NO toca Jobs (la extraccion ya termino)', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PROCESSED });
+      const { service, jobsService } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      await service.confirmUpload(summary.id, USER_ID);
+
+      expect(jobsService.ensureXmlExtractionJob).not.toHaveBeenCalled();
+    });
+
+    it('documento REJECTED: NO toca Jobs (conflicto, nunca se asegura un Job para una carga rechazada)', async () => {
+      const summary = buildSummary({ status: DocumentStatus.REJECTED, rejectionReason: 'motivo' });
+      const { service, jobsService } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      await expect(service.confirmUpload(summary.id, USER_ID)).rejects.toBeInstanceOf(
+        DocumentUploadNotVerifiedException,
+      );
+      expect(jobsService.ensureXmlExtractionJob).not.toHaveBeenCalled();
+    });
+
+    it('la autorizacion ocurre antes que cualquier operacion de Jobs', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const callOrder: string[] = [];
+      const { service } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+        documentsAuthorization: {
+          assertHasPermission: jest.fn().mockImplementation(async () => {
+            callOrder.push('authorize');
+          }),
+        },
+        jobsService: {
+          ensureXmlExtractionJob: jest.fn().mockImplementation(async () => {
+            callOrder.push('jobs');
+          }),
+        },
+      });
+
+      await service.confirmUpload(summary.id, USER_ID);
+
+      expect(callOrder).toEqual(['authorize', 'jobs']);
+    });
+
+    it('actor sin Membership/permiso: nunca llega a tocar JobsService', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const { service, jobsService } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+        documentsAuthorization: {
+          assertHasPermission: jest.fn().mockRejectedValue(new DocumentNotFoundException()),
+        },
+      });
+
+      await expect(service.confirmUpload(summary.id, USER_ID)).rejects.toBeInstanceOf(
+        DocumentNotFoundException,
+      );
+      expect(jobsService.ensureXmlExtractionJob).not.toHaveBeenCalled();
+    });
+
+    it('documento de otro tenant (via race hacia PROCESSING) tambien pasa por autorizacion antes de tocar Jobs', async () => {
+      const summary = buildSummary({
+        companyId: OTHER_COMPANY_ID,
+        status: DocumentStatus.PROCESSING,
+      });
+      const { service, documentsAuthorization, jobsService } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      await service.confirmUpload(summary.id, USER_ID);
+
+      expect(documentsAuthorization.assertHasPermission).toHaveBeenCalledWith(
+        USER_ID,
+        OTHER_COMPANY_ID,
+        'document.upload',
+      );
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledWith(OTHER_COMPANY_ID, summary.id);
+    });
+
+    it('carrera concurrente que termina en PROCESSING (perdedora): asegura el Job igual que la ganadora — un solo Job logico', async () => {
+      const pending = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const winnerState = buildSummary({ status: DocumentStatus.PROCESSING, sizeBytes: 999 });
+      const findById = jest.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(winnerState);
+      const { service, jobsService } = buildService({
+        documentsRepository: {
+          findById,
+          confirmUpload: jest.fn().mockResolvedValue(false), // perdio la carrera
+        },
+      });
+
+      await service.confirmUpload(pending.id, USER_ID);
+
+      // El id determinista garantiza que esta llamada y la de la solicitud
+      // ganadora apuntan al mismo Job logico — no hace falta simular la
+      // otra solicitud para verificarlo, JobsService lo garantiza.
+      expect(jobsService.ensureXmlExtractionJob).toHaveBeenCalledWith(
+        winnerState.companyId,
+        winnerState.id,
+      );
+    });
+
+    it('fallo al asegurar el Job (JobsError): traduce a DocumentProcessingUnavailableException, sin filtrar el error crudo', async () => {
+      const pending = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const confirmed = buildSummary({ status: DocumentStatus.PROCESSING });
+      const findById = jest.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(confirmed);
+      const { service } = buildService({
+        documentsRepository: { findById, confirmUpload: jest.fn().mockResolvedValue(true) },
+        jobsService: {
+          ensureXmlExtractionJob: jest
+            .fn()
+            .mockRejectedValue(new JobsError('JOBS_OPERATION_FAILED', 'detalle interno de BullMQ')),
+        },
+      });
+
+      const error = await service
+        .confirmUpload(pending.id, USER_ID)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(DocumentProcessingUnavailableException);
+      expect((error as Error).message).not.toContain('BullMQ');
+    });
+
+    it('el Documento NO revierte a PENDING_UPLOAD cuando falla el aseguramiento del Job (no hay rollback automatico)', async () => {
+      const pending = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const confirmed = buildSummary({ status: DocumentStatus.PROCESSING });
+      const findById = jest.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(confirmed);
+      const confirmUploadMock = jest.fn().mockResolvedValue(true);
+      const { service } = buildService({
+        documentsRepository: { findById, confirmUpload: confirmUploadMock },
+        jobsService: {
+          ensureXmlExtractionJob: jest.fn().mockRejectedValue(new JobsError('JOBS_DISABLED', 'x')),
+        },
+      });
+
+      await expect(service.confirmUpload(pending.id, USER_ID)).rejects.toBeInstanceOf(
+        DocumentProcessingUnavailableException,
+      );
+      // La transicion atomica ya se ejecuto (una sola vez) antes del fallo
+      // de Jobs — no se llama de nuevo para "deshacerla".
+      expect(confirmUploadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('la respuesta publica nunca incluye jobId, nombre de cola ni ningun dato de Jobs', async () => {
+      const summary = buildSummary({ status: DocumentStatus.PENDING_UPLOAD });
+      const { service } = buildService({
+        documentsRepository: { findById: jest.fn().mockResolvedValue(summary) },
+      });
+
+      const result = await service.confirmUpload(summary.id, USER_ID);
+
+      expect(result).not.toHaveProperty('jobId');
+      expect(result).not.toHaveProperty('job');
+      expect(result).not.toHaveProperty('queueName');
     });
   });
 });

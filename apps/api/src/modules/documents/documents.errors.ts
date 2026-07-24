@@ -49,3 +49,21 @@ export class DocumentUploadNotVerifiedException extends ConflictException {
     super('No fue posible verificar la carga del documento en el almacenamiento.');
   }
 }
+
+/**
+ * Bloque D — API-0023.5 (confirm-upload). Cubre cualquier fallo al asegurar
+ * el Job de extraccion XML (persistencia o encolado, `JobsError` de
+ * `JobsModule`) despues de que el Documento ya transiciono a PROCESSING —
+ * nunca se revierte esa transicion (Bloque D, seccion 8: "no reviertas
+ * automaticamente el documento a PENDING_UPLOAD"), asi que el cliente debe
+ * poder reintentar `confirm-upload` para reparar el Job faltante. Mensaje
+ * generico, detalle solo en el log interno (`DocumentsService`), mismo
+ * principio que `DocumentStorageUnavailableException`.
+ */
+export class DocumentProcessingUnavailableException extends ServiceUnavailableException {
+  constructor() {
+    super(
+      'El servicio de procesamiento de documentos no esta disponible. Intenta de nuevo mas tarde.',
+    );
+  }
+}
