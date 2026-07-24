@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
 /**
  * Excepcion de dominio de Documents ante cualquier fallo del almacenamiento
@@ -16,5 +16,19 @@ export class DocumentStorageUnavailableException extends ServiceUnavailableExcep
     super(
       'El servicio de almacenamiento de documentos no esta disponible. Intenta de nuevo mas tarde.',
     );
+  }
+}
+
+/**
+ * Usada tanto cuando el Documento no existe como cuando existe pero el
+ * actor no tiene Membership activa en su Empresa o su Rol no incluye
+ * `document.read` — mensaje y codigo HTTP identicos en ambos casos para no
+ * filtrar la existencia de un Documento de otra Empresa (Bloque B de
+ * EWO-005, seccion 15: "Preferencia segura: devolver 404 tanto si no
+ * existe como si existe pero el actor no tiene acceso").
+ */
+export class DocumentNotFoundException extends NotFoundException {
+  constructor() {
+    super('Documento no encontrado.');
   }
 }

@@ -1,14 +1,19 @@
 import { randomUUID } from 'node:crypto';
 
-import type { DocumentStatus } from '@contaia/database';
+import type { DocumentFileType, DocumentStatus } from '@contaia/database';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { StorageError } from '../storage/storage.errors';
 import { STORAGE_ADAPTER, type StorageAdapter } from '../storage/storage.interface';
 
-import { DocumentStorageUnavailableException } from './documents.errors';
+import { DocumentsAuthorizationService } from './documents-authorization.service';
+import { DocumentNotFoundException, DocumentStorageUnavailableException } from './documents.errors';
+import type { DocumentListFilters, DocumentSummary } from './documents.repository';
 import { DocumentsRepository } from './documents.repository';
+import type { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import type { UploadDocumentDto } from './dto/upload-document.dto';
+
+const DOCUMENT_READ_PERMISSION = 'document.read';
 
 export interface InitiateUploadResult {
   documentId: string;
@@ -17,12 +22,38 @@ export interface InitiateUploadResult {
   status: DocumentStatus;
 }
 
+export interface DocumentSummaryResult {
+  id: string;
+  originalFilename: string;
+  fileType: DocumentFileType;
+  mimeType: string;
+  sizeBytes: number | null;
+  status: DocumentStatus;
+  rejectionReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PaginationResult {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedDocumentsResult {
+  items: DocumentSummaryResult[];
+  pagination: PaginationResult;
+}
+
 /**
- * Bloque A de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
- * Unico caso de uso: iniciar la carga de un Documento devolviendo una URL
- * prefirmada. `companyId`/`uploadedByUserId` siempre llegan ya resueltos
- * por el controlador (via `@Company()`/`@CurrentUser()`) — este servicio
- * nunca los toma del body.
+ * Bloques A y B de EWO-005 (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md).
+ * `initiateUpload` (Bloque A): inicia la carga devolviendo una URL
+ * prefirmada. `listForCompany`/`getById` (Bloque B): listado paginado y
+ * consulta individual, ambos tenant-safe. `companyId`/`uploadedByUserId`
+ * siempre llegan ya resueltos por el controlador (via
+ * `@Company()`/`@CurrentUser()`) — este servicio nunca los toma del body
+ * ni del query.
  */
 @Injectable()
 export class DocumentsService {
@@ -30,6 +61,7 @@ export class DocumentsService {
 
   constructor(
     private readonly documentsRepository: DocumentsRepository,
+    private readonly documentsAuthorization: DocumentsAuthorizationService,
     @Inject(STORAGE_ADAPTER) private readonly storageAdapter: StorageAdapter,
   ) {}
 
@@ -67,6 +99,77 @@ export class DocumentsService {
       await this.compensateFailedCreate(document.id, companyId);
       throw this.translateStorageError(error);
     }
+  }
+
+  /**
+   * API-0024 — listado tenant-safe y paginado. `companyId` llega ya
+   * resuelto por el controlador (via `@Company()`), nunca del query.
+   * Filtros limitados a `status`/`fileType`; orden fijo aplicado por el
+   * repository (`createdAt DESC, id DESC`).
+   */
+  async listForCompany(
+    companyId: string,
+    query: ListDocumentsQueryDto,
+  ): Promise<PaginatedDocumentsResult> {
+    const filters: DocumentListFilters = { status: query.status, fileType: query.fileType };
+    const skip = (query.page - 1) * query.pageSize;
+
+    const [items, total] = await Promise.all([
+      this.documentsRepository.findManyByCompany(companyId, filters, {
+        skip,
+        take: query.pageSize,
+      }),
+      this.documentsRepository.countByCompany(companyId, filters),
+    ]);
+
+    return {
+      items: items.map((document) => this.toSummaryResult(document)),
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total,
+        totalPages: Math.ceil(total / query.pageSize),
+      },
+    };
+  }
+
+  /**
+   * API-0025 — ruta plana (`GET /documents/{documentId}`, sin `companyId`
+   * en el path). Carga el Documento por id UNICAMENTE para descubrir su
+   * `companyId`; ningun campo se devuelve al llamador hasta que
+   * `DocumentsAuthorizationService.assertHasPermission` confirma Membership
+   * activa + `document.read` en esa Empresa. Documento inexistente y
+   * documento existente-pero-no-autorizado devuelven el mismo
+   * `DocumentNotFoundException` (404) — nunca se filtra la existencia de
+   * un Documento de otra Empresa.
+   */
+  async getById(documentId: string, actorUserId: string): Promise<DocumentSummaryResult> {
+    const document = await this.documentsRepository.findById(documentId);
+    if (!document) {
+      throw new DocumentNotFoundException();
+    }
+
+    await this.documentsAuthorization.assertHasPermission(
+      actorUserId,
+      document.companyId,
+      DOCUMENT_READ_PERMISSION,
+    );
+
+    return this.toSummaryResult(document);
+  }
+
+  private toSummaryResult(document: DocumentSummary): DocumentSummaryResult {
+    return {
+      id: document.id,
+      originalFilename: document.originalFilename,
+      fileType: document.fileType,
+      mimeType: document.mimeType,
+      sizeBytes: document.sizeBytes,
+      status: document.status,
+      rejectionReason: document.rejectionReason,
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+    };
   }
 
   /**
