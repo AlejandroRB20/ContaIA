@@ -39,6 +39,9 @@ venv/
 .idea/
 *.iml
 
+# Obsidian local configuration
+docs/.obsidian/
+
 # Sistemas operativos
 .DS_Store
 Thumbs.db
@@ -72,4 +75,3 @@ coverage/
 
 # Husky (mantener el directorio versionado, no los locks internos)
 .husky/_/
-
