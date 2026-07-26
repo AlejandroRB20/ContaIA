@@ -641,9 +641,18 @@ model Cfdi {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  company  Company  @relation(fields: [companyId], references: [id])
-  document Document @relation(fields: [documentId, companyId], references: [id, companyId], onDelete: Cascade)
+  company  Company       @relation(fields: [companyId], references: [id])
+  document Document      @relation(fields: [documentId, companyId], references: [id, companyId], onDelete: Cascade)
+  concepts CfdiConcept[]
+  taxes    CfdiTax[]
 
+  /// Prerrequisito estructural del Bloque E (Addendum AD-5 §4.5.1): PostgreSQL
+  /// solo permite declarar la FK compuesta `(cfdiId, companyId) -> cfdis(id,
+  /// companyId)` de `CfdiConcept` si el lado referenciado tiene un indice unico
+  /// sobre exactamente esas columnas. Es inocuo para los datos actuales: `id`
+  /// ya es unico por la PK, asi que esta restriccion no rechaza ninguna fila
+  /// existente — solo habilita la FK compuesta tenant-safe de los hijos.
+  @@unique([id, companyId])
   /// 1:1 con Document expresado sobre la FK compuesta: un Documento tiene a
   /// lo sumo un CFDI. `documentId` sigue siendo efectivamente unico porque la
   /// FK compuesta lo obliga a emparejarse solo con la Empresa real de su
@@ -652,6 +661,125 @@ model Cfdi {
   @@unique([companyId, folioFiscal])
   @@index([companyId, issuedAt])
   @@map("cfdis")
+}
+
+/// Cada `<cfdi:Concepto>` del XML del comprobante (Addendum EWO-005 Bloque E,
+/// AD-5 §4.5.1). Hijo relacional del agregado CFDI: sostiene los conceptos que
+/// BR-CFDI-002 exige extraer ("emisor, receptor, conceptos, montos e
+/// impuestos") y que el modelo `Cfdi` — solo cabecera — no puede representar.
+/// Los importes usan Decimal (BR-GLB-004: nunca Float, para no introducir error
+/// de redondeo). La relacion con `Cfdi` es una FK COMPUESTA (cfdiId, companyId)
+/// -> cfdis(id, companyId): la BD impide que un concepto referencie un CFDI de
+/// OTRA Empresa (BR-GLB-001) — `companyId` es a la vez ancla de aislamiento y
+/// segunda columna de esa FK. La unicidad (companyId, cfdiId, position) es la
+/// identidad idempotente del concepto (el worker la usa para upsert, AD-10) y
+/// fija el orden determinista dentro del comprobante; (id, cfdiId, companyId)
+/// habilita la FK compuesta de tres columnas que `CfdiTax` declarara despues
+/// hacia este modelo (AD-5 §4.5.2), aun no implementado. Las longitudes de los
+/// campos de texto NO se restringen: AD-5 §4.5.1 no las especifica y fijarlas
+/// seria inventar una restriccion ausente de la fuente de verdad.
+model CfdiConcept {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  cfdiId           String   @map("cfdi_id") @db.Uuid
+  /// Orden original del concepto en el XML (1-based). Parte de la identidad
+  /// idempotente (companyId, cfdiId, position).
+  position         Int
+  claveProdServ    String   @map("clave_prod_serv") @db.Text
+  noIdentificacion String?  @map("no_identificacion") @db.Text
+  cantidad         Decimal  @db.Decimal(18, 6)
+  claveUnidad      String   @map("clave_unidad") @db.Text
+  unidad           String?  @db.Text
+  descripcion      String   @db.Text
+  valorUnitario    Decimal  @map("valor_unitario") @db.Decimal(18, 6)
+  importe          Decimal  @db.Decimal(18, 6)
+  descuento        Decimal? @db.Decimal(18, 6)
+  objetoImp        String   @map("objeto_imp") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cfdi  Cfdi      @relation(fields: [cfdiId, companyId], references: [id, companyId], onDelete: Cascade)
+  taxes CfdiTax[]
+
+  @@unique([companyId, cfdiId, position])
+  @@unique([id, cfdiId, companyId])
+  @@index([cfdiId])
+  @@index([companyId])
+  @@map("cfdi_concepts")
+}
+
+/// Ambito del impuesto CFDI (Addendum EWO-005 Bloque E, AD-5 §4.5.2): `CFDI` =
+/// impuesto a nivel comprobante (`<cfdi:Impuestos>`); `CONCEPT` = impuesto a
+/// nivel concepto (`<cfdi:Concepto><cfdi:Impuestos>`). Coincide exactamente con
+/// la forma de respuesta de API-0027 (Addendum §13.1) — no se inventan variantes.
+enum CfdiTaxScope {
+  CFDI
+  CONCEPT
+}
+
+/// Naturaleza del impuesto CFDI (Addendum AD-5 §4.5.2): `TRANSFER` = impuesto
+/// trasladado; `WITHHOLDING` = impuesto retenido. Coincide con
+/// `"type": "TRANSFER | WITHHOLDING"` de la respuesta de API-0027 (§13.1).
+enum CfdiTaxType {
+  TRANSFER
+  WITHHOLDING
+}
+
+/// Impuesto de un CFDI, a nivel comprobante (`<cfdi:Impuestos>`) o a nivel
+/// concepto (`<cfdi:Concepto><cfdi:Impuestos>`) (Addendum EWO-005 Bloque E,
+/// AD-5 §4.5.2). Segundo hijo relacional del agregado CFDI. `conceptSlot` es el
+/// discriminador de contenedor NOT NULL que hace la identidad idempotente
+/// expresable en Prisma sin nulos: `0` = impuesto de comprobante, `k > 0` =
+/// impuesto del concepto cuya `position = k` — de ahi `@@unique([companyId,
+/// cfdiId, conceptSlot, position])`, la clave que genera el `WhereUniqueInput`
+/// del upsert del worker (AD-10.1). `cfdiConceptId` es SOLO integridad
+/// referencial (no identidad): nulo para impuestos de comprobante, presente
+/// para impuestos de concepto. Dos FK COMPUESTAS: `(cfdiId, companyId) ->
+/// cfdis(id, companyId)` (siempre evaluada, NOT NULL) garantiza que el impuesto
+/// pertenece al mismo CFDI y Empresa; `(cfdiConceptId, cfdiId, companyId) ->
+/// cfdi_concepts(id, cfdiId, companyId)` es OPCIONAL de nulabilidad mixta y se
+/// apoya en la semantica MATCH SIMPLE de PostgreSQL (no se evalua cuando
+/// `cfdiConceptId` es NULL), garantizando —cuando aplica— que el concepto es
+/// del mismo CFDI y Empresa (BR-GLB-001, criterios 35/36). Los importes usan
+/// Decimal(18,6) (BR-GLB-004: nunca Float), nulos cuando `tipoFactor = 'Exento'`
+/// o cuando no aplican al nivel del impuesto. Las longitudes de `impuesto` y
+/// `tipoFactor` NO se restringen: AD-5 §4.5.2 no las especifica y fijarlas seria
+/// inventar una restriccion ausente de la fuente. La coherencia entre `scope`,
+/// `cfdiConceptId` y `conceptSlot` la garantiza el CHECK
+/// `cfdi_taxes_scope_concept_check` — SQL manual de la migracion (AD-5, tarea
+/// E5-S1-T04), NO expresable en `schema.prisma` y por tanto fuera de este modelo.
+model CfdiTax {
+  id            String       @id @default(uuid()) @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  cfdiId        String       @map("cfdi_id") @db.Uuid
+  /// Solo integridad referencial (no identidad): NULL a nivel comprobante,
+  /// presente a nivel concepto. Parte de la FK opcional hacia `CfdiConcept`.
+  cfdiConceptId String?      @map("cfdi_concept_id") @db.Uuid
+  scope         CfdiTaxScope
+  /// Discriminador de contenedor NOT NULL: `0` = comprobante; `k > 0` = concepto
+  /// en `position = k`. Existe para que la identidad sea `@@unique` sin nulos.
+  conceptSlot   Int          @map("concept_slot")
+  /// Orden dentro de su contenedor (1-based), reinicia por contenedor.
+  position      Int
+  type          CfdiTaxType
+  impuesto      String       @db.Text
+  tipoFactor    String       @map("tipo_factor") @db.Text
+  tasaOCuota    Decimal?     @map("tasa_o_cuota") @db.Decimal(18, 6)
+  base          Decimal?     @db.Decimal(18, 6)
+  importe       Decimal?     @db.Decimal(18, 6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cfdi        Cfdi         @relation(fields: [cfdiId, companyId], references: [id, companyId], onDelete: Cascade)
+  cfdiConcept CfdiConcept? @relation(fields: [cfdiConceptId, cfdiId, companyId], references: [id, cfdiId, companyId], onDelete: Cascade)
+
+  @@unique([companyId, cfdiId, conceptSlot, position])
+  @@index([cfdiId])
+  @@index([companyId])
+  @@index([cfdiConceptId])
+  @@map("cfdi_taxes")
 }
 
 /// Operacion asincrona (infraestructura tecnica, docs/09_DATABASE_DESIGN.md
