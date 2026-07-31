@@ -4,7 +4,7 @@
 >
 > **Regla de mantenimiento:** este archivo se actualiza al final de cada sesión de ingeniería que cierre, corrija o audite una tarea. Es una edición mecánica de la tabla de abajo — nunca una reescritura de prosa. Ver [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md) si tienes dudas de formato.
 
-## Estado actual (2026-07-30)
+## Estado actual (2026-07-31)
 
 | Campo                                                             | Valor                                                                                                                                       |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -12,11 +12,11 @@
 | Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                              |
 | Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                    |
 | Sprint / Bloque activo                                            | Sprint 2 de Bloque E — Sprint 1 ya `COMPLETADO`                                                                                             |
-| Última tarea cerrada (`PASSED`)                                   | `E5-S2-T08` — Tenant isolation (`BR-GLB-001`) — cierre administrativo 2026-07-30                                                            |
-| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S2-T03`, `E5-S2-T07`, `E5-S2-T09` (más reciente: logging mínimo de la transacción)                                                      |
-| Siguiente paso inmediato                                          | Auditoría `READ ONLY` con Codex de `E5-S2-T09` → si `PASSED`, habilita `E5-S2-T10`                                                          |
-| Tarea siguiente en la secuencia                                   | `E5-S2-T10` — Pruebas unitarias de persistencia (`BLOCKED`, depende de que T03/T07/T09 cierren)                                             |
-| Última auditoría cerrada                                          | [`E5-S2-T08_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T08_FINAL_AUDIT.md) — `PASSED`                                                   |
+| Última tarea cerrada (`PASSED`)                                   | `E5-S2-T09` — Logging mínimo de la transacción — cierre administrativo 2026-07-31                                                           |
+| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S2-T03`, `E5-S2-T07`                                                                                                                    |
+| Siguiente paso inmediato                                          | Implementación controlada de `E5-S2-T10` (habilitada tras el cierre de `E5-S2-T09`)                                                         |
+| Tarea siguiente en la secuencia                                   | `E5-S2-T10` — Pruebas unitarias de persistencia (habilitada; depende además de que T03/T07 cierren para su auditoría propia)                |
+| Última auditoría cerrada                                          | [`E5-S2-T09_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T09_FINAL_AUDIT.md) — `PASSED`                                                   |
 | Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea |
 
 ## Decisiones activas más relevantes
