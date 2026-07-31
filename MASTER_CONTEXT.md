@@ -1,637 +1,478 @@
-# Contexto Maestro del Proyecto — ContaIA
+# MASTER_CONTEXT.md — Contexto Maestro de ContaIA
 
-## 1. Título
+## Control del documento
 
-Contexto Maestro de ContaIA
+| Campo                                    | Valor                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documento                                | `MASTER_CONTEXT.md`                                                                                                                                                                                                                                                                                                                                 |
+| Versión                                  | 2.1 — extracción hacia Knowledge Platform                                                                                                                                                                                                                                                                                                           |
+| Estado                                   | Vigente — puerta de entrada oficial al proyecto                                                                                                                                                                                                                                                                                                     |
+| Fecha de creación                        | 2026-07-18                                                                                                                                                                                                                                                                                                                                          |
+| Última actualización                     | 2026-07-30                                                                                                                                                                                                                                                                                                                                          |
+| Propietario                              | Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA)                                                                                                                                                                                                                                                                       |
+| Historial de versiones de este documento | v0.1 (2026-07-18) → v2.0 (2026-07-30, rediseño ejecutivo) → v2.1 (2026-07-30, extracción de estado vivo e índice hacia documentos dedicados) → v2.1, corrección de hallazgos de auditoría (2026-07-30) → v2.1, segunda corrección — §12.3 vuelto completamente atemporal (2026-07-30, mismo día) — ver [§17](#17-qué-cambió-en-esta-reorganización) |
 
-## 2. Control del documento
+> **Regla de lectura.** Este documento da contexto y enlaza — no repite el contenido completo de ningún documento especializado, ni el estado vivo de la sesión, ni el índice de archivos. Si algo aquí contradice a un documento especializado más reciente, **el documento especializado prevalece**, salvo decisión de alcance de MVP (`docs/01_PRD.md`) o decisión arquitectónica ratificada (`brain/DECISIONS.md`).
+>
+> **Si llegaste aquí desde una referencia a una sección que ya no coincide** (p. ej. "`MASTER_CONTEXT.md` sección 17" o "§21"): este documento se renumeró dos veces el 2026-07-30. Ve directo a [§16 — Mapeo de numeración](#16-mapeo-de-numeración-histórico).
 
-| Campo                   | Valor                                                                                                                                                                                                                                                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Documento               | MASTER_CONTEXT.md                                                                                                                                                                                                                                                                                               |
-| Versión                 | 0.1                                                                                                                                                                                                                                                                                                             |
-| Estado general          | Borrador — primera versión completa                                                                                                                                                                                                                                                                             |
-| Fecha de creación       | 2026-07-18                                                                                                                                                                                                                                                                                                      |
-| Última actualización    | 2026-07-25                                                                                                                                                                                                                                                                                                      |
-| Propietario             | Responsable de producto de ContaIA                                                                                                                                                                                                                                                                              |
-| Documentos relacionados | `docs/01_PRD.md`, `docs/00_PRODUCT_VISION.md`, `docs/04_BUSINESS_RULES.md`, `docs/05_SYSTEM_DOMAIN_MODEL.md`, `docs/07_SOFTWARE_ARCHITECTURE.md`, `docs/10_AI_ARCHITECTURE.md`, `docs/11_SECURITY_ARCHITECTURE.md`, `docs/27_LEGAL_COMPLIANCE.md`, `brain/DECISIONS.md`, `brain/QUESTIONS.md`, `brain/RISKS.md` |
+---
 
-> Nota: Este documento define el contexto y los principios rectores del proyecto. No sustituye al PRD ni a los documentos técnicos específicos, y todavía no debe usarse para programar.
+## Índice
 
-## 3. Resumen ejecutivo
+1. [ContaIA en 60 segundos](#1-contaia-en-60-segundos)
+2. [Cómo navegar este ecosistema documental](#2-cómo-navegar-este-ecosistema-documental)
+3. [Estado actual del proyecto](#3-estado-actual-del-proyecto)
+4. [Qué es ContaIA](#4-qué-es-contaia)
+5. [Principios obligatorios](#5-principios-obligatorios)
+6. [Arquitectura y stack tecnológico](#6-arquitectura-y-stack-tecnológico)
+7. [Inteligencia artificial](#7-inteligencia-artificial)
+8. [Decisiones arquitectónicas](#8-decisiones-arquitectónicas)
+9. [Preguntas abiertas](#9-preguntas-abiertas)
+10. [Riesgos](#10-riesgos)
+11. [Roadmap, alcance por etapas y módulos de largo plazo](#11-roadmap-alcance-por-etapas-y-módulos-de-largo-plazo)
+12. [Engineering Workflow — estado de implementación](#12-engineering-workflow--estado-de-implementación)
+13. [Definición de terminado](#13-definición-de-terminado)
+14. [Glosario mínimo](#14-glosario-mínimo)
+15. [Gobierno y mantenimiento de este documento](#15-gobierno-y-mantenimiento-de-este-documento)
+16. [Mapeo de numeración histórico](#16-mapeo-de-numeración-histórico)
+17. [Qué cambió en esta reorganización](#17-qué-cambió-en-esta-reorganización)
+18. [Historial ejecutivo](#18-historial-ejecutivo)
 
-ContaIA es una plataforma SaaS mexicana en etapa de diseño, orientada a contabilidad, fiscalidad, administración empresarial e inteligencia artificial. Su propósito es actuar como copiloto inteligente para contadores, despachos, empresas y estudiantes, ayudando a organizar, analizar, automatizar y explicar procesos contables y fiscales de forma clara, verificable y segura. ContaIA no sustituye el criterio profesional humano: toda operación sensible debe pasar por mecanismos de revisión y aprobación humana. El proyecto se desarrollará por etapas, comenzando por documentación y diseño, y avanzará de forma incremental hacia un MVP funcional y, posteriormente, hacia automatización, integraciones fiscales y gestión empresarial ampliada. Este documento es la fuente de contexto que debe leerse antes de planear, diseñar o programar cualquier función del proyecto.
+---
 
-## 4. Identidad del producto
+## 1. ContaIA en 60 segundos
 
-**Nombre provisional:** ContaIA
+**Qué es.** ContaIA es una plataforma SaaS mexicana de contabilidad, cumplimiento fiscal e inteligencia artificial: un copiloto para contadores, despachos, empresas y estudiantes que organiza, analiza, automatiza y explica procesos contables y fiscales.
 
-**Categoría:** Plataforma SaaS mexicana de contabilidad, fiscalidad, administración empresarial e inteligencia artificial.
+**Qué NO es.** No sustituye el criterio profesional humano, no es una autoridad fiscal, no garantiza cumplimiento automático y no ejecuta ninguna acción fiscal/contable sensible sin aprobación humana explícita (§5).
 
-**Propuesta central:** ContaIA será un copiloto inteligente para contadores, despachos, empresas y estudiantes. Ayudará a organizar, analizar, automatizar y explicar procesos contables y fiscales de manera clara, verificable y segura.
+**En qué etapa está.** Ya no está "en diseño puro": la Etapa 0 (documentación) y buena parte de la Etapa 1 quedaron atrás. El proyecto está en implementación activa del backend fiscal — **EWO-005 (Documents & Fiscal)** — sobre una base ya construida y auditada de fundación técnica, autenticación, multiempresa y RBAC (EWO-001 a EWO-004, todos cerrados). Estado operativo detallado (sprint/tarea activos): [`AI_CONTEXT.md`](AI_CONTEXT.md). Ver §3 y §12.
 
-**Aclaración fundamental:** ContaIA no sustituirá el criterio profesional de un contador, fiscalista, auditor o abogado. Las operaciones sensibles deberán incluir mecanismos de revisión y aprobación humana.
+**Stack real, en uso.** Monorepo pnpm + Turborepo · Next.js 15/React 19 (frontend) · NestJS 10 (backend) · PostgreSQL vía Prisma · Redis + BullMQ (jobs) · MinIO/S3 (documentos). Ver §6.
+
+**Si vas a continuar trabajo de ingeniería ahora mismo:** no sigas leyendo este documento — ve directo a [`AI_CONTEXT.md`](AI_CONTEXT.md). Este documento es contexto; ese es estado.
+
+---
+
+## 2. Cómo navegar este ecosistema documental
+
+ContaIA separa explícitamente **ocho tipos de información**, cada uno con un único documento responsable. No hay una segunda copia de ninguno de estos datos en ningún otro archivo.
+
+| Necesito...                                                                     | Voy a...                                                                                                         | Tipo de información              |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Entender qué es el proyecto y por qué existe                                    | Este documento (§1, §4)                                                                                          | Contexto (permanente)            |
+| Saber en qué se está trabajando _ahora mismo_                                   | [`AI_CONTEXT.md`](AI_CONTEXT.md)                                                                                 | Estado (vivo, cambia por sesión) |
+| Ver la salud general del proyecto por dominio (backend, IA, seguridad...)       | [`DASHBOARD.md`](DASHBOARD.md)                                                                                   | Estado (vivo, cambia por hito)   |
+| Encontrar en qué archivo vive un tema técnico específico                        | [`PROJECT_INDEX.md`](PROJECT_INDEX.md)                                                                           | Índice                           |
+| Ver qué cambió, cuándo y por qué — con todo el detalle                          | [`CHANGELOG.md`](CHANGELOG.md)                                                                                   | Historial                        |
+| Entender una decisión arquitectónica ratificada                                 | [`brain/DECISIONS.md`](brain/DECISIONS.md) (índice rápido: [`brain/DECISION_INDEX.md`](brain/DECISION_INDEX.md)) | Decisiones                       |
+| Ver qué preguntas de negocio/ingeniería siguen sin resolver                     | [`brain/QUESTIONS.md`](brain/QUESTIONS.md)                                                                       | Preguntas                        |
+| Ver riesgos arquitectónicos concretos y su mitigación                           | [`brain/RISKS.md`](brain/RISKS.md)                                                                               | Riesgos                          |
+| Leer la arquitectura técnica profunda de un dominio (API, BD, seguridad, IA...) | `docs/05` a `docs/25` (mapa completo en `PROJECT_INDEX.md`)                                                      | Arquitectura                     |
+| Saber cómo trabajan Claude Code, Codex y ChatGPT juntos                         | [`AI_PLAYBOOK.md`](AI_PLAYBOOK.md)                                                                               | Protocolo de IA                  |
+| Saber cómo se escribe/nombra/versiona un documento en este proyecto             | [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md)                                                   | Estándar documental              |
+
+**Relación entre documentos** (orden de profundidad recomendado, no obligatorio — cada documento enlaza directo a cualquier otro que necesites):
+
+```text
+MASTER_CONTEXT.md  (contexto: qué es, por qué, principios)
+      │
+      ├──► AI_CONTEXT.md      (estado vivo: qué sigue, ahora mismo)
+      ├──► DASHBOARD.md       (estado vivo: salud por dominio)
+      ├──► PROJECT_INDEX.md   (índice: dónde vive cada cosa)
+      │         │
+      │         └──► docs/00 a docs/30, docs/engineering/  (arquitectura profunda)
+      │
+      ├──► CHANGELOG.md              (historial completo)
+      ├──► brain/DECISIONS.md        (decisiones, con brain/DECISION_INDEX.md como índice)
+      ├──► brain/QUESTIONS.md        (preguntas abiertas)
+      ├──► brain/RISKS.md            (riesgos)
+      ├──► AI_PLAYBOOK.md            (protocolo entre IA)
+      └──► DOCUMENTATION_STYLE_GUIDE.md  (estándar documental)
+```
+
+**Prueba de suficiencia:** una IA nueva que lea únicamente `AI_CONTEXT.md` + este documento debe poder continuar el trabajo de ingeniería sin abrir nada más — y si necesita más, sabe exactamente a qué archivo ir por la tabla de arriba, nunca tiene que adivinar ni leer el repositorio completo.
+
+---
+
+## 3. Estado actual del proyecto
+
+ContaIA se ejecuta como una serie de **Engineering Work Orders (EWO)** secuenciales, cada una con su propio informe de cierre en `docs/engineering/`. Cuatro ya cerraron; la quinta está en curso. Vista de salud por dominio (backend, frontend, IA, seguridad...): [`DASHBOARD.md`](DASHBOARD.md). Estado vivo minuto a minuto: [`AI_CONTEXT.md`](AI_CONTEXT.md).
+
+| EWO     | Alcance                                                   | Estado                                                                                                         | Informe                                                                                                                                                                                                                                                                                         |
+| ------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EWO-001 | Project Foundation — monorepo, CI/CD, calidad             | **DONE**                                                                                                       | [`EWO-001_FOUNDATION_REPORT.md`](docs/engineering/EWO-001_FOUNDATION_REPORT.md)                                                                                                                                                                                                                 |
+| EWO-002 | Authentication & Authorization — JWT, MFA/TOTP, RBAC base | **DONE**                                                                                                       | [`EWO-002_AUTH_REPORT.md`](docs/engineering/EWO-002_AUTH_REPORT.md)                                                                                                                                                                                                                             |
+| EWO-003 | Organization & Company Management                         | Completo funcionalmente; su bloqueo de infraestructura (migración inicial) se resolvió en el cierre de EWO-004 | [`EWO-003_COMPANY_REPORT.md`](docs/engineering/EWO-003_COMPANY_REPORT.md)                                                                                                                                                                                                                       |
+| EWO-004 | User, RBAC & Workspace Context                            | **DONE** (2026-07-22) — migración inicial aplicada, 137/137 pruebas                                            | [`EWO-004_USER_RBAC_REPORT.md`](docs/engineering/EWO-004_USER_RBAC_REPORT.md)                                                                                                                                                                                                                   |
+| EWO-005 | Documents & Fiscal (CFDI)                                 | **IN_PROGRESS** — detalle de sprint/tarea en [`AI_CONTEXT.md`](AI_CONTEXT.md)                                  | [`EWO-005_DOCUMENTS_FISCAL_PLAN.md`](docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md), [`EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`](docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md), [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) |
+
+**Lo que ya existe y funciona hoy:** autenticación completa (login, MFA/TOTP, recuperación de contraseña, sesiones JWT + refresh rotable), multiempresa con Membresías y RBAC granular, gestión de Empresas (perfil fiscal, domicilio, configuración regional), workspace context en el frontend, carga y confirmación de documentos (Bloque A-D de EWO-005), y — en construcción activa — la persistencia atómica del agregado CFDI (Bloque E).
+
+**Lo que todavía no existe:** worker/processor de extracción XML (`XmlProcessingModule`), contabilidad (pólizas, catálogo de cuentas, estados financieros), conciliación, chat contable-fiscal con IA, y todo lo que EWO-006 en adelante deba cubrir. Ver [§11](#11-roadmap-alcance-por-etapas-y-módulos-de-largo-plazo) para el mapa completo de etapas y [§12](#12-engineering-workflow--estado-de-implementación) para el detalle de lo que sí está construido.
+
+**Nota de honestidad documental:** todos los documentos técnicos (`docs/00` a `docs/25`) llevan estado formal `Draft v1.0` / `Borrador` — ninguno tiene un sello de "aprobación final" — pero se usan activamente como fuente de verdad vinculante para la implementación en curso. Este documento refleja esa realidad tal cual es.
+
+---
+
+## 4. Qué es ContaIA
+
+Contenido completo y autoritativo en [`docs/00_PRODUCT_VISION.md`](docs/00_PRODUCT_VISION.md) (visión de producto) y [`docs/01_PRD.md`](docs/01_PRD.md) (alcance del MVP, única autoridad sobre qué entra y qué no). Esta sección es un resumen de orientación, no la fuente.
+
+- **Propuesta central:** copiloto inteligente para contadores, despachos, empresas y estudiantes; organiza, analiza, automatiza y explica procesos contables y fiscales de forma clara, verificable y segura.
+- **Diferenciador:** no es "una IA que contesta preguntas fiscales" — es un sistema que muestra fuentes, versiones y vigencias, separa cálculo determinístico de interpretación de IA, y deja siempre un rastro de auditoría revisable por un humano.
+- **Usuarios (10 perfiles, detalle completo en [`docs/02_USER_PERSONAS.md`](docs/02_USER_PERSONAS.md)):** Contador independiente, Despacho contable, Empresa/negocio, Director financiero, Auxiliar contable, Auditor, Asesor fiscal, Estudiante de contaduría, Administrador interno de ContaIA, Especialista humano revisor. `docs/01_PRD.md` §6 prioriza un subconjunto para el ciclo de valor del MVP.
+- **Problema que ataca:** captura manual repetitiva, desorganización documental, dificultad para interpretar CFDI/XML, información fiscal dispersa, riesgo de respuestas de IA sin fundamento, falta de trazabilidad. Lista completa en `docs/00_PRODUCT_VISION.md`.
+- **Límites explícitos — ContaIA NO debe:** actuar como autoridad fiscal · garantizar cumplimiento automático · sustituir asesoría profesional personalizada · enviar declaraciones sin aprobación · timbrar CFDI sin integración autorizada · almacenar contraseñas o e.firma de forma insegura · simular conexión real con el SAT · presentar cálculos no validados como definitivos · mezclar información entre Empresas · entrenar modelos con datos privados sin autorización · ejecutar acciones destructivas sin confirmación.
+- **UX/UI, modelo de negocio e indicadores de éxito:** todavía `Propuesta pendiente de validación`, sin decisión ratificada ni documento técnico dedicado. Texto original íntegro preservado en [`CHANGELOG.md`](CHANGELOG.md) → "Contenido preliminar de producto".
+
+---
+
+## 5. Principios obligatorios
+
+Diez principios, todos con `Estado: Aprobado como principio inicial`. Se citan por número (`principio 10.4`, etc.) desde `brain/DECISIONS.md`, `docs/01_PRD.md` y varios documentos técnicos — **no renumerar**.
+
+| #     | Principio                | Resumen                                                                                                     |
+| ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 10.1  | Confiabilidad            | Exactitud, validación, trazabilidad y evidencia en todo cálculo o dato presentado.                          |
+| 10.2  | Revisión humana          | Ninguna acción fiscal/contable/legal/financiera sensible se ejecuta sin punto de control humano.            |
+| 10.3  | IA con fundamentos       | Toda respuesta especializada muestra fuente, vigencia y ejercicio fiscal, o declara ausencia de fundamento. |
+| 10.4  | Cálculos determinísticos | La IA nunca calcula cifras fiscales/contables críticas — eso lo hacen motores de reglas verificables.       |
+| 10.5  | Versionado normativo     | Toda información fiscal/legal se identifica por periodo y vigencia (vigente vs. histórica).                 |
+| 10.6  | Seguridad y privacidad   | Aislamiento entre Empresas, roles, MFA, cifrado, auditoría, mínimos privilegios desde el diseño.            |
+| 10.7  | Simplicidad              | Lenguaje claro, procesos guiados, diseño limpio, accesible, consistente.                                    |
+| 10.8  | Trazabilidad             | Toda acción importante registra usuario, Empresa, fecha, resultado, versión de reglas y aprobaciones.       |
+| 10.9  | Modularidad              | MVP como monolito modular; migración a servicios separados solo con razón operativa concreta.               |
+| 10.10 | Honestidad de la IA      | La IA reconoce cuando no sabe; nunca inventa fundamentos ni finge certeza.                                  |
+
+---
+
+## 6. Arquitectura y stack tecnológico
+
+Fuente completa: [`docs/07_SOFTWARE_ARCHITECTURE.md`](docs/07_SOFTWARE_ARCHITECTURE.md) (arquitectura), [`docs/09_DATABASE_DESIGN.md`](docs/09_DATABASE_DESIGN.md) (base de datos), [`docs/08_API_DESIGN.md`](docs/08_API_DESIGN.md) (API), [`docs/11_SECURITY_ARCHITECTURE.md`](docs/11_SECURITY_ARCHITECTURE.md) (seguridad), [`docs/12_FRONTEND_ARCHITECTURE.md`](docs/12_FRONTEND_ARCHITECTURE.md) (frontend).
+
+| Capa                                | Tecnología real, en uso hoy                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Monorepo                            | pnpm workspaces + Turborepo                                                                                                    |
+| Frontend (`apps/web`)               | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, TanStack Query, React Hook Form, Zod, Zustand                     |
+| Backend (`apps/api`)                | NestJS 10, TypeScript, REST + Swagger/OpenAPI, class-validator/class-transformer                                               |
+| Base de datos (`packages/database`) | PostgreSQL vía Prisma ORM                                                                                                      |
+| Cache / colas                       | Redis (ioredis) + BullMQ (en uso funcional desde EWO-005 Bloque D)                                                             |
+| Almacenamiento de objetos           | MinIO local (compatible S3), `@aws-sdk/client-s3`                                                                              |
+| Calidad                             | ESLint (flat config), Prettier, Jest (backend), Vitest (frontend/paquetes), Husky + lint-staged, Commitlint, CI GitHub Actions |
+| Autenticación                       | JWT de acceso + refresh token rotable, Argon2id, TOTP (MFA), CSRF de doble cookie                                              |
+
+**Principio arquitectónico rector:** monolito modular (principio 10.9) — sin microservicios hasta que exista una razón operativa concreta. Multi-tenancy vía patrón Membresía (`Company` ↔ `User` vía `Membership`, D-002), nunca por base de datos separada por Empresa.
+
+---
+
+## 7. Inteligencia artificial
+
+Fuente completa: [`docs/10_AI_ARCHITECTURE.md`](docs/10_AI_ARCHITECTURE.md) (orquestación, RAG, seguridad) y [`docs/01_PRD.md`](docs/01_PRD.md) §10 (alcance del MVP). Los 11 perfiles de abajo son la fuente canónica citada por nombre desde `docs/10_AI_ARCHITECTURE.md` ("`MASTER_CONTEXT.md` 13.1", etc., numeración histórica — ver [§16](#16-mapeo-de-numeración-histórico)) — no renombrar los agentes sin actualizar esa referencia cruzada.
+
+**Alcance del MVP:** de los 11 agentes definidos, **solo 4 están activos en el MVP** (`docs/01_PRD.md` §10): Agente Contable, Agente Fiscal, Agente de CFDI y XML, y Agente Supervisor de Calidad y Fuentes. Los otros 7 quedan documentados pero diferidos.
+
+| Agente                          | Estado MVP | Propósito                                                       | Prohibiciones clave                                                                                |
+| ------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Contable                        | **Activo** | Clasificar, explicar y proponer sobre información contable      | Nunca contabiliza automáticamente ni modifica registros validados                                  |
+| Fiscal                          | **Activo** | Interpretar y organizar obligaciones fiscales con fuente citada | Nunca presenta declaraciones ni garantiza cumplimiento                                             |
+| CFDI y XML                      | **Activo** | Extraer y validar estructuralmente comprobantes                 | Nunca timbra ni simula validación oficial ante el SAT                                              |
+| Supervisor de Calidad y Fuentes | **Activo** | Vigilar que otros agentes citen fuente/vigencia                 | Nunca genera contenido sustantivo propio ni aprueba de forma autónoma una respuesta de alto riesgo |
+| NIF                             | Diferido   | Interpretar Normas de Información Financiera                    | No reproduce contenido protegido del CINIF                                                         |
+| Auditoría                       | Diferido   | Apoyar revisión de consistencia y evidencia                     | No emite opinión de auditoría formal                                                               |
+| Financiero y empresarial        | Diferido   | Interpretar indicadores financieros ya calculados               | No calcula indicadores fuera de motores determinísticos                                            |
+| Nómina                          | Diferido   | Organizar e interpretar información de nómina                   | No calcula percepciones/deducciones/cuotas                                                         |
+| Jurídico corporativo            | Diferido   | Apoyar en aspectos societarios generales                        | No redacta documentos legales definitivos sin abogado                                              |
+| Educativo                       | Diferido   | Apoyar el aprendizaje con ejemplos y ejercicios                 | No usa datos reales de una Empresa como material educativo                                         |
+| Soporte                         | Diferido   | Ayudar a usar la plataforma                                     | No da asesoría contable/fiscal/legal sustantiva                                                    |
+
+Todos los agentes están sujetos a los principios 10.2, 10.3, 10.4 y 10.10 (§5) sin excepción.
+
+**Política de conocimiento (`knowledge/`).** Clasificación de fuentes: oficiales, autorizadas, internas, académicas, jurisprudenciales, criterios orientativos, casos prácticos, no verificadas. Metadatos mínimos por documento: título, institución, tipo, fecha de publicación/consulta/vigencia, ejercicio fiscal, versión, procedencia, estatus de validación, derechos de uso, responsable de revisión, hash de integridad. Fuentes prioritarias: Diario Oficial de la Federación, Cámara de Diputados, SAT, PRODECON, SCJN, TFJA, IMSS, INFONAVIT, Secretaría del Trabajo, Secretaría de Economía, CINIF — siempre respetando licencias. **No se copian ni distribuyen documentos protegidos sin autorización.** `docs/28_GLOSSARY.md`/`knowledge/` todavía no implementan esto en código — es política, no un sistema construido.
+
+---
+
+## 8. Decisiones arquitectónicas
+
+Índice de navegación rápida (ID, título, estado, fecha, documento relacionado): [`brain/DECISION_INDEX.md`](brain/DECISION_INDEX.md). Registro completo con contexto, alternativas y consecuencias: [`brain/DECISIONS.md`](brain/DECISIONS.md). Toda decisión nueva se registra ahí — nunca en este documento.
+
+Las dos decisiones más relevantes para el trabajo activo hoy:
+
+| ID    | Decisión                                                                               | Estatus                                                                       |
+| ----- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| D-007 | Estrategia de concurrencia y persistencia atómica del agregado CFDI (EWO-005 Bloque E) | **ACEPTADA**, ratificada 2026-07-25 — rige toda la Transacción A del Bloque E |
+| D-008 | Recuperación de `E5-S1-T07` mediante migración correctiva versionada                   | **ACEPTADA**                                                                  |
+
+---
+
+## 9. Preguntas abiertas
+
+### Preguntas de ingeniería (bloquean una tarea concreta)
+
+Registro completo: [`brain/QUESTIONS.md`](brain/QUESTIONS.md).
+
+| ID    | Pregunta                                                                                                       | Bloquea                                                                                                                                      |
+| ----- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q-001 | ¿Qué debe ocurrir cuando se carga un CFDI cuyo folio fiscal ya pertenece a OTRO documento de la misma Empresa? | Clasificación final de errores AD-10.2/AD-11 en EWO-005 Bloque E; el worker no puede rechazar automáticamente por duplicado hasta resolverla |
+
+### Preguntas estratégicas (nivel producto, sin dueño de tarea específico)
+
+Del `MASTER_CONTEXT.md` original (2026-07-18). Estado re-evaluado el 2026-07-30 contra la evidencia documental actual — no todas siguen abiertas:
+
+| #   | Pregunta                                                               | Estado observado                                                                                                                        |
+| --- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ¿Se confirma la misión redactada, o se ajusta?                         | Sin confirmación formal registrada — sigue abierta                                                                                      |
+| 2   | ¿Alcance definitivo del MVP?                                           | **Resuelta** — `docs/01_PRD.md` §3-9 lo define con precisión (incluye exclusiones explícitas)                                           |
+| 3   | ¿Se confirma el stack técnico preliminar?                              | **Resuelta en la práctica** — el stack de §6 está implementado y en uso desde EWO-001                                                   |
+| 4   | ¿Qué ORM sobre PostgreSQL?                                             | **Resuelta** — Prisma, en uso desde EWO-001                                                                                             |
+| 5   | ¿Qué proveedor(es) de IA para la capa de abstracción?                  | Arquitectura de abstracción decidida (`docs/10_AI_ARCHITECTURE.md`, AD-05); proveedor(es) específico(s) sin confirmar públicamente aquí |
+| 6   | ¿Planes y precios definitivos del modelo de negocio?                   | Sigue abierta — sin definición                                                                                                          |
+| 7   | ¿Cuándo se justifica migrar de monolito modular a servicios separados? | Sigue abierta — sin umbral definido                                                                                                     |
+| 8   | ¿Quién valida el contenido cargado en `knowledge/`?                    | Sigue abierta — `knowledge/` no implementado todavía                                                                                    |
+| 9   | ¿Cuándo y con qué PAC se aborda la integración fiscal de la Etapa 4?   | Sigue abierta — Etapa 4 no iniciada                                                                                                     |
+
+---
+
+## 10. Riesgos
+
+### Riesgos de producto y negocio
+
+Los 11 más relevantes hoy. Tabla íntegra original (17 riesgos): [`CHANGELOG.md`](CHANGELOG.md) → "Contenido preliminar de producto".
+
+| Riesgo                                      | Mitigación preliminar                                                               |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Errores fiscales                            | Separar cálculo determinístico de interpretación de IA; revisión humana obligatoria |
+| Información desactualizada                  | Versionado normativo obligatorio (principio 10.5)                                   |
+| Respuestas inventadas                       | Honestidad de la IA (10.10) + Agente Supervisor de Calidad y Fuentes                |
+| Filtración de datos entre Empresas          | Aislamiento estricto (`BR-GLB-001`), cifrado, mínimos privilegios, auditoría        |
+| Uso indebido de e.firma                     | Prohibición explícita de almacenamiento inseguro (§4)                               |
+| Dependencia de un solo proveedor de IA      | Capa de abstracción de proveedores                                                  |
+| Costos elevados de IA                       | Métricas de costo por usuario; calculadoras determinísticas                         |
+| Complejidad/crecimiento prematuro           | Monolito modular (10.9); migración solo con razón operativa concreta                |
+| Incumplimiento de licencias de conocimiento | Política de clasificación de fuentes y derechos de uso                              |
+| Falta de validación profesional             | Revisión humana obligatoria (10.2) en toda acción sensible                          |
+| Cambios normativos                          | Versionado normativo; distinción vigente/histórica                                  |
+
+### Riesgos arquitectónicos activos (EWO-005 Bloque E)
+
+Catálogo completo con probabilidad/impacto/estado: [`brain/RISKS.md`](brain/RISKS.md) (R-001 a R-012). Los más relevantes hoy:
+
+| ID    | Riesgo                                                                                | Estado                                                                                    |
+| ----- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| R-005 | Política de folio duplicado no definida — el worker no puede rechazar automáticamente | **Abierto** — depende de Q-001                                                            |
+| R-010 | Pérdida de efectos externos post-commit (sin outbox transaccional)                    | **Abierto** — aceptado como post-MVP, revisar cuando exista un consumidor real del evento |
+| R-001 | Corrupción silenciosa del agregado CFDI (mezcla entre workers)                        | Mitigado por diseño (D-007), pendiente de verificación en integración (`E5-S2-T10`)       |
+
+---
+
+## 11. Roadmap, alcance por etapas y módulos de largo plazo
+
+`docs/03_ROADMAP.md` es hoy un marcador vacío — esta sección es la fuente de facto hasta que se formalice ahí. Alcance definitivo de cada etapa (especialmente la Etapa 2/MVP): autoridad de `docs/01_PRD.md`.
+
+### 11.1 Etapas
+
+| Etapa                       | Contenido                                                                                                                                                             | Estado                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 0 — Documentación y diseño  | Visión, PRD, reglas de negocio, arquitectura, UX/UI, BD, seguridad, IA, pruebas                                                                                       | Sustancialmente completa (docs/00-25 existen, en `Draft v1.0`)                                                  |
+| 1 — Prototipo visual        | Landing, login simulado, dashboard, navegación, empresas, asistente IA visual                                                                                         | Parcialmente superada por implementación real (EWO-001 a EWO-004)                                               |
+| 2 — MVP funcional           | Usuarios/auth/roles/empresas · XML CFDI · organización documental · catálogo/pólizas · balanza/EF básicos · chat contable-fiscal · calculadoras · historial/auditoría | **En curso** — EWO-001 a EWO-004 cerrados; EWO-005 (CFDI) en curso, detalle en [`AI_CONTEXT.md`](AI_CONTEXT.md) |
+| 3 — Automatización contable | Clasificación, pólizas sugeridas, conciliaciones, reglas recurrentes                                                                                                  | No iniciada                                                                                                     |
+| 4 — Integraciones fiscales  | PAC autorizado, descarga masiva SAT, declaraciones asistidas                                                                                                          | No iniciada — bloqueada además por pregunta 9 (§9)                                                              |
+| 5 — Gestión empresarial     | Inventarios, activos, nómina, tesorería, presupuestos                                                                                                                 | No iniciada                                                                                                     |
+| 6 — Expansión               | API pública, app móvil, marketplace, integraciones bancarias                                                                                                          | No iniciada                                                                                                     |
+
+### 11.2 Módulos de largo plazo
+
+Visión de largo plazo (principio: no todos entran al MVP — `docs/01_PRD.md` decide el alcance real de cada etapa):
+
+- **Núcleo y administración:** autenticación y seguridad · usuarios/equipos/roles/permisos · administración multiempresa · expediente fiscal y empresarial · panel administrativo interno.
+- **Terceros y catálogos:** clientes y proveedores · catálogo de cuentas.
+- **Contabilidad:** pólizas contables · auxiliares · balanza de comprobación · estados financieros · papeles de trabajo.
+- **Documentos fiscales:** carga y análisis de XML · repositorio de CFDI · conciliación bancaria · conciliación CFDI-contabilidad.
+- **Finanzas operativas:** cuentas por cobrar/pagar · bancos y tesorería · inventarios · activos fijos · nómina · presupuestos · flujo de efectivo.
+- **Análisis y control:** indicadores financieros · auditoría · reportes · alertas · automatizaciones.
+- **Conocimiento e IA:** centro de conocimiento · agentes de inteligencia artificial (§7).
+- **Futuro:** marketplace de especialistas — fase futura únicamente.
+
+---
+
+## 12. Engineering Workflow — estado de implementación
+
+### 12.1 Resumen por EWO
+
+Ver tabla completa en [§3](#3-estado-actual-del-proyecto). Esta sección resume únicamente la EWO **activa**, sin repetir su estado detallado por tarea — ese estado vivo tiene una única fuente cada uno: [`AI_CONTEXT.md`](AI_CONTEXT.md) (minuto a minuto) y el checklist del EWO activo (detalle por tarea). Las EWO cerradas no se re-detallan aquí — su informe de cierre es la fuente completa.
+
+### 12.2 EWO-005 — Bloque E, Sprint 1 (cerrado)
+
+**`COMPLETADO`.** `E5-S1-T01` a `E5-S1-T10` → `PASSED`. Auditoría final independiente: [`E5-S1-T10_FINAL_AUDIT.md`](docs/engineering/audits/E5-S1-T10_FINAL_AUDIT.md). Entregó: modelos `CfdiConcept`/`CfdiTax`, CHECK `cfdi_taxes_scope_concept_check`, FKs compuestas tenant-safe, migraciones aplicadas y verificadas contra PostgreSQL real, procedimiento de rollback documentado y auditado.
+
+### 12.3 Estado operativo del Sprint activo
+
+**El estado operativo del proyecto se mantiene exclusivamente en [`AI_CONTEXT.md`](AI_CONTEXT.md).** `MASTER_CONTEXT.md` conserva únicamente el contexto ejecutivo — nunca la EWO activa, el bloque/sprint activo, el estado general, la última tarea, el siguiente hito ni el estado de ninguna auditoría. Ninguno de esos datos vive aquí, en ninguna forma ni formato.
+
+Para conocer el estado actual, consultar:
+
+- [`AI_CONTEXT.md`](AI_CONTEXT.md) — estado vivo, minuto a minuto.
+- El checklist de implementación de la EWO activa — su nombre exacto de archivo está en la columna "Informe" de la fila marcada `IN_PROGRESS` en [§3](#3-estado-actual-del-proyecto) — para el detalle por tarea.
+
+### 12.4 Convención de cierre de tarea (aplica a toda tarea de todo EWO)
+
+`BLOCKED` → implementación → `READY_FOR_AUDIT` → auditoría independiente `READ ONLY` (Codex) → `PASSED` (con `docs/engineering/audits/<tarea>_FINAL_AUDIT.md`) → habilita la siguiente tarea. Ninguna tarea se autocertifica `PASSED` sin esa auditoría independiente. Protocolo completo entre roles de IA: [`AI_PLAYBOOK.md`](AI_PLAYBOOK.md).
+
+---
+
+## 13. Definición de terminado
+
+Citada activamente desde otros documentos (p. ej. `docs/11_SECURITY_ARCHITECTURE.md`, `docs/01_PRD.md`) — **mantener esta sección localizable, no mover a un archivo secundario**.
+
+Una funcionalidad no se considera terminada solo porque su interfaz aparezca. Debe cumplir, según corresponda: requisito documentado · diseño aprobado · código revisado · pruebas · validación de seguridad · manejo de errores · permisos · auditoría · documentación · accesibilidad · rendimiento · observabilidad · revisión contable o fiscal · aprobación del propietario del producto.
 
 `Estado: Aprobado como principio inicial`
 
-## 5. Visión
+---
 
-Construir una de las plataformas contables y fiscales con inteligencia artificial más completas, confiables y fáciles de usar en México.
+## 14. Glosario mínimo
 
-La plataforma deberá reducir tareas repetitivas, facilitar el cumplimiento, mejorar la calidad de la información financiera y ayudar a los usuarios a entender sus operaciones.
-
-## 6. Misión
-
-Ofrecer a contadores, despachos, empresas y estudiantes mexicanos una herramienta que combine automatización, inteligencia artificial fundamentada y buenas prácticas contables y fiscales, para que puedan trabajar con mayor rapidez, menor margen de error y mayor comprensión de sus propias operaciones, siempre bajo supervisión profesional humana.
-
-`Estado: Propuesta pendiente de validación`
-
-## 7. Propuesta de valor
-
-ContaIA combina tres elementos que hoy suelen estar fragmentados en herramientas separadas: (1) organización y automatización contable-fiscal, (2) inteligencia artificial que explica y fundamenta en lugar de solo responder, y (3) trazabilidad y control propios de un entorno profesional regulado. El diferenciador central no es "una IA que contesta preguntas fiscales", sino un sistema que muestra fuentes, versiones y vigencias, separa cálculo determinístico de interpretación de IA, y deja siempre un rastro de auditoría revisable por un humano.
-
-## 8. Usuarios principales
-
-1. **Contador independiente.** Gestiona la contabilidad y cumplimiento fiscal de uno o varios clientes por su cuenta; necesita eficiencia, organización documental y respuestas confiables sin perder control profesional.
-2. **Despacho contable.** Equipo que atiende múltiples empresas o clientes; necesita administración multiempresa, control de acceso por colaborador y estandarización de procesos.
-3. **Empresa o negocio.** Usuario final que genera y consume información contable; necesita visibilidad clara de su situación financiera y fiscal sin depender de conocimientos técnicos profundos.
-4. **Director financiero o administrador.** Responsable de la salud financiera de una organización; necesita indicadores, reportes y proyecciones confiables para la toma de decisiones.
-5. **Auxiliar contable.** Ejecuta tareas operativas de captura, conciliación y organización; necesita herramientas ágiles que reduzcan trabajo manual repetitivo.
-6. **Auditor.** Revisa y valida la información contable y financiera; necesita trazabilidad, evidencia y acceso ordenado a papeles de trabajo.
-7. **Asesor fiscal.** Brinda orientación fiscal especializada; necesita fundamentos normativos actualizados y versionados para respaldar sus recomendaciones.
-8. **Estudiante de contaduría.** Usuario en formación; necesita explicaciones didácticas, ejemplos prácticos y un entorno seguro de aprendizaje sin acceso a datos reales sensibles.
-9. **Administrador interno de ContaIA.** Personal de la plataforma que da soporte, configura reglas, revisa incidencias y administra el sistema a nivel operativo.
-10. **Especialista humano que revisa respuestas o casos complejos.** Profesional (interno o externo) que valida respuestas de IA, aprueba operaciones sensibles y actúa como última instancia de criterio profesional.
-
-## 9. Problemas que busca resolver
-
-**Operación y captura**
-
-- Captura manual repetitiva.
-- Errores en registros contables.
-- Desorganización de documentos.
-- Procesos lentos de revisión y cierre.
-
-**Documentos fiscales y conciliación**
-
-- Dificultad para interpretar XML y CFDI.
-- Falta de conciliación entre bancos, CFDI y contabilidad.
-- Dificultad para generar pólizas y papeles de trabajo.
-
-**Información y conocimiento**
-
-- Información legal y fiscal dispersa.
-- Falta de explicaciones comprensibles.
-- Riesgo de respuestas de IA sin fundamento.
-
-**Gestión y control**
-
-- Uso de sistemas contables complejos.
-- Dificultad para administrar varias empresas.
-- Falta de trazabilidad y evidencia.
-- Dificultad para elaborar estados financieros.
-- Falta de alertas sobre inconsistencias.
-
-## 10. Principios obligatorios
-
-Todos los principios de esta sección tienen `Estado: Aprobado como principio inicial`, salvo que se indique lo contrario.
-
-### 10.1 Confiabilidad
-
-La plataforma debe priorizar exactitud, validación, trazabilidad y evidencia en toda la información y todos los cálculos que produce o presenta.
-
-### 10.2 Revisión humana
-
-Toda acción fiscal, contable, legal o financiera relevante deberá poder revisarse antes de aprobarse, contabilizarse, descargarse o enviarse. Ninguna acción sensible se ejecuta de forma automática sin punto de control humano.
-
-### 10.3 IA con fundamentos
-
-Las respuestas especializadas deberán mostrar, cuando corresponda: fuente; documento; artículo, regla o apartado; fecha de publicación; vigencia; ejercicio fiscal; versión consultada; advertencias o limitaciones. Una respuesta sin fundamento disponible debe declararse explícitamente como tal.
-
-### 10.4 Cálculos determinísticos
-
-La IA no será responsable directa de realizar cálculos fiscales o contables críticos. Los cálculos deberán ejecutarse mediante motores de reglas y funciones determinísticas, con: fórmulas verificables; versiones; casos de prueba; redondeos definidos; entradas y salidas registradas; trazabilidad. La IA podrá interpretar datos, explicar resultados y ayudar al usuario, pero no inventar fórmulas.
-
-### 10.5 Versionado normativo
-
-Toda información fiscal, legal, contable y normativa deberá identificarse por periodo y vigencia. La plataforma deberá distinguir entre: legislación vigente; legislación histórica; ejercicio fiscal aplicable; reformas; disposiciones transitorias; documentos no oficiales; criterios orientativos; jurisprudencia; fuentes derogadas o sustituidas.
-
-### 10.6 Seguridad y privacidad
-
-La seguridad debe considerarse desde el inicio, incluyendo: aislamiento entre empresas; roles y permisos; autenticación multifactor; cifrado; registro de auditoría; mínimos privilegios; protección de documentos; gestión segura de secretos; respaldo y recuperación; prevención de acceso no autorizado.
-
-### 10.7 Simplicidad
-
-Aunque la plataforma sea técnicamente avanzada, deberá ser sencilla de utilizar. Debe priorizar: lenguaje claro; procesos guiados; explicaciones paso a paso; ayudas contextuales; diseño limpio; baja saturación visual; accesibilidad; consistencia.
-
-### 10.8 Trazabilidad
-
-Las acciones importantes deberán registrar: usuario; empresa; fecha y hora; acción; información afectada; resultado; versión de reglas utilizada; aprobaciones; fuente de información; cambios realizados.
-
-### 10.9 Modularidad
-
-La plataforma deberá crecer por módulos sin convertirse prematuramente en una arquitectura innecesariamente compleja. El MVP comenzará como un monolito modular bien estructurado. Una migración a servicios separados solo deberá realizarse cuando existan razones operativas, de seguridad, escalabilidad o equipos independientes.
-
-### 10.10 Honestidad de la IA
-
-Cuando la IA no tenga información suficiente, deberá reconocerlo. Nunca deberá: inventar fundamentos; fingir certeza; ocultar contradicciones; presentar estimaciones como hechos; realizar acciones irreversibles sin autorización.
-
-## 11. Alcance general futuro
-
-Los módulos y capacidades descritos en las secciones 12 y 13 representan una **visión de largo plazo**. No todos pertenecerán al MVP: el alcance definitivo del MVP se determinará en `docs/01_PRD.md` conforme a la Etapa 2 de la estrategia de producto (sección 16). Esta sección no debe interpretarse como un compromiso de entrega, sino como un mapa de hacia dónde puede crecer el producto.
-
-`Estado: Propuesta pendiente de validación`
-
-## 12. Módulos
-
-**Núcleo y administración**
-
-- Autenticación y seguridad.
-- Usuarios, equipos, roles y permisos.
-- Administración multiempresa.
-- Expediente fiscal y empresarial.
-- Panel administrativo interno.
-
-**Terceros y catálogos**
-
-- Clientes y proveedores.
-- Catálogo de cuentas.
-
-**Contabilidad**
-
-- Pólizas contables.
-- Auxiliares.
-- Balanza de comprobación.
-- Estados financieros.
-- Papeles de trabajo.
-
-**Documentos fiscales**
-
-- Carga y análisis de XML.
-- Repositorio de CFDI.
-- Conciliación bancaria.
-- Conciliación entre CFDI y contabilidad.
-
-**Finanzas operativas**
-
-- Cuentas por cobrar.
-- Cuentas por pagar.
-- Bancos y tesorería.
-- Inventarios.
-- Activos fijos.
-- Nómina.
-- Presupuestos.
-- Flujo de efectivo.
-
-**Análisis y control**
-
-- Indicadores financieros.
-- Auditoría.
-- Reportes.
-- Alertas.
-- Automatizaciones.
-
-**Conocimiento e inteligencia artificial**
-
-- Centro de conocimiento.
-- Agentes de inteligencia artificial.
-
-**Futuro**
-
-- Marketplace de especialistas, considerado únicamente como fase futura.
-
-`Estado: Propuesta pendiente de validación`
-
-## 13. Agentes de inteligencia artificial
-
-Esta sección define el propósito y los límites iniciales de cada agente. No incluye los prompts internos definitivos, que se desarrollarán en `prompts/` y en `docs/10_AI_ARCHITECTURE.md`. Todos los agentes están sujetos a los principios de la sección 10, en particular 10.2 (revisión humana), 10.3 (IA con fundamentos), 10.4 (cálculos determinísticos) y 10.10 (honestidad de la IA).
-
-### 13.1 Agente contable
-
-- **Propósito:** ayudar a organizar, clasificar y explicar información contable.
-- **Tareas permitidas:** sugerir clasificación de cuentas, explicar pólizas existentes, apoyar en la organización de auxiliares y papeles de trabajo.
-- **Tareas prohibidas:** contabilizar de forma automática sin aprobación humana; modificar registros ya validados.
-- **Fuentes que podrá consultar:** catálogo de cuentas de la empresa, NIF aplicables validadas en `knowledge/NIF`, documentación interna del expediente de la empresa.
-- **Resultados esperados:** propuestas de clasificación y explicaciones claras, siempre marcadas como sugerencias.
-- **Revisión humana:** obligatoria antes de cualquier registro definitivo.
-- **Fundamentos:** debe citar la norma o criterio contable en que se basa una sugerencia, cuando exista.
-- **Manejo de incertidumbre:** si no hay criterio contable claro, debe señalarlo y evitar proponer una clasificación como definitiva.
-
-### 13.2 Agente fiscal
-
-- **Propósito:** apoyar en la interpretación y organización de obligaciones fiscales.
-- **Tareas permitidas:** explicar disposiciones fiscales con fuente citada, identificar obligaciones aplicables según datos proporcionados, apoyar en la preparación de información para revisión humana.
-- **Tareas prohibidas:** presentar declaraciones; garantizar cumplimiento; afirmar vigencia sin verificarla contra una fuente validada.
-- **Fuentes que podrá consultar:** documentos clasificados como oficiales o autorizados en `knowledge/SAT`, `knowledge/CFF`, `knowledge/ISR`, `knowledge/IVA`, `knowledge/IEPS`, `knowledge/RMF`.
-- **Resultados esperados:** explicaciones fundamentadas con advertencias de vigencia y ejercicio fiscal aplicable.
-- **Revisión humana:** obligatoria antes de cualquier presentación, pago o trámite ante autoridad.
-- **Fundamentos:** debe citar fuente, apartado y vigencia; si no puede, debe decirlo explícitamente.
-- **Manejo de incertidumbre:** ante ambigüedad normativa, debe presentar la duda y remitir a un asesor fiscal humano.
-
-### 13.3 Agente NIF
-
-- **Propósito:** apoyar en la interpretación de Normas de Información Financiera.
-- **Tareas permitidas:** explicar criterios contables generales con fuente citada, cuando la fuente esté disponible y autorizada.
-- **Tareas prohibidas:** reproducir o distribuir contenido protegido por derechos de autor del CINIF sin autorización; inventar contenido normativo.
-- **Fuentes que podrá consultar:** materiales clasificados como oficiales o autorizados en `knowledge/NIF`, respetando licencias.
-- **Resultados esperados:** explicaciones conceptuales fundamentadas, no transcripción de texto protegido.
-- **Revisión humana:** recomendada para la aplicación de criterios contables complejos o casos límite.
-- **Fundamentos:** debe indicar la norma referida y su estatus de vigencia.
-- **Manejo de incertidumbre:** si la fuente no está disponible en `knowledge/`, debe declararlo en vez de responder de memoria.
-
-### 13.4 Agente de CFDI y XML
-
-- **Propósito:** ayudar a leer, organizar y validar estructuralmente comprobantes fiscales digitales.
-- **Tareas permitidas:** extraer y presentar datos estructurados de un XML, identificar inconsistencias evidentes de formato, apoyar en la organización del repositorio de CFDI.
-- **Tareas prohibidas:** timbrar comprobantes; afirmar validez fiscal sin una validación técnica real; simular conexión con el SAT cuando no exista.
-- **Fuentes que podrá consultar:** el propio archivo XML, esquemas y reglas técnicas documentadas en `knowledge/CFDI`.
-- **Resultados esperados:** datos extraídos de forma estructurada y advertencias sobre posibles inconsistencias.
-- **Revisión humana:** obligatoria antes de usar los datos extraídos para efectos contables o fiscales definitivos.
-- **Fundamentos:** debe indicar de qué campo o sección del XML proviene cada dato presentado.
-- **Manejo de incertidumbre:** si un campo es ambiguo o el XML es incompleto, debe señalarlo en vez de inferir un valor.
-
-### 13.5 Agente de auditoría
-
-- **Propósito:** apoyar en la revisión de consistencia, trazabilidad y evidencia de la información registrada.
-- **Tareas permitidas:** identificar inconsistencias entre módulos, señalar falta de evidencia o documentación soporte, generar resúmenes de hallazgos para revisión humana.
-- **Tareas prohibidas:** emitir una opinión de auditoría formal; certificar cumplimiento.
-- **Fuentes que podrá consultar:** registros internos de la empresa, bitácoras de auditoría, papeles de trabajo.
-- **Resultados esperados:** listas de hallazgos con referencia a los registros afectados.
-- **Revisión humana:** obligatoria; el agente identifica, el auditor humano concluye.
-- **Fundamentos:** debe referenciar el registro, documento o módulo exacto que sustenta cada hallazgo.
-- **Manejo de incertidumbre:** debe distinguir entre "inconsistencia confirmada" y "posible inconsistencia a revisar".
-
-### 13.6 Agente financiero y empresarial
-
-- **Propósito:** apoyar en la interpretación de indicadores financieros y de negocio.
-- **Tareas permitidas:** explicar indicadores calculados por motores determinísticos, ayudar a interpretar tendencias con base en los datos de la empresa.
-- **Tareas prohibidas:** emitir recomendaciones de inversión personalizadas; calcular indicadores fuera de los motores determinísticos definidos.
-- **Fuentes que podrá consultar:** datos financieros internos de la empresa, definiciones de indicadores documentadas.
-- **Resultados esperados:** explicaciones e interpretaciones claras de indicadores ya calculados.
-- **Revisión humana:** recomendada para decisiones financieras relevantes.
-- **Fundamentos:** debe indicar la fórmula y el periodo de datos utilizados en el indicador que explica.
-- **Manejo de incertidumbre:** debe evitar proyecciones categóricas cuando los datos disponibles sean insuficientes.
-
-### 13.7 Agente de nómina
-
-- **Propósito:** apoyar en la organización e interpretación de información de nómina.
-- **Tareas permitidas:** explicar conceptos de nómina con fuente citada, apoyar en la organización de datos de empleados para revisión humana.
-- **Tareas prohibidas:** calcular percepciones, deducciones o cuotas obrero-patronales de forma directa por IA; timbrar recibos de nómina.
-- **Fuentes que podrá consultar:** documentos clasificados como oficiales o autorizados en `knowledge/LFT`, `knowledge/LSS`, `knowledge/INFONAVIT`.
-- **Resultados esperados:** explicaciones fundamentadas y organización de datos, no cálculos definitivos.
-- **Revisión humana:** obligatoria antes de cualquier pago o entero de obligaciones.
-- **Fundamentos:** debe citar la disposición laboral o de seguridad social referida.
-- **Manejo de incertidumbre:** ante casos particulares de un trabajador, debe remitir a revisión humana especializada.
-
-### 13.8 Agente jurídico corporativo
-
-- **Propósito:** apoyar en la organización e interpretación general de aspectos societarios y corporativos.
-- **Tareas permitidas:** explicar conceptos generales de derecho corporativo con fuente citada, apoyar en la organización del expediente societario.
-- **Tareas prohibidas:** redactar documentos legales definitivos sin revisión de abogado; dar asesoría legal personalizada vinculante.
-- **Fuentes que podrá consultar:** documentos clasificados como oficiales o autorizados en `knowledge/LGSM` y jurisprudencia relevante en `knowledge/JURISPRUDENCIA`.
-- **Resultados esperados:** explicaciones generales con advertencia de que no constituyen asesoría legal formal.
-- **Revisión humana:** obligatoria para cualquier acto con efectos legales.
-- **Fundamentos:** debe citar la disposición o criterio referido.
-- **Manejo de incertidumbre:** debe remitir a un abogado corporativo humano ante cualquier duda sustantiva.
-
-### 13.9 Agente educativo
-
-- **Propósito:** apoyar el aprendizaje de estudiantes de contaduría y usuarios en formación.
-- **Tareas permitidas:** explicar conceptos con distintos niveles de profundidad, generar ejemplos prácticos y ejercicios, usar datos simulados o anonimizados.
-- **Tareas prohibidas:** usar datos reales de una empresa como material educativo sin autorización; presentar ejercicios como si fueran asesoría profesional real.
-- **Fuentes que podrá consultar:** todo el centro de conocimiento clasificado como validado, con prioridad en materiales académicos.
-- **Resultados esperados:** explicaciones didácticas, ejemplos y ejercicios claramente marcados como material educativo.
-- **Revisión humana:** recomendada por un docente o tutor para validar la calidad pedagógica del contenido.
-- **Fundamentos:** debe indicar la fuente del concepto explicado cuando aplique.
-- **Manejo de incertidumbre:** debe distinguir entre "regla general" y "caso especial que requiere consulta adicional".
-
-### 13.10 Agente de soporte
-
-- **Propósito:** ayudar a los usuarios a utilizar la plataforma.
-- **Tareas permitidas:** explicar funciones de la plataforma, guiar procesos paso a paso, dirigir a los usuarios al módulo o agente correspondiente.
-- **Tareas prohibidas:** dar asesoría contable, fiscal o legal sustantiva; modificar configuraciones críticas sin confirmación del usuario.
-- **Fuentes que podrá consultar:** documentación de producto y ayuda interna de la plataforma.
-- **Resultados esperados:** respuestas operativas claras sobre el uso del sistema.
-- **Revisión humana:** no obligatoria para uso general; sí para cambios de configuración sensibles.
-- **Fundamentos:** referencia a la documentación de producto correspondiente.
-- **Manejo de incertidumbre:** si la duda es sustantiva (contable, fiscal o legal), debe derivar al agente especializado correspondiente.
-
-### 13.11 Agente supervisor de calidad y fuentes
-
-- **Propósito:** vigilar que las respuestas de los demás agentes cumplan con los principios de fundamentación, versionado y honestidad definidos en la sección 10.
-- **Tareas permitidas:** revisar que las respuestas citen fuente y vigencia cuando corresponda, señalar respuestas sin fundamento suficiente, marcar contenido para revisión humana.
-- **Tareas prohibidas:** generar contenido fiscal, contable o legal sustantivo por sí mismo; aprobar de forma autónoma una respuesta marcada como de alto riesgo.
-- **Fuentes que podrá consultar:** los metadatos de la política de conocimiento (sección 14) y los registros de trazabilidad de cada respuesta.
-- **Resultados esperados:** señales de calidad (aprobado, requiere revisión, insuficiente) asociadas a cada respuesta generada por otros agentes.
-- **Revisión humana:** cualquier respuesta marcada como "insuficiente" o "de alto riesgo" debe bloquearse hasta revisión humana.
-- **Fundamentos:** debe reportar qué criterio de la política de fuentes se cumplió o incumplió.
-- **Manejo de incertidumbre:** ante duda sobre la calidad de una fuente, debe clasificarla como no verificada en vez de aprobarla por defecto.
-
-## 14. Política de conocimiento
-
-Esta sección define la política inicial para la carpeta `knowledge/`.
-
-### 14.1 Clasificación de fuentes
-
-- Oficiales.
-- Autorizadas.
-- Internas.
-- Académicas.
-- Jurisprudenciales.
-- Criterios orientativos.
-- Casos prácticos.
-- No verificadas.
-
-### 14.2 Metadatos mínimos por documento
-
-Título; institución; tipo de documento; fecha de publicación; fecha de consulta; fecha de entrada en vigor; fecha de terminación de vigencia, cuando corresponda; ejercicio fiscal; versión; URL o procedencia; estatus de validación; derechos o restricciones de uso; responsable de revisión; hash o identificador de integridad.
-
-### 14.3 Fuentes prioritarias
-
-Diario Oficial de la Federación; Cámara de Diputados; SAT; PRODECON; SCJN; TFJA; IMSS; INFONAVIT; Secretaría del Trabajo; Secretaría de Economía; CINIF, respetando licencias y derechos de autor; otras instituciones oficiales aplicables.
-
-### 14.4 Aclaración sobre derechos de autor
-
-No se copiarán ni distribuirán documentos protegidos sin autorización. El almacenamiento de referencias, resúmenes o metadatos no sustituye la obligación de respetar licencias y derechos de autor de cada fuente.
-
-`Estado: Aprobado como principio inicial`
-
-## 15. Límites del producto
-
-ContaIA:
-
-- No es una autoridad fiscal.
-- No garantiza automáticamente el cumplimiento.
-- No sustituye asesoría profesional personalizada.
-- No debe enviar declaraciones sin aprobación.
-- No debe timbrar CFDI sin una integración autorizada.
-- No debe almacenar contraseñas o e.firma de forma insegura.
-- No debe simular conexión real con el SAT cuando no exista.
-- No debe presentar cálculos no validados como definitivos.
-- No debe usar información de una empresa para responder a otra.
-- No debe entrenar modelos con datos privados sin autorización expresa.
-- No debe realizar acciones destructivas sin confirmación.
-
-`Estado: Aprobado como principio inicial`
-
-## 16. Estrategia inicial del producto
-
-### Etapa 0: documentación y diseño
-
-Visión; PRD; reglas de negocio; arquitectura; UX/UI; base de datos; seguridad; IA; pruebas.
-
-### Etapa 1: prototipo visual
-
-Landing page; inicio de sesión simulado; dashboard; navegación; empresas; asistente IA visual; carga de archivos simulada. Sin integraciones fiscales reales.
-
-### Etapa 2: MVP funcional
-
-1. Usuarios, autenticación, roles y empresas.
-2. Carga y lectura de XML CFDI.
-3. Organización documental.
-4. Catálogo de cuentas y pólizas.
-5. Balanza y estados financieros básicos.
-6. Chat contable-fiscal con fuentes validadas.
-7. Calculadoras determinísticas seleccionadas.
-8. Historial, evidencias y auditoría.
-
-El PRD (`docs/01_PRD.md`) decidirá el alcance definitivo de esta etapa.
-
-### Etapa 3: automatización contable
-
-Clasificación; propuestas de cuentas; pólizas sugeridas; conciliaciones; reglas recurrentes; revisión y aprobación.
-
-### Etapa 4: integraciones fiscales
-
-PAC autorizado cuando sea necesario; descarga masiva mediante mecanismos oficiales aplicables; validaciones; cumplimiento; declaraciones asistidas; integraciones autorizadas.
-
-### Etapa 5: gestión empresarial
-
-Inventarios; activos; nómina; tesorería; presupuestos; analítica; proyecciones.
-
-### Etapa 6: expansión
-
-API pública controlada; aplicación móvil; marketplace; integraciones bancarias; ecosistema de terceros.
-
-`Estado: Propuesta pendiente de validación`
-
-## 17. Arquitectura técnica preliminar
-
-Las siguientes son decisiones **provisionales**, sujetas a validación posterior en `docs/07_SOFTWARE_ARCHITECTURE.md`. No constituyen especificaciones definitivas.
-
-- Monorepo.
-- Aplicación web con Next.js, React y TypeScript.
-- Backend modular.
-- PostgreSQL como base de datos principal.
-- ORM por definir en el documento técnico.
-- Almacenamiento de objetos compatible con S3.
-- Sistema de colas para trabajos en segundo plano.
-- Base vectorial o extensión vectorial para RAG.
-- Contenedores para entornos reproducibles.
-- Git y GitHub para control de versiones.
-- CI/CD.
-- Entornos separados: desarrollo, pruebas, staging y producción.
-- Observabilidad, logs, métricas y alertas.
-- Uso de proveedores de IA mediante una capa de abstracción.
-- Evitar dependencia absoluta de un solo proveedor.
-
-`Estado: Propuesta pendiente de validación`
-
-## 18. Experiencia de usuario (UX/UI)
-
-La interfaz debe ser: moderna; profesional; minimalista; accesible; responsiva; clara; apropiada para usuarios mexicanos; fácil para principiantes; eficiente para profesionales.
-
-**Inspiraciones de experiencia, sin copiar diseños:** Stripe; Notion; Linear; Microsoft Dynamics; Odoo; QuickBooks; plataformas financieras modernas.
-
-**Navegación adaptativa** según el tipo de usuario: contador; despacho; empresa; estudiante; administrador.
-
-**Niveles de explicación de contenido** que la plataforma deberá ofrecer: respuesta rápida; explicación detallada; fundamento; ejemplo práctico; procedimiento paso a paso; mapa conceptual; preguntas frecuentes; ejercicio educativo.
-
-`Estado: Propuesta pendiente de validación`
-
-## 19. Modelo de negocio preliminar
-
-Como hipótesis inicial: plan gratuito o demostración limitada; plan para contadores independientes; plan para despachos; plan para empresas; plan empresarial; cobros adicionales por consumo elevado de IA, almacenamiento o integraciones; posible acceso educativo; servicios profesionales opcionales.
-
-Precios y características específicas se definirán después de validar el mercado y calcular costos.
-
-`Estado: Propuesta pendiente de validación`
-
-## 20. Indicadores de éxito preliminares
-
-Tiempo ahorrado por proceso; porcentaje de documentos procesados correctamente; reducción de errores; tasa de aceptación de sugerencias contables; satisfacción de usuarios; retención; usuarios activos; empresas activas; tiempo de respuesta; disponibilidad; errores por módulo; calidad de respuestas con fuentes; porcentaje de respuestas que requieren corrección humana; costo de IA por usuario; conversión de prueba a pago.
-
-`Estado: Propuesta pendiente de validación`
-
-## 21. Riesgos principales
-
-| Riesgo                               | Mitigación preliminar                                                                                                          |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Errores fiscales                     | Separar cálculo determinístico de interpretación de IA; revisión humana obligatoria antes de presentar o pagar.                |
-| Información desactualizada           | Versionado normativo obligatorio con fechas de vigencia y responsable de revisión.                                             |
-| Respuestas inventadas                | Principio de honestidad de la IA; agente supervisor de calidad y fuentes; bloqueo de respuestas sin fundamento suficiente.     |
-| Filtración de datos                  | Aislamiento entre empresas, cifrado, mínimos privilegios y registro de auditoría desde el diseño.                              |
-| Uso indebido de e.firma              | Prohibición explícita de almacenamiento inseguro de e.firma y contraseñas; ver sección 15.                                     |
-| Dependencia de proveedores           | Capa de abstracción de proveedores de IA; evitar dependencia absoluta de uno solo.                                             |
-| Costos elevados de IA                | Métricas de costo de IA por usuario; calculadoras determinísticas para reducir uso innecesario de IA generativa.               |
-| Complejidad excesiva                 | Principio de modularidad; MVP como monolito modular antes de migrar a servicios separados.                                     |
-| Crecimiento prematuro                | Migración a microservicios solo ante razones operativas, de seguridad, escalabilidad o de equipo concretas.                    |
-| Incumplimiento de licencias          | Política de conocimiento con clasificación de derechos de uso; prohibición de distribuir contenido protegido sin autorización. |
-| Baja adopción                        | Validación de mercado antes de fijar modelo de negocio definitivo; foco en simplicidad (principio 10.7).                       |
-| Mala experiencia de usuario          | Principios de UX/UI (sección 18) y pruebas de usabilidad en la estrategia de producto.                                         |
-| Falta de validación profesional      | Revisión humana obligatoria (principio 10.2) en toda acción sensible.                                                          |
-| Errores de OCR                       | Tratamiento de datos extraídos como propuesta sujeta a revisión, no como dato definitivo automático.                           |
-| Integración inestable con terceros   | Entornos separados y observabilidad; integraciones fiscales solo en etapas posteriores del roadmap (Etapa 4).                  |
-| Cambios normativos                   | Versionado normativo y distinción entre legislación vigente e histórica (principio 10.5).                                      |
-| Mezcla de información entre empresas | Aislamiento estricto entre empresas como requisito de seguridad (principio 10.6 y límite en sección 15).                       |
-
-## 22. Gobierno del proyecto
-
-Las decisiones y el conocimiento del proyecto deben documentarse en los siguientes lugares:
-
-- Decisiones técnicas → `brain/DECISIONS.md`
-- Ideas sin aprobar → `brain/IDEAS.md`
-- Preguntas pendientes → `brain/QUESTIONS.md`
-- Riesgos → `brain/RISKS.md`
-- Mejoras futuras → `brain/IMPROVEMENTS.md`
-- Análisis competitivo → `brain/COMPETITORS.md`
-- Cambios relevantes → `CHANGELOG.md`
-
-Toda decisión importante registrada en `brain/DECISIONS.md` deberá incluir: fecha; contexto; alternativas; decisión; motivo; consecuencias; responsable; estatus.
-
-`Estado: Aprobado como principio inicial`
-
-## 23. Definición de terminado
-
-Una funcionalidad no se considerará terminada solo porque su interfaz aparezca. Debe cumplir, según corresponda:
-
-Requisito documentado; diseño aprobado; código revisado; pruebas; validación de seguridad; manejo de errores; permisos; auditoría; documentación; accesibilidad; rendimiento; observabilidad; revisión contable o fiscal; aprobación del propietario del producto.
-
-`Estado: Aprobado como principio inicial`
-
-## 24. Glosario inicial
-
-Este glosario cubre únicamente lenguaje usado en este documento para facilitar su lectura. No constituye una fuente fiscal, contable o legal; para definiciones sustantivas remitirse a `docs/28_GLOSSARY.md` y a `knowledge/`.
+Cubre solo el lenguaje usado en este documento. No es fuente fiscal/contable/legal — para eso, `knowledge/` (no implementado todavía) y `docs/28_GLOSSARY.md` (reservado, sin contenido).
 
 - **SaaS:** software como servicio, entregado y operado en la nube.
-- **MVP:** producto mínimo viable, primera versión funcional con el menor alcance útil posible.
+- **MVP:** producto mínimo viable, primera versión funcional con el menor alcance útil.
 - **CFDI:** comprobante fiscal digital por internet.
-- **XML:** formato de archivo estructurado en el que se emiten los CFDI.
-- **PAC:** proveedor autorizado de certificación, mencionado aquí solo como concepto general a integrar en etapas futuras.
-- **RAG:** técnica de recuperación aumentada por generación, usada para fundamentar respuestas de IA en documentos fuente.
+- **XML:** formato estructurado en que se emiten los CFDI.
+- **PAC:** proveedor autorizado de certificación (integración futura, Etapa 4).
+- **RAG:** recuperación aumentada por generación, para fundamentar respuestas de IA en fuentes.
 - **NIF:** Normas de Información Financiera.
-- **Monorepo:** repositorio único que contiene múltiples aplicaciones o paquetes del proyecto.
-- **Motor determinístico:** componente de software que produce siempre el mismo resultado ante las mismas entradas, usado para cálculos fiscales y contables críticos.
+- **Monorepo:** repositorio único con múltiples aplicaciones/paquetes.
+- **Motor determinístico:** componente que produce siempre el mismo resultado ante las mismas entradas — usado para cálculos fiscales/contables críticos.
+- **EWO:** Engineering Work Order — unidad de trabajo de ingeniería con informe de cierre propio.
+- **Bloque / Sprint / Tarea:** subdivisión interna de una EWO grande (hoy solo EWO-005 la usa); una tarea es la unidad auditable mínima.
+- **Knowledge Platform:** el conjunto de `MASTER_CONTEXT.md` + `AI_CONTEXT.md` + `PROJECT_INDEX.md` + `DASHBOARD.md` + `CHANGELOG.md` + `brain/` + `AI_PLAYBOOK.md` + `DOCUMENTATION_STYLE_GUIDE.md` — la arquitectura documental completa del proyecto, ver §2.
 
-## 25. Preguntas pendientes
+---
 
-Las siguientes decisiones aún no están aprobadas y requieren validación del responsable del producto. También se registran en `brain/QUESTIONS.md`.
+## 15. Gobierno y mantenimiento de este documento
 
-1. ¿Se confirma la misión redactada en la sección 6, o se ajusta su redacción?
-2. ¿Cuál será el alcance definitivo del MVP dentro de los ocho puntos listados en la Etapa 2 (sección 16)?
-3. ¿Se confirma el stack técnico preliminar de la sección 17, o se evaluarán alternativas antes de fijarlo en `docs/07_SOFTWARE_ARCHITECTURE.md`?
-4. ¿Qué ORM se utilizará sobre PostgreSQL?
-5. ¿Qué proveedor(es) de IA se evaluarán para la capa de abstracción mencionada en la arquitectura preliminar?
-6. ¿Cuáles serán los planes y precios definitivos del modelo de negocio (sección 19)?
-7. ¿En qué momento se considerará justificada la migración de un monolito modular a servicios separados (principio 10.9)?
-8. ¿Qué institución o responsable validará inicialmente el contenido cargado en `knowledge/`?
-9. ¿Cuándo y con qué PAC se abordará la integración fiscal de la Etapa 4?
+**Dónde documentar qué (sin excepción):**
 
-## 26. Historial de cambios
+| Tipo de información                                                | Vive en                                                  |
+| ------------------------------------------------------------------ | -------------------------------------------------------- |
+| Estado vivo de la sesión de ingeniería                             | `AI_CONTEXT.md`                                          |
+| Salud del proyecto por dominio técnico                             | `DASHBOARD.md`                                           |
+| Ubicación de cualquier documento                                   | `PROJECT_INDEX.md`                                       |
+| Decisión técnica ratificada                                        | `brain/DECISIONS.md` (índice: `brain/DECISION_INDEX.md`) |
+| Pregunta de negocio o ingeniería sin resolver                      | `brain/QUESTIONS.md`                                     |
+| Riesgo arquitectónico concreto                                     | `brain/RISKS.md`                                         |
+| Idea sin aprobar / mejora futura                                   | `brain/IDEAS.md` / `brain/IMPROVEMENTS.md`               |
+| Cambio técnico, cierre de tarea, corrección — **detalle completo** | `CHANGELOG.md`                                           |
+| Hito mayor (cierre de EWO/Sprint/decisión) — **una línea**         | Este documento, [§18](#18-historial-ejecutivo)           |
+| Detalle de una tarea de ingeniería específica                      | `docs/engineering/<EWO>_IMPLEMENTATION_CHECKLIST.md`     |
+| Auditoría final de una tarea                                       | `docs/engineering/audits/<tarea>_FINAL_AUDIT.md`         |
+| Cómo trabajan Claude Code / Codex / ChatGPT juntos                 | `AI_PLAYBOOK.md`                                         |
+| Cómo se nombra/versiona/formatea un documento nuevo                | `DOCUMENTATION_STYLE_GUIDE.md`                           |
 
-| Fecha      | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Responsable                                                                                                       |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 2026-07-18 | Creación de la primera versión completa de `MASTER_CONTEXT.md` a partir de la identidad, visión, principios, agentes, política de conocimiento, límites, estrategia y gobierno definidos por el responsable de producto.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Responsable de producto de ContaIA                                                                                |
-| 2026-07-18 | Se agrega la sección 27, "Historial de reorganización documental", bajo un Maintenance Work Order de reorganización de numeración (ver sección 27 para el detalle completo).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Responsable de producto de ContaIA                                                                                |
-| 2026-07-18 | Se agrega la subsección 27.4: adopción de la Política oficial de gestión de colisiones de numeración, y registro de la reorganización masiva del bloque `docs/20`-`docs/24` ejecutada bajo esa política.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Responsable de producto de ContaIA                                                                                |
-| 2026-07-19 | EWO-002 (Authentication & Authorization) implementado: módulos NestJS Authentication/Users/Roles & Permissions/Audit; entidades Prisma User/Company/Role/Permission/RolePermission/Membership/Session/PasswordReset/EmailVerification/Invitation/MfaRecoveryCode/AuditLog; JWT de acceso + refresh token rotable, Argon2id, TOTP completo (BR-AUTH-002), CSRF de doble cookie, guards Authentication/Company/Role/Permission/Ownership; frontend `/acceso/*` (login, MFA, recuperación/reset de contraseña, verificación de correo, logout) y páginas de estado (no autorizado, prohibido, sesión expirada). Tres decisiones de arquitectura confirmadas explícitamente con el responsable de producto (multi-tenancy vía Membership, sesión JWT+refresh sin Better Auth como mecanismo principal, MFA obligatorio ahora) y una decisión de alcance (Companies/correo real/enrolamiento MFA forzoso quedan fuera) — ver `brain/DECISIONS.md` D-002 a D-005 y `docs/engineering/EWO-002_AUTH_REPORT.md` para el detalle completo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Responsable de producto de ContaIA (decisiones confirmadas) / Claude Code (implementación)                        |
-| 2026-07-19 | Cierre completo de EWO-002 (de `COMPLETE_WITH_NON_BLOCKING_WARNINGS` a `DONE`), mismo día: página de Registro, flujo de invitación (`/acceso/invitacion/{token}`, WF-0004) y selección inicial de Empresa (`/seleccionar-empresa`, WF-0005); enrolamiento forzoso de MFA por Rol (BR-AUTH-002, `brain/DECISIONS.md` D-006); corrección de dos bugs preexistentes de auditoría (`MFA_ENABLED`/`MFA_DISABLED` nunca se emitían; `deviceInfo` llegaba `NULL` en todo `AuditLog` de eventos `auth.*` por un desajuste de nombre de campo). Companies completo y correo real quedan fuera, confirmados como alcance de una Work Order futura (D-005). Detalle completo en `docs/engineering/EWO-002_AUTH_REPORT.md` sección 12.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Responsable de producto de ContaIA (orden de cierre) / Claude Code (implementación)                               |
-| 2026-07-19 | Corrección de raíz del runner `pnpm run test:integration` de `apps/api`, mismo día — el responsable de producto no aceptó cerrar EWO-002 mientras no ejecutara. Causa real: un `jest.mock('@contaia/database', ...)` desactualizado desde EWO-001 (objeto literal fijo, nunca actualizado cuando EWO-002 agregó `prisma`/los enums de Prisma al módulo real), no el problema de resolución de módulos de Jest/pnpm que un diagnóstico previo, incompleto, había concluido erróneamente. Corregido con `jest.requireActual`, lo que a su vez expuso y permitió corregir un bug real de inyección de dependencias (`EMAIL_SENDER` no resoluble en `RolesPermissionsModule` — se movió a `CommonModule` global) que también habría roto el arranque real del backend en producción, y una prueba a la que le faltaba `correlationIdMiddleware`. `pnpm run check` ahora incluye `test:integration`. La suite de `packages/database` que sí requiere PostgreSQL real ahora se omite automáticamente (no falla) cuando Docker no está disponible, en vez de reportar un error. Detalle completo en `docs/engineering/EWO-002_AUTH_REPORT.md` sección 12.8.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Responsable de producto de ContaIA (orden de corrección) / Claude Code (implementación)                           |
-| 2026-07-19 | EWO-003 (Organization & Company Management) implementado: entidad `Organization` (BR-ORG-001/002) en alcance mínimo, `Company` completada con `businessActivity` (giro, BR-EMP-003) y `version` (bloqueo optimista); módulo `Companies` completo (crear, consultar, listar, actualizar — BR-EMP-001, BR-CFG-001/002) que EWO-002 había dejado explícitamente diferido (D-005); frontend `/crear-empresa`, `/empresas`, `/empresas/{companyId}` y extensión de `/seleccionar-empresa`. Dos conflictos entre la Work Order y la documentación aprobada se resolvieron con el responsable de producto antes de implementar (alcance mínimo de Organización; activación/baja de Empresa omitida por falta de regla de negocio aprobada) — ver `docs/engineering/EWO-003_COMPANY_REPORT.md` para el detalle completo. Migración real y verificación con Docker en vivo quedan pendientes por la misma ausencia de Docker ya documentada desde EWO-001.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Responsable de producto de ContaIA (decisiones confirmadas) / Claude Code (implementación)                        |
-| 2026-07-19 | Corrección de trazabilidad documental (mismo día, previa a EWO-004): `BR-EMP-004`, citada desde al menos seis documentos (`docs/04_BUSINESS_RULES.md` como dependencia de BR-USR-002, `docs/05_SYSTEM_DOMAIN_MODEL.md`, `docs/06_SYSTEM_WORKFLOWS.md`, `docs/08_API_DESIGN.md`, `docs/09_DATABASE_DESIGN.md`, `docs/11_SECURITY_ARCHITECTURE.md`, `docs/14_INFORMATION_ARCHITECTURE.md`, más `brain/DECISIONS.md` D-002/D-006), nunca estaba definida en `docs/04_BUSINESS_RULES.md` sección 4.3. Se definió formalmente como "Membresía única por par usuario-empresa, con Rol propio de esa relación", consistente con el comportamiento ya implementado desde EWO-002 (`@@unique([userId, companyId])` en `Membership`, RBAC evaluado siempre por `(Usuario, companyId, Rol)`) y con la redacción ya existente en los documentos que la citaban. Sin cambio de comportamiento del sistema ni nueva decisión arquitectónica — corrección de trazabilidad documental, per pedido explícito del responsable de producto. Detalle en la adenda de `docs/engineering/EWO-003_COMPANY_REPORT.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Responsable de producto de ContaIA (orden de corrección) / Claude Code (implementación)                           |
-| 2026-07-19 | Ampliación de EWO-003 (mismo día, segunda Work Order): perfil fiscal (`CompanyFiscalProfile.taxRegime`, texto libre sin catálogo SAT), domicilio fiscal (`CompanyAddress`), configuración regional (`CompanySettings`: zona horaria, moneda, idioma, país) y nombre comercial (`Company.tradeName`) — los tres sub-recursos nuevos comparten el bloqueo optimista de `Company.version` como aggregate root. Nuevos endpoints `PATCH /companies/{id}/fiscal-profile`, `/address`, `/settings`; nuevos permisos `company.fiscal.update`/`company.settings.update`; perfil de Empresa reestructurado en 4 secciones (General/Fiscal/Domicilio/Configuración); indicador visual de empresa activa agregado a `/seleccionar-empresa`. La Work Order volvió a pedir "estado de empresa" (activar/desactivar) — se reconfirmó con el responsable de producto mantener la exclusión ya decidida (documentación aprobada sin patrón de confirmación, evento de dominio ni regla de negocio para ese comportamiento). Detalle completo en `docs/engineering/EWO-003_COMPANY_REPORT.md` sección 13.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Responsable de producto de ContaIA (decisiones confirmadas) / Claude Code (implementación)                        |
-| 2026-07-19 | Cierre técnico de EWO-003 (mismo día, tercera revisión, rol Tech Lead): se agregó `GET /companies/{companyId}/memberships` (API-0016, documentada desde EWO-002 pero nunca implementada); protección contra revocar al último Administrador propietario activo de una Empresa (`LastOwnerException`, invariante permanente de BR-EMP-001, no una decisión nueva); se eliminó `AUTH_EVENTS.PERMISSION_CHANGED`, código muerto desde EWO-002 (sin emisor, sin consumidor, sin endpoint que lo justificara). `prisma format`/`prisma validate`/`prisma generate` ejecutados en verde; `prisma migrate dev` sigue bloqueado por ausencia de Docker, con comando exacto documentado para cuando esté disponible. `pnpm run check` completo (lint, typecheck, test, test:integration, build) en verde en los 9 paquetes del monorepo. Se confirmó que el repositorio no tiene ningún commit de Git todavía (ni de EWO-001, ni de EWO-002, ni de EWO-003) — commit recomendado dejado listo, sin ejecutar, a la espera de confirmación explícita. **Estado final: `IN PROGRESS`**, no `DONE`, por los dos pendientes de infraestructura/versionado reales (migración, commit inicial) — ninguna validación de código falló. Detalle completo en `docs/engineering/EWO-003_COMPANY_REPORT.md` sección 14.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Responsable de producto de ContaIA (orden de cierre) / Claude Code (implementación)                               |
-| 2026-07-19 | Primer commit del repositorio (mismo día, cuarta sesión), tras autorización explícita del responsable de producto y reconfirmación previa (`git status`, `pnpm run check` verde, `prisma validate`/`generate`, revisión de secretos: `.env`/`.env.local` correctamente ignorados, solo `.env.example` con placeholders). Se descubrió y corrigió de raíz un defecto pre-existente que impedía cualquier commit: el hook `pre-commit` (Husky + lint-staged) nunca había funcionado porque invocaba `eslint` desde la raíz del monorepo, donde no se resuelve (sin `eslint.config.*` de raíz y sin `eslint` como dependencia de raíz) — se agregó `scripts/lint-staged-eslint.mjs` (ESLint por-workspace) y se reconfiguró `lint-staged`. Commit **`756358d`** (`feat: establish ContaIA foundation and company management`, 322 archivos), con hooks `pre-commit` y `commit-msg` activos y en verde (sin `--no-verify`). Sin push, sin PR, sin reescritura de historia. `pnpm run check` re-ejecutado sobre el estado comiteado (reformateado por Prettier): verde. **Estado formal de EWO-003: `BLOCKED`** — único criterio pendiente: la migración inicial real de Prisma, que requiere Docker/PostgreSQL no disponible en este entorno. EWO-004 no se inició. Detalle completo en `docs/engineering/EWO-003_COMPANY_REPORT.md` sección 15.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Responsable de producto de ContaIA (autorización del commit) / Claude Code (implementación)                       |
-| 2026-07-19 | Intento de cierre de EWO-003 mediante migración inicial (mismo día, quinta sesión): se pidió levantar PostgreSQL con Docker y generar/aplicar la migración inicial real. Se reconfirmó el repositorio (limpio, ambos commits presentes, hooks intactos) y se verificó Docker de forma más exhaustiva que en sesiones previas — no solo en el shell Bash, también en el PATH de Windows (PowerShell), el registro de servicios de Windows y el directorio de instalación `C:\Program Files\Docker` — **las cuatro vías confirmaron que Docker Desktop no está instalado**, no es un problema de configuración de shell. Siguiendo la instrucción explícita de no simular la migración, no se generó ninguna migración, no se usó `db push`, no se escribió SQL manual y no hubo commit de cierre (nada que comitear). **Estado sin cambios: `BLOCKED`.** EWO-004 no se inició. Detalle completo en `docs/engineering/EWO-003_COMPANY_REPORT.md` sección 16.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Responsable de producto de ContaIA (solicitud de cierre) / Claude Code (verificación)                             |
-| 2026-07-20 | EWO-004 (User, RBAC & Workspace Context) implementado: shell de aplicación `app/[companyId]/layout.tsx` que valida la Membresía del usuario en la Empresa del parámetro de ruta, carga permisos con `useMyPermissions(companyId)` y sincroniza Zustand; `app-shell.tsx` con navegación lateral filtrada por permisos, indicador de Empresa activa y botón de cambio; dashboard `/[companyId]/inicio`; perfil personal `/configuracion/personal` con edición de nombre/teléfono y cambio de contraseña; hooks `useMyPermissions`, `useHasPermission`, `useUpdateProfile`, `useChangePassword`; cliente tipado `lib/roles-client.ts`. Backend: endpoint `POST /auth/change-password` (verificación Argon2 de contraseña actual, revocación de todas las sesiones, evento `PASSWORD_CHANGED`); `ChangePasswordDto` con la misma política de contraseña que el reset. Workspace Context implementado conforme a la decisión arquitectónica ya confirmada (empresa activa en Zustand/cliente, `companyId` explícito en cada ruta, backend sin estado de empresa activa, sin endpoint "cambiar empresa activa"). `pnpm run check` verde en los 9 paquetes (lint, typecheck, test, test:integration, build — 17 páginas Next.js); commit **`bda2356`** (`feat(ewo-004): implement User, RBAC & Workspace Context`, 16 archivos, 891 inserciones). **Estado: `BLOCKED`** — mismo bloqueo de infraestructura documentado desde EWO-001: migración inicial de Prisma pendiente por ausencia de Docker Desktop. Detalle completo en `docs/engineering/EWO-004_USER_RBAC_REPORT.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Responsable de producto de ContaIA (alcance aprobado) / Claude Code (implementación)                              |
-| 2026-07-21 | Corrección posterior de EWO-004 (mismo alcance, sesión de cierre técnico): se detectó que cuatro endpoints company-scoped (`GET`/`PATCH /companies/{companyId}`, `POST /companies/{companyId}/invitations`, `GET /companies/{companyId}/my-permissions`) devolvían 500 no controlado cuando un Administrador de plataforma (sin Membership, por diseño — D-002) los invocaba, porque el decorador `@Company()` asumía `request.membership` siempre presente. Antes de corregir, se determinó con evidencia documental explícita si la solución definitiva (acceso de soporte JIT, `POST /admin/support-access`, API-0053) pertenecía al alcance de EWO-004: `docs/19_FRONTEND_IMPLEMENTATION_PLAN.md` (línea 228) y `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` (línea 244) ubican el módulo Administration —dueño de API-0053 según `docs/11_SECURITY_ARCHITECTURE.md` línea 744 y `docs/14_INFORMATION_ARCHITECTURE.md` línea 720— en Fase 8, fuera del alcance ya aprobado de EWO-004 (sección 1 de su informe); ningún documento de planificación se lo asigna a EWO-004. Con esa determinación, se aplicó únicamente una protección temporal dentro del alcance ya aprobado: `@Company()` lanza `PlatformAdminWithoutSupportAccessException` (403, BR-SEC-004) en vez de dejar pasar `undefined`, sin crear Membership ficticia, rol sintético, `isOwner` artificial ni permisos derivados de un rol inexistente, sin modificar `CompanyGuard`/`PermissionGuard`/`RoleGuard`/`OwnershipGuard` (el bypass de plataforma en los guards permanece igual, D-002), sin mezclar Platform RBAC con Company RBAC, sin tocar Workspace Context ni el schema de Prisma, y sin crear ni cambiar ningún endpoint o contrato público. Se corrigió además una imprecisión factual en la sección 5 del informe de EWO-004 (afirmaba que TanStack Query invalida automáticamente la caché de la Empresa anterior al cambiar de Empresa; en realidad cada Empresa tiene su propia entrada de caché independiente por `queryKey: ['permissions', companyId]`, sin invalidación). `pnpm run check` reejecutado en verde. **Estado: `BLOCKED`, sin cambios** — mismo bloqueo de infraestructura por ausencia de Docker/PostgreSQL; EWO-004 no pasa a `DONE`. Detalle completo en `docs/engineering/EWO-004_USER_RBAC_REPORT.md` sección 10. | Responsable de producto de ContaIA (orden de investigación y corrección) / Claude Code (implementación)           |
-| 2026-07-22 | Cierre formal de EWO-004 (User, RBAC & Workspace Context): migración inicial de Prisma `20260722194307` aplicada mediante contenedor Linux efímero (`node:22-bookworm-slim` conectado a `contaia_network`), eludiendo el proxy TCP de Docker Desktop (WSL2) que aceptaba el handshake TCP desde Windows pero no reenviaba los mensajes de inicio del protocolo PostgreSQL al contenedor PostgreSQL. PostgreSQL y Redis healthy durante toda la sesión. 135 pruebas unitarias en Windows (7 suites RBAC: AuthenticationGuard, CompanyGuard, RoleGuard, PermissionGuard, OwnershipGuard, `@Company()` decorator, `useMyPermissions`) + 2 pruebas de integración en contenedor = **137/137 en verde**. `_prisma_migrations` validada: 1 fila, estado `applied`. Esquema creado: 17 tablas, 24 índices, 18 claves foráneas. `prisma validate`/`generate`/`migrate status` en verde. Limitación conocida no bloqueante: los API integration tests de `apps/api` no pueden ejecutarse desde Windows por el mismo proxy TCP de Docker Desktop; requieren entorno Linux nativo o resolución del proxy. EWO-005 no autorizado. **Estado: `DONE`**. Detalle completo en `docs/engineering/EWO-004_USER_RBAC_REPORT.md` sección 10.8.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Responsable de producto de ContaIA (autorización de migración y cierre) / Claude Code (ejecución y documentación) |
-| 2026-07-23 | Avance acotado de EWO-005 (infraestructura MinIO — Paso 3 del plan técnico ya corregido, `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` sección 6.1; la auditoría del 2026-07-23 reordenó el plan dejando los modelos Prisma como Paso 1, por lo que este avance de infraestructura, que la bitácora original numeraba como "Paso 1", corresponde ahora al Paso 3): se agrega el servicio `minio` a `docker-compose.yml` (imagen `minio/minio:latest`, puertos API/consola configurables vía `MINIO_PORT`/`MINIO_CONSOLE_PORT`, credenciales dev-only vía `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` con el mismo patrón `${VAR:-default}` que `postgres`/`redis`, healthcheck `mc ready local` con `start_period` de 10s, volumen nombrado `contaia_minio_data`) y un job de inicialización one-shot `minio-init` (imagen `minio/mc`, `depends_on: minio [service_healthy]`) que crea el bucket `contaia-documents` de forma idempotente (`mc mb --ignore-existing`) cerrando el requisito de "bucket inicial" del Paso 3; se habilita `STORAGE_ENABLED=true` en `.env`/`.env.example` con `STORAGE_ENDPOINT`/`STORAGE_PORT`/`STORAGE_ACCESS_KEY`/`STORAGE_SECRET_KEY`/`STORAGE_BUCKET` apuntando al MinIO local; se actualiza el comentario de cabecera de `docker-compose.yml` y el docblock de `packages/validation/src/env/storage.ts`, ambos desactualizados desde EWO-001 (afirmaban que MinIO estaba fuera de alcance y que `STORAGE_ENABLED` debía permanecer en `false`). Cambio deliberadamente acotado a infraestructura de desarrollo local — no se creó ningún módulo NestJS (`DocumentsModule`/`CfdiModule`/`XmlProcessingModule`/`StorageModule`/`JobsModule`), no se tocó `schema.prisma` ni RBAC, conforme al resto de pasos del plan (Paso 1 modelos Prisma en adelante), que quedan para una sesión futura. Consolidado y commiteado en la sesión de limpieza EWO-005 Bloque 0.5, separado de las correcciones documentales del plan. `test:integration`/`build` no se ejecutaron (mismo bloqueo de proxy TCP de Docker Desktop en Windows documentado desde EWO-003/004, no relacionado con este cambio).                                                                                                                                                                                          | Claude Code (mejora autónoma acotada, tarea programada; consolidación en Bloque 0.5)                              |
+**Reglas para que este documento no vuelva a crecer sin control:**
 
-| 2026-07-25 | Formalización de la decisión arquitectónica **D-007** (`brain/DECISIONS.md`) — _Estrategia de concurrencia y persistencia atómica del agregado CFDI_ (EWO-005 Bloque E). **Estado: ACEPTADA — ratificada el 2026-07-25 por Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA); implementación del Bloque E autorizada.** Aún **no implementada** — la ratificación autoriza el inicio de la implementación, no la da por completada; ningún código, `schema.prisma`, migración ni prueba se generó con esta ratificación. La business rule **Q-001** (folio fiscal duplicado) permanece **abierta**, sin cerrarse por esta ratificación. Una inspección READ ONLY del repositorio estableció tres hechos que las rondas de auditoría anteriores del Addendum no habían verificado contra el código: (1) el worker/processor BullMQ del Bloque E **no existe** (`JobsModule` está declarado como productor-only, sin consumer); (2) los modelos `CfdiConcept` y `CfdiTax` y el campo `conceptSlot` **no existen** en `schema.prisma` — el modelo `Cfdi` implementado es únicamente la cabecera; (3) la transición `Document: PENDING_UPLOAD → PROCESSING` **ya ocurre en la confirmación síncrona de subida** (`DocumentsRepository.confirmUpload`, con el patrón `updateMany` + comprobación de `count` que el repositorio ya usa), de modo que el `Document` llega al worker ya en `PROCESSING` y el worker no dispone de esa transición como reclamo. Sobre esa base se **rechazó** la estrategia `upsert({ update: {} })` que el Addendum había adoptado en su quinta ronda: no es elegible para upsert nativo en Prisma 6.19.3 y, al degradar al camino administrado, puede reutilizar la fila creada por otro worker **sin lanzar `P2002`**, con lo que el worker perdedor colgaría de una cabecera ajena los hijos de su propia extracción (mezcla del agregado — el riesgo prioritario declarado). Se adopta en su lugar la combinación **A + G**: `create()` de la cabecera como detector fiable de colisión, **una única transacción** que agrupa cabecera + conceptos + impuestos + checksum + transición terminal condicional `PROCESSING → PROCESSED` + cierre del `Job` en un solo commit (derogando la separación «Transacción A / Transacción B» que abría una ventana con el `Cfdi` persistido y el `Document` aún en `PROCESSING`), y clasificación posterior **por evidencia positiva** fuera de la transacción abortada, sin usar `P2002.meta.target`. Se documenta expresamente que la garantía es de **exclusión de commit, no un claim anticipado**: dos workers pueden descargar y parsear el mismo archivo antes de que uno pierda la carrera, y la alternativa de _claim_/_lease_ con campos de ownership queda **diferida a post-MVP** como condición de revisión si se incorporan OCR/IA con coste. Sin cambios de código, `schema.prisma`, migraciones ni pruebas — solo documentación. Queda **abierta la business rule Q-001** (`brain/QUESTIONS.md`): qué debe ocurrir ante un `folioFiscal` duplicado que pertenece a otro documento; hasta su aprobación el worker no puede rechazar automáticamente (`CLAUDE.md` regla 6). Riesgos arquitectónicos R-001 a R-009 registrados en `brain/RISKS.md`. Detalle completo en `brain/DECISIONS.md` D-007 y en `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §9. | Responsable de producto de ContaIA (orden de análisis y formalización) / Claude Code (inspección, decisión y documentación) |
-| 2026-07-25 | **Ratificación formal de la decisión arquitectónica D-007** (`brain/DECISIONS.md`), mismo día de su formalización. Alejandro Reyes Bocanegra, en su rol de Product Owner y Arquitecto de Producto de ContaIA, ratifica D-007: estatus actualizado de `PROPUESTA — PENDIENTE DE RATIFICACIÓN` a **`ACEPTADA`**, con responsable, rol y fecha registrados en la tabla "Ratificación" de `brain/DECISIONS.md`. **La implementación del Bloque E queda formalmente autorizada** conforme al plan secuencial ya documentado en `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` (cuyo Estado global pasa de `BLOCKED — RATIFICACIÓN PENDIENTE` a `READY TO IMPLEMENT`). Esta ratificación aprueba exclusivamente el _mecanismo_ de concurrencia y persistencia (`create()`, transacción única, `count === 1` en ambas transiciones, clasificación A–G, prohibición de reutilización de `Cfdi`, prohibición de reconciliación heurística) — **no** implica que el worker, los modelos `CfdiConcept`/`CfdiTax`, o ninguna prueba existan todavía; esa evidencia se genera durante la implementación misma, sprint por sprint, con auditoría de Codex antes de cada gate. La business rule **Q-001** (`brain/QUESTIONS.md` — política ante `folioFiscal` duplicado de otro documento) **permanece abierta y no se cierra con esta ratificación**: son dos decisiones distintas — una arquitectónica (D-007, ya aceptada) y una de negocio (Q-001, todavía pendiente). Referencias cruzadas actualizadas en `brain/DECISIONS.md`, `brain/RISKS.md`, `CHANGELOG.md`, el Addendum (`docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`), el plan (`docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md`) y el checklist de implementación, sin dejar ninguna mención residual de "pendiente de ratificación" respecto de D-007. Sin cambios de código, `schema.prisma`, migraciones ni pruebas — acto exclusivamente documental. | Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA — ratificación) / Claude Code (registro documental) |
-| 2026-07-26 | Auditoría independiente de Codex sobre `E5-S1-T07` (checklist) devolvió veredicto **`CHANGES_REQUESTED`** — técnicamente correcta (4 migraciones aplicadas, CHECK físico validado, sin fallos ni rollbacks), pero sin excepción formal para haberse dividido en dos migraciones (principal `20260726020913` + correctiva `20260726022147_ewo_005_block_e_cfdi_tax_scope_check`). Se registra **D-008** (`brain/DECISIONS.md`) — excepción formal, alcance limitado a esta recuperación de `E5-S1-T07`, que documenta por qué se descartó editar/renombrar la migración ya aplicada, por qué la correctiva se creó manualmente (limitación de terminal no interactiva de `prisma migrate dev --create-only`), y por qué ambas migraciones se tratan como una única unidad lógica del entregable de T07. `E5-S1-T07` vuelve a `READY_FOR_AUDIT` en el checklist, pendiente de segunda auditoría de Codex que verifique solo estas correcciones documentales. **Ninguna migración, `schema.prisma` ni PostgreSQL fue modificado** — acto exclusivamente documental. Ambas carpetas de migración siguen sin seguimiento de Git (`??`), pendientes del próximo commit autorizado. Q-001 permanece abierta; D-007 permanece aceptada, sin reinterpretación. | Claude Code (Senior Software Architect / Documentation Engineer, corrección de hallazgos de auditoría Codex) |
+1. **Nunca pegar contenido completo de otro documento aquí.** Si una sección empieza a superar ~15-20 líneas de prosa, pertenece a un documento especializado — mover el detalle allá (o a `CHANGELOG.md` si es contenido preliminar sin dueño todavía) y dejar un resumen + enlace real. **Verificar que el enlace exista de verdad antes de escribir "preservado en X".**
+2. **El historial jamás vuelve a esta página.** [§18](#18-historial-ejecutivo) admite como máximo una fila por hito mayor — nunca una fila por tarea individual.
+3. **[§12.3](#12-engineering-workflow--estado-de-implementación) es un bloque atemporal — nunca contiene EWO activa, sprint/bloque activo, estado, última tarea ni siguiente hito.** Al cerrar EWO-005 e iniciar EWO-006, solo la fila de [§3](#3-estado-actual-del-proyecto) cambia (nueva EWO, nuevo informe enlazado); §12.3 no requiere ninguna edición porque ya no contiene ningún dato específico de la EWO activa.
+4. **Ninguna tabla de estado vivo se mantiene aquí.** Si sientes la tentación de agregar una columna "estado actual" a alguna tabla de este documento, esa información va a `AI_CONTEXT.md` o `DASHBOARD.md`, no aquí — este documento es contexto, no estado.
+5. **Si renumeras secciones, actualiza [§16](#16-mapeo-de-numeración-histórico) en el mismo cambio.**
+6. **Antes de agregar una sección nueva, preguntar: ¿esto ya tiene un documento dedicado?** Si sí, no duplicar — enlazar desde [§2](#2-cómo-navegar-este-ecosistema-documental).
+7. **Revisión periódica sugerida:** al cierre de cada EWO, verificar que §2, §3, §8, §9, §10 y §12 siguen reflejando la realidad.
+8. **Separación operativa explícita (corrección de auditoría, 2026-07-30):** `AI_CONTEXT.md` es la única fuente viva de continuidad entre sesiones; el checklist activo de cada EWO es la única fuente detallada de estado por tarea; este documento es un **resumen ejecutivo** — nunca la fuente operativa detallada de ninguno de los dos. Si una edición futura a este documento empieza a repetir un dato que cambia sesión a sesión, es señal de que ese dato pertenece a `AI_CONTEXT.md`, no aquí.
 
-## 27. Historial de reorganización documental
+---
 
-> Esta sección registra los eventos de renumeración y reubicación de archivos en `docs/` que afectan la organización documental del proyecto, sin alterar el contenido técnico, las decisiones arquitectónicas ni las reglas de negocio de ningún documento. Es el registro central recomendado desde `docs/02_USER_PERSONAS.md` en ausencia de `docs/00_DOCUMENTATION_INDEX.md`.
+## 16. Mapeo de numeración histórico
 
-### 27.1 Contexto general
+> **Deuda documental conocida, parcialmente resuelta.** Este documento se renumeró dos veces el 2026-07-30: v0.1→v2.0 (rediseño ejecutivo) y v2.0→v2.1 (extracción hacia `AI_CONTEXT.md`/`PROJECT_INDEX.md`, esta versión). Al menos 45 referencias cruzadas en `docs/*.md` citan numeración de v0.1 (nunca llegaron a citar v2.0, que existió menos de un día) — no se corrigieron una por una, ver razón en §17. Esta tabla resuelve cualquier referencia antigua directamente a su ubicación en v2.1.
 
-A lo largo del Architecture Workflow (AWO-001 a AWO-014), la numeración de `docs/` se ajustó repetidamente conforme cada nuevo documento técnico ocupaba una posición ya asignada a un marcador de estructura vacío del esqueleto inicial del proyecto (por ejemplo, `docs/13_SECURITY.md`, `docs/17_UI_UX_DESIGN.md`, `docs/18_TESTING_STRATEGY.md`, `docs/23_RAG_ARCHITECTURE.md`, entre otros). Cada uno de esos eventos está documentado con su propio detalle (motivo, alternativas descartadas, referencias corregidas) en la nota de numeración y la sección "Observaciones del Arquitecto" del documento que provocó el ajuste — este historial no los repite en detalle; remite a la fuente original de cada uno para no arriesgar imprecisión al resumir eventos ya registrados en otro lugar.
+| Sección en v0.1 (original) | Título original                        | Dónde vive en v2.1 (hoy)                                                                     |
+| -------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| §3                         | Resumen ejecutivo                      | [§1](#1-contaia-en-60-segundos)                                                              |
+| §4                         | Identidad del producto                 | [§4](#4-qué-es-contaia)                                                                      |
+| §5                         | Visión                                 | [§4](#4-qué-es-contaia) / `docs/00_PRODUCT_VISION.md`                                        |
+| §6                         | Misión                                 | `docs/00_PRODUCT_VISION.md`                                                                  |
+| §7                         | Propuesta de valor                     | [§4](#4-qué-es-contaia)                                                                      |
+| §8                         | Usuarios principales                   | [§4](#4-qué-es-contaia) / `docs/02_USER_PERSONAS.md`                                         |
+| §9                         | Problemas que busca resolver           | [§4](#4-qué-es-contaia) / `docs/00_PRODUCT_VISION.md`                                        |
+| §10                        | Principios obligatorios                | [§5](#5-principios-obligatorios) — subnumeración 10.1-10.10 sin cambio                       |
+| §11                        | Alcance general futuro                 | [§11.2](#112-módulos-de-largo-plazo)                                                         |
+| §12                        | Módulos                                | [§11.2](#112-módulos-de-largo-plazo)                                                         |
+| §13                        | Agentes de inteligencia artificial     | [§7](#7-inteligencia-artificial) — subnumeración 13.1-13.11 citada externamente, no resuelta |
+| §14                        | Política de conocimiento               | [§7](#7-inteligencia-artificial) (final de la sección)                                       |
+| §15                        | Límites del producto                   | [§4](#4-qué-es-contaia)                                                                      |
+| §16                        | Estrategia inicial del producto        | [§11.1](#111-etapas)                                                                         |
+| §17                        | Arquitectura técnica preliminar        | [§6](#6-arquitectura-y-stack-tecnológico)                                                    |
+| §18                        | Experiencia de usuario (UX/UI)         | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
+| §19                        | Modelo de negocio preliminar           | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
+| §20                        | Indicadores de éxito preliminares      | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
+| §21                        | Riesgos principales                    | [§10](#10-riesgos) (11 de 17) / `CHANGELOG.md` (tabla completa)                              |
+| §22                        | Gobierno del proyecto                  | [§15](#15-gobierno-y-mantenimiento-de-este-documento)                                        |
+| §23                        | Definición de terminado                | [§13](#13-definición-de-terminado)                                                           |
+| §24                        | Glosario inicial                       | [§14](#14-glosario-mínimo)                                                                   |
+| §25                        | Preguntas pendientes                   | [§9](#9-preguntas-abiertas)                                                                  |
+| §26                        | Historial de cambios                   | `CHANGELOG.md` → "Historial detallado (tabla completa)"                                      |
+| §27                        | Historial de reorganización documental | `CHANGELOG.md` → "Historial de reorganización documental"                                    |
 
-### 27.2 Evento registrado: reubicación de `docs/19_DEVOPS.md`
+**Recomendación de seguimiento sin cambios:** sigue pendiente crear `docs/00_DOCUMENTATION_INDEX.md` (mencionado desde `docs/19_FRONTEND_IMPLEMENTATION_PLAN.md`) y usar esa sesión para corregir las ~45 referencias de una vez.
 
-| Campo             | Valor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Fecha             | 2026-07-18                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Motivo            | La fase de implementación del Architecture Workflow requiere la secuencia `docs/19` a `docs/24` para seis documentos de planeación de implementación (sección 27.3). `docs/19_DEVOPS.md` — un marcador de estructura vacío, sin contenido técnico — ocupaba la posición `docs/19`, en conflicto con `docs/19_FRONTEND_IMPLEMENTATION_PLAN.md`.                                                                                                                                                                                                                                 |
-| Documento origen  | `docs/19_DEVOPS.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Documento destino | `docs/25_DEVOPS.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Impacto           | Ninguno sobre contenido técnico, arquitectura o reglas de negocio — el archivo reubicado seguía siendo un marcador vacío (12 líneas, sin desarrollo). Se actualizaron las referencias cruzadas existentes en `docs/07_SOFTWARE_ARCHITECTURE.md`, `docs/09_DATABASE_DESIGN.md` y `docs/11_SECURITY_ARCHITECTURE.md` (siete referencias en total) para apuntar a la nueva ruta. Ningún documento de las categorías protegidas (Design System, Information Architecture, UX Flows, Wireframes, Prototype Specification, UI Specification, PRD, Reglas de Negocio) fue modificado. |
-| Realizado bajo    | Maintenance Work Order — Reorganización de numeración de documentos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+---
 
-### 27.3 Nueva numeración oficial (`docs/19` a `docs/25`)
+## 17. Qué cambió en esta reorganización
 
-| Posición  | Documento                               | Estado                                                              |
-| --------- | --------------------------------------- | ------------------------------------------------------------------- |
-| `docs/19` | `FRONTEND_IMPLEMENTATION_PLAN.md`       | Reservado — a crear en una fase posterior del Architecture Workflow |
-| `docs/20` | `BACKEND_IMPLEMENTATION_PLAN.md`        | Reservado — a crear en una fase posterior                           |
-| `docs/21` | `DATABASE_MIGRATION_PLAN.md`            | Reservado — a crear en una fase posterior                           |
-| `docs/22` | `INFRASTRUCTURE_IMPLEMENTATION_PLAN.md` | Reservado — a crear en una fase posterior                           |
-| `docs/23` | `TESTING_AND_QA_PLAN.md`                | Reservado — a crear en una fase posterior                           |
-| `docs/24` | `RELEASE_PLAN.md`                       | Reservado — a crear en una fase posterior                           |
-| `docs/25` | `DEVOPS.md`                             | Existente — marcador de estructura vacío, reubicado en este evento  |
+### Segunda corrección de hallazgos de auditoría (2026-07-30, mismo día)
 
-**Advertencia de consistencia registrada:** al momento de este evento, las posiciones `docs/20` a `docs/24` ya están ocupadas por otros marcadores de estructura vacíos preexistentes (`docs/20_LOCAL_DEVELOPMENT.md`, `docs/21_LEGAL_COMPLIANCE.md`, `docs/22_GLOSSARY.md`, `docs/23_RAG_ARCHITECTURE.md`, `docs/24_TESTING_STRATEGY.md`). Este Maintenance Work Order **no** las reubicó, por estar fuera del alcance explícito de sus tareas (limitadas a `docs/19_DEVOPS.md`). Cada una deberá reubicarse siguiendo el mismo criterio, en el momento en que el Architecture Workflow solicite la posición correspondiente — patrón ya aplicado de forma consistente en AWO-007, AWO-012, AWO-013 y AWO-014.
+Segunda auditoría `READ ONLY` (Codex) tras la primera corrección: veredicto con 3 hallazgos restantes, ninguno `ALTO` resuelto del todo. Corrección aplicada por Claude Code en modo `CORRECCIÓN MÍNIMA DE HALLAZGOS`:
 
-### 27.4 Política oficial de gestión de colisiones de numeración
+- **§12.3 seguía siendo una tabla operativa editable (ALTO):** aunque ya no listaba tareas individuales, seguía repitiendo EWO activa/bloque-sprint/estado/última tarea/siguiente hito — los mismos 5 campos que `AI_CONTEXT.md`. Sustituida por un bloque puramente atemporal, sin ningún dato vivo, que solo remite a `AI_CONTEXT.md` y al checklist activo (localizado dinámicamente vía la fila `IN_PROGRESS` de [§3](#3-estado-actual-del-proyecto), sin nombrar la EWO por hardcode). También se quitó la mención a "Bloque E, Sprint 2" de [§1](#1-contaia-en-60-segundos) y de la tabla de [§3](#3-estado-actual-del-proyecto) — ambas mencionaban sprint activo, dato igualmente prohibido fuera de `AI_CONTEXT.md`.
+- **Referencias numéricas nuevas en `PROJECT_INDEX.md` y `brain/DECISION_INDEX.md` (MEDIO):** corregidas a enlaces de título/ancla — incluía una referencia a §9 (Preguntas abiertas) donde el texto pedía un "mapa completo del proyecto", que en realidad es [§2](#2-cómo-navegar-este-ecosistema-documental).
+- **`AI_PLAYBOOK.md` implicaba que el protocolo actual siempre existió (MEDIO):** se agregó la sección "Vigencia de este protocolo", que fija la adopción oficial en 2026-07-30 y aclara que auditorías anteriores a esa fecha pueden reflejar procedimientos distintos, sin reinterpretar ni corregir esos registros históricos.
 
-> Adoptada el 2026-07-18, por instrucción directa del responsable de producto. Sustituye, hacia adelante, la práctica anterior de resolver cada colisión caso por caso dentro de la propia Work Order que la detectaba.
+No se modificó código, pruebas, arquitectura técnica, decisiones, preguntas, riesgos ni auditorías históricas. No se creó ningún documento nuevo. Listo para una reauditoría `READ ONLY` final.
 
-**Objetivo:** garantizar la continuidad del Architecture Workflow sin interrumpir el desarrollo por colisiones de numeración.
+### Corrección de hallazgos de auditoría (2026-07-30, mismo día)
 
-**Reglas:**
+Auditoría `READ ONLY` independiente (Codex) sobre la Knowledge Platform v1.0 emitió veredicto `FAILED` con 4 hallazgos. Corrección aplicada por Claude Code, en modo `CORRECCIÓN CONTROLADA DE HALLAZGOS` (sin rediseñar la arquitectura ni tocar código):
 
-1. Los documentos pertenecientes al Architecture Workflow (la serie numerada que constituye la única fuente de verdad técnica) tienen prioridad sobre documentos auxiliares (marcadores de estructura del esqueleto inicial del proyecto, sin contenido técnico desarrollado).
-2. Un documento auxiliar que ocupe una posición requerida por el Architecture Workflow se reubica al siguiente bloque libre destinado a documentación complementaria.
-3. Al reubicar, Claude debe: renombrar el documento; actualizar todas las referencias internas que apunten a él; actualizar índices (si existen); actualizar el roadmap (si contiene referencias de numeración); actualizar dependencias declaradas en otros documentos; registrar el cambio en este historial (sección 27).
-4. No es necesaria una Maintenance Work Order independiente para cada colisión individual, salvo que el cambio afecte una decisión arquitectónica (lo cual no ocurre en una simple reubicación de numeración, por definición — si ocurriera, dejaría de ser una colisión de numeración y pasaría a ser una decisión de alcance).
-5. Toda Work Order futura del Architecture Workflow asume automáticamente la numeración oficial vigente después de cada reorganización, sin necesidad de que el responsable de producto la confirme de nuevo cada vez.
+- **Duplicación de estado vivo (ALTO):** se eliminó de [§12.3](#12-engineering-workflow--estado-de-implementación) la tabla detallada por tarea (objetivo/estado/auditoría de cada una) — duplicaba `AI_CONTEXT.md` y el checklist activo. §12.3 quedó como resumen ejecutivo (EWO, bloque/sprint, estado general, última tarea cerrada, siguiente hito), con enlaces explícitos a las dos únicas fuentes operativas detalladas. Se agregó la regla 8 de [§15](#15-gobierno-y-mantenimiento-de-este-documento) declarando esta separación sin ambigüedad.
+- **Referencias numéricas rotas (MEDIO):** corregidas en `AI_CONTEXT.md`, `DASHBOARD.md`, `AI_PLAYBOOK.md` y `DOCUMENTATION_STYLE_GUIDE.md` — incluía una referencia a una sección §19 inexistente en este documento (solo tiene 18). Sustituidas por enlaces Markdown a título/ancla estable, según la propia regla de [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md) §5.
+- **Atribución incorrecta en el protocolo de auditoría (MEDIO):** `AI_PLAYBOOK.md` y `DOCUMENTATION_STYLE_GUIDE.md` implicaban que Codex (auditor `READ ONLY`) crea el archivo `_FINAL_AUDIT.md`. Corregido: Codex solo emite el veredicto; Claude Code crea ese archivo durante el cierre administrativo autorizado.
+- **Reorganización no registrada en `CHANGELOG.md` (BAJO):** agregada una entrada ejecutiva única, fechada 2026-07-30, cubriendo la creación de la Knowledge Platform y esta corrección.
 
-**Bloque reservado para el Architecture Workflow** (`docs/19` a `docs/24`):
+No se modificó código, pruebas, arquitectura técnica, decisiones, preguntas ni riesgos. Listo para reauditoría `READ ONLY`.
 
-| Posición  | Documento reservado                     | Estado a esta fecha                   |
-| --------- | --------------------------------------- | ------------------------------------- |
-| `docs/19` | `FRONTEND_IMPLEMENTATION_PLAN.md`       | **Ocupado** — completado bajo AWO-015 |
-| `docs/20` | `BACKEND_IMPLEMENTATION_PLAN.md`        | Libre — reservado                     |
-| `docs/21` | `DATABASE_MIGRATION_PLAN.md`            | Libre — reservado                     |
-| `docs/22` | `INFRASTRUCTURE_IMPLEMENTATION_PLAN.md` | Libre — reservado                     |
-| `docs/23` | `TESTING_AND_QA_PLAN.md`                | Libre — reservado                     |
-| `docs/24` | `RELEASE_PLAN.md`                       | Libre — reservado                     |
+### v2.1 (2026-07-30, extracción hacia Knowledge Platform)
 
-**Evento: reorganización masiva del bloque reservado (2026-07-18)**
+- **Se creó un ecosistema documental nuevo de 6 archivos:** [`AI_CONTEXT.md`](AI_CONTEXT.md), [`PROJECT_INDEX.md`](PROJECT_INDEX.md), [`DASHBOARD.md`](DASHBOARD.md), [`brain/DECISION_INDEX.md`](brain/DECISION_INDEX.md), [`AI_PLAYBOOK.md`](AI_PLAYBOOK.md), [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md) — ninguno existía antes de hoy.
+- **Se extrajo, sin duplicar:** la sección "Estado para IA" (v2.0 §2) se movió íntegra a `AI_CONTEXT.md`; la sección "Mapa documental" (v2.0 §8) se movió íntegra a `PROJECT_INDEX.md`. En ambos casos, esta sección quedó como un puntero de una línea — el dato vive en un único lugar.
+- **Se delegó la tabla de Decisiones** (v2.0 §9, 9 filas completas) a `brain/DECISION_INDEX.md`, que ahora es su única fuente; este documento conserva solo las 2 decisiones más relevantes para el trabajo activo.
+- **Se agregó** [§2 (Cómo navegar)](#2-cómo-navegar-este-ecosistema-documental) — el diagrama explícito de relación entre los 8 tipos de información, pedido explícitamente para que la arquitectura documental sea legible sin tener que inferirla.
+- **No se eliminó ninguna decisión, pregunta, riesgo ni dato de estado** — todo lo que salió de este documento tiene una ubicación nueva verificable, listada arriba.
+- **Limitación conocida, sin resolver:** las ~45 referencias cruzadas externas a la numeración de v0.1 (ver [§16](#16-mapeo-de-numeración-histórico)) siguen sin corregirse una por una — el volumen de archivos a tocar (20+) y el riesgo de introducir un error en documentación técnica ajena al encargo siguen pesando más que la ganancia de resolverlo ahora, mismo criterio que en v2.0.
 
-En aplicación inmediata de esta política, los cinco marcadores auxiliares que ocupaban el bloque reservado (detectados en la advertencia de la sección 27.3) se reubicaron en un solo evento, liberando `docs/20` a `docs/24` por completo:
+### v2.0 (2026-07-30, rediseño ejecutivo)
 
-| Documento original             | Nueva ubicación                | Motivo                                                                                 | Referencias actualizadas                                                                                                                                                                                                               |
-| ------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/20_LOCAL_DEVELOPMENT.md` | `docs/26_LOCAL_DEVELOPMENT.md` | Ocupaba una posición del bloque reservado para `BACKEND_IMPLEMENTATION_PLAN.md`        | Ninguna referencia cruzada viva encontrada fuera de su propio nombre de archivo                                                                                                                                                        |
-| `docs/21_LEGAL_COMPLIANCE.md`  | `docs/27_LEGAL_COMPLIANCE.md`  | Ocupaba una posición del bloque reservado para `DATABASE_MIGRATION_PLAN.md`            | `MASTER_CONTEXT.md` (control del documento, sección 2), `docs/11_SECURITY_ARCHITECTURE.md` (control del documento)                                                                                                                     |
-| `docs/22_GLOSSARY.md`          | `docs/28_GLOSSARY.md`          | Ocupaba una posición del bloque reservado para `INFRASTRUCTURE_IMPLEMENTATION_PLAN.md` | `MASTER_CONTEXT.md` (sección 24, Glosario inicial)                                                                                                                                                                                     |
-| `docs/23_RAG_ARCHITECTURE.md`  | `docs/29_RAG_ARCHITECTURE.md`  | Ocupaba una posición del bloque reservado para `TESTING_AND_QA_PLAN.md`                | `docs/10_AI_ARCHITECTURE.md` (control del documento y tres menciones en el cuerpo y Observaciones)                                                                                                                                     |
-| `docs/24_TESTING_STRATEGY.md`  | `docs/30_TESTING_STRATEGY.md`  | Ocupaba una posición del bloque reservado para `RELEASE_PLAN.md`                       | Ninguna referencia cruzada viva encontrada fuera de las notas históricas ya registradas en `docs/16`, `docs/18` y esta misma sección (preservadas sin cambio, por ser registro histórico de eventos ya ocurridos, no punteros activos) |
+Ver detalle en el historial: el rediseño original que redujo el documento de 658 a ~520 líneas, migró el historial detallado a `CHANGELOG.md`, y corrigió en la misma sesión un error propio (afirmar que cierto contenido estaba "preservado" sin haberlo movido realmente) — documentado explícitamente en su momento como evidencia de por qué la regla 1 de [§15](#15-gobierno-y-mantenimiento-de-este-documento) existe.
 
-**Impacto:** ninguno sobre contenido técnico, arquitectura o reglas de negocio — los cinco archivos reubicados seguían siendo marcadores de estructura vacíos. Ningún documento de las categorías protegidas (Design System, Information Architecture, UX Flows, Wireframes, Prototype Specification, UI Specification, PRD, Reglas de Negocio) fue modificado. Realizado directamente al adoptar esta política (Regla 4 — no requiere Maintenance Work Order separada).
+---
 
-**Nota de alcance:** las referencias históricas a `docs/17_UI_UX_DESIGN.md` y `docs/18_TESTING_STRATEGY.md` (sus posiciones antes de AWO-013/014) que persisten en `docs/01_PRD.md`, `docs/02_USER_PERSONAS.md`, `docs/06_SYSTEM_WORKFLOWS.md`, `docs/08_API_DESIGN.md`, `docs/12_FRONTEND_ARCHITECTURE.md` y `docs/13_DESIGN_SYSTEM.md` **no** se corrigieron en este evento, por no formar parte del bloque reservado de esta política ni de la colisión que la originó. Quedan registradas como hallazgo pendiente para una limpieza de referencias dedicada.
+## 18. Historial ejecutivo
+
+Solo hitos mayores. Detalle completo, línea por línea, de **todo** cambio del proyecto: [`CHANGELOG.md`](CHANGELOG.md).
+
+| Fecha                   | Hito                                                                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-18              | Primera versión de `MASTER_CONTEXT.md` (v0.1)                                                                                                                               |
+| 2026-07-19              | EWO-002 (Authentication & Authorization) → `DONE`                                                                                                                           |
+| 2026-07-19              | Primer commit del repositorio (`756358d`)                                                                                                                                   |
+| 2026-07-19              | EWO-003 (Organization & Company Management) implementado                                                                                                                    |
+| 2026-07-20              | EWO-004 (User, RBAC & Workspace Context) implementado                                                                                                                       |
+| 2026-07-22              | EWO-004 → `DONE` — migración inicial de Prisma aplicada, 137/137 pruebas                                                                                                    |
+| 2026-07-25              | **D-007** ratificada — estrategia de concurrencia y persistencia atómica del agregado CFDI (EWO-005 Bloque E)                                                               |
+| 2026-07-26              | Sprint 1 de Bloque E (EWO-005) → `COMPLETADO`, `PASSED`                                                                                                                     |
+| 2026-07-26              | **D-008** ratificada — recuperación de `E5-S1-T07`                                                                                                                          |
+| 2026-07-29 – 2026-07-30 | Sprint 2 de Bloque E en curso: `E5-S2-T01` a `E5-S2-T08` → `PASSED`; `E5-S2-T09` implementada, pendiente de auditoría                                                       |
+| 2026-07-30              | Rediseño ejecutivo de `MASTER_CONTEXT.md` (v0.1 → v2.0); historial detallado migrado a `CHANGELOG.md`                                                                       |
+| 2026-07-30              | Knowledge Platform completo (v2.0 → v2.1): `AI_CONTEXT.md`, `PROJECT_INDEX.md`, `DASHBOARD.md`, `brain/DECISION_INDEX.md`, `AI_PLAYBOOK.md`, `DOCUMENTATION_STYLE_GUIDE.md` |
