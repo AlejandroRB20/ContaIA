@@ -29,6 +29,16 @@ export type {
   AuditLog,
   Document,
   Job,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T02): CfdiRepository necesita el tipo
+  // de retorno de la cabecera.
+  Cfdi,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T03): CfdiConceptRepository/
+  // CfdiTaxRepository necesitan el tipo de retorno de los hijos. CfdiTaxType
+  // no se exporta: ningun archivo de T03 lo referencia como valor ni como
+  // tipo explicito (ExtractedTaxType, sin dependencia de Prisma, ya cubre
+  // esa unión en el contrato del agregado).
+  CfdiConcept,
+  CfdiTax,
 } from '../generated/client/index.js';
 
 export {
@@ -41,4 +51,7 @@ export {
   DocumentFileType,
   JobStatus,
   JobType,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T03): discrimina CfdiTax de nivel
+  // comprobante vs. nivel concepto al construir el `data` de cada upsert.
+  CfdiTaxScope,
 } from '../generated/client/index.js';

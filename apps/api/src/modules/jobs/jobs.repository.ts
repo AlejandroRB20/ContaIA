@@ -1,5 +1,16 @@
-import { prisma, Prisma, JobStatus, type JobType } from '@contaia/database';
+import { prisma, Prisma, JobStatus, type Job, type JobType } from '@contaia/database';
 import { Injectable } from '@nestjs/common';
+
+import { TransicionNoConfirmadaError } from '../cfdi/cfdi.errors';
+
+/**
+ * Estados desde los que un Job puede transicionar via `updateMany` (D-007,
+ * Addendum AD-10.1.2/§7): `QUEUED` (recien encolado, el worker aun no lo
+ * reclamo) y `PROCESSING` (reclamado, reintento en curso). `COMPLETED`,
+ * `FAILED` y `CANCELLED` son terminales — nunca origen de una nueva
+ * transicion, por eso no aparecen aqui.
+ */
+const ACTIVE_JOB_STATUSES: JobStatus[] = [JobStatus.QUEUED, JobStatus.PROCESSING];
 
 export interface CreateQueuedJobData {
   id: string;
@@ -50,6 +61,15 @@ export class JobsRepository {
    * Job fue borrado entre el INSERT fallido y el SELECT — este sistema
    * nunca borra Jobs, asi que ese caso re-lanza el error original en vez de
    * inventar un estado que no puede ocurrir en la practica.
+   *
+   * `companyId` en el `where` del `findUnique` de recuperacion (`E5-S2-T08`,
+   * BR-GLB-001) es un filtro explicito de defensa en profundidad: el `id`
+   * deterministico ya es criptograficamente imposible de colisionar entre
+   * Empresas distintas (`buildDeterministicJobId` deriva el UUIDv5 de
+   * `type + companyId + documentId`, `job-id.util.ts`), pero el criterio de
+   * BR-GLB-001 exige el filtro explicito en toda consulta, no opcional, sin
+   * depender implicitamente de una garantia criptografica externa a la
+   * consulta misma.
    */
   async findOrCreateQueued(data: CreateQueuedJobData): Promise<JobSummary> {
     try {
@@ -66,7 +86,7 @@ export class JobsRepository {
     } catch (error) {
       if (this.isUniqueConstraintViolation(error)) {
         const existing = await prisma.job.findUnique({
-          where: { id: data.id },
+          where: { id: data.id, companyId: data.companyId },
           select: JOB_SUMMARY_SELECT,
         });
         if (existing) {
@@ -79,5 +99,92 @@ export class JobsRepository {
 
   private isUniqueConstraintViolation(error: unknown): boolean {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+  }
+
+  /**
+   * `E5-S2-T05`. Tenant-safe por construccion: `companyId` es obligatorio
+   * en el `where`, nunca opcional ni agregado despues — a diferencia de
+   * `DocumentsRepository.findById` (que deliberadamente omite `companyId`
+   * porque su llamante aun no conoce la Empresa), este metodo siempre se
+   * usa cuando la Empresa ya es conocida y confiable, asi que un Job de
+   * otra Empresa debe ser indistinguible de "no existe". `findFirst` en vez
+   * de `findUnique`: `Job` no tiene `@@unique([id, companyId])` (a
+   * diferencia de `Cfdi`, que si lo agrego para sus FKs compuestas) —
+   * `id` como PK ya garantiza a lo sumo una fila, `companyId` en el mismo
+   * `where` solo la filtra, nunca la desambigua.
+   */
+  async findById(id: string, companyId: string): Promise<Job | null> {
+    return prisma.job.findFirst({ where: { id, companyId } });
+  }
+
+  /**
+   * `E5-S2-T05`. Reclamo inicial del worker (Addendum §7, paso 4) — se
+   * ejecuta fuera de cualquier transaccion, antes de descargar o procesar
+   * nada. A diferencia de `markAsCompleted`, ni D-007 ni el Addendum
+   * exigen `count === 1` aqui: ningun criterio ni gate numerado lo
+   * establece (solo las dos transiciones terminales de cierre —
+   * `Document PROCESSING→PROCESSED` y `Job→COMPLETED` — lo exigen,
+   * Addendum §9.5/AD-10.1.2). Exigirlo de todos modos seria inventar una
+   * politica ausente. Se retorna el `count` real sin interpretarlo, para
+   * que la llamante decida — nunca se lanza ni se retorna un booleano que
+   * oculte el valor real.
+   */
+  async markAsProcessing(id: string, companyId: string): Promise<number> {
+    const result = await prisma.job.updateMany({
+      where: { id, companyId, status: { in: ACTIVE_JOB_STATUSES } },
+      data: { status: JobStatus.PROCESSING },
+    });
+
+    return result.count;
+  }
+
+  /**
+   * `E5-S2-T05`. Cierre exitoso del Job, dentro de la misma Transaccion A
+   * unica de `E5-S2-T06` (D-007, Addendum AD-10.1.2) que cierra
+   * `Document PROCESSING→PROCESSED` — recibe el `tx` externo explicitamente,
+   * igual que `DocumentsRepository.markAsProcessed`, nunca el cliente
+   * global ni una transaccion propia. `count !== 1` (nunca `count === 0`
+   * como unica guarda) fuerza `TransicionNoConfirmadaError('job', count)`
+   * sin retornar ni continuar — es exactamente la comprobacion que faltaba
+   * en el diseño original de este Addendum (hallazgo CRITICO: "el cierre
+   * `Job → COMPLETED` usaba `updateMany` sin comprobar `count`", corregido
+   * por D-007 Regla 3/4, criterio 64, gates G-07 a G-12).
+   */
+  async markAsCompleted(
+    tx: Prisma.TransactionClient,
+    id: string,
+    companyId: string,
+    result: Prisma.InputJsonValue,
+  ): Promise<void> {
+    const updateResult = await tx.job.updateMany({
+      where: { id, companyId, status: { in: ACTIVE_JOB_STATUSES } },
+      data: { status: JobStatus.COMPLETED, result },
+    });
+
+    if (updateResult.count !== 1) {
+      throw new TransicionNoConfirmadaError('job', updateResult.count);
+    }
+  }
+
+  /**
+   * `E5-S2-T05`. A diferencia de `markAsCompleted`, este metodo NUNCA lanza
+   * por `count !== 1` — el Addendum (AD-4.2) documenta explicitamente que
+   * la Transaccion C (`markAsRejected` + `markAsFailed`) debe ser idempotente
+   * ante doble ejecucion: el processor puede cerrarla antes de lanzar
+   * `UnrecoverableError`, y el handler `failed` terminal la vuelve a
+   * ejecutar despues como respaldo (tres capas de garantia, AD-4.3) — la
+   * segunda ejecucion encuentra el Job ya `FAILED` (fuera de
+   * `ACTIVE_JOB_STATUSES`) y su `updateMany` no afecta ninguna fila **por
+   * diseño**, un no-op valido, no un defecto. Lanzar aqui convertiria ese
+   * no-op documentado en un error espurio. Se retorna el `count` real, sin
+   * interpretarlo, para que la llamante lo registre si lo necesita.
+   */
+  async markAsFailed(id: string, companyId: string, error: string): Promise<number> {
+    const result = await prisma.job.updateMany({
+      where: { id, companyId, status: { in: ACTIVE_JOB_STATUSES } },
+      data: { status: JobStatus.FAILED, error },
+    });
+
+    return result.count;
   }
 }

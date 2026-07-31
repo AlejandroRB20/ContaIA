@@ -1,5 +1,13 @@
-import { prisma, DocumentStatus, type Document, type DocumentFileType } from '@contaia/database';
+import {
+  prisma,
+  DocumentStatus,
+  type Document,
+  type DocumentFileType,
+  type Prisma,
+} from '@contaia/database';
 import { Injectable } from '@nestjs/common';
+
+import { TransicionNoConfirmadaError } from '../cfdi/cfdi.errors';
 
 export interface CreateDocumentData {
   id: string;
@@ -54,13 +62,16 @@ const DOCUMENT_SUMMARY_SELECT = {
 } as const;
 
 /**
- * Bloques A, B y C de EWO-005. Bloque A: crear el Documento inicial y
- * compensar (eliminar) el registro recien creado si la generacion de la URL
- * prefirmada falla despues del insert. Bloque B: listar (tenant-safe,
- * paginado) y consultar por id (sin filtro de companyId — el service lo
- * usa para resolver la Empresa antes de autorizar, nunca para devolver
- * datos directamente). Bloque C: transicion condicional PENDING_UPLOAD ->
- * PROCESSING al confirmar la carga. Descargar y eliminar documentos
+ * Bloques A, B, C de EWO-005 y Bloque E (T04). Bloque A: crear el Documento
+ * inicial y compensar (eliminar) el registro recien creado si la generacion
+ * de la URL prefirmada falla despues del insert. Bloque B: listar
+ * (tenant-safe, paginado) y consultar por id (sin filtro de companyId — el
+ * service lo usa para resolver la Empresa antes de autorizar, nunca para
+ * devolver datos directamente). Bloque C: transicion condicional
+ * PENDING_UPLOAD -> PROCESSING al confirmar la carga. Bloque E (T04):
+ * transicion terminal condicional PROCESSING -> PROCESSED dentro de la
+ * Transaccion A unica de D-007, usando el `tx` externo y `count !== 1`
+ * como arbiter de exclusion (AD-10.1.2). Descargar y eliminar documentos
  * existentes quedan para bloques posteriores.
  */
 @Injectable()
@@ -147,5 +158,35 @@ export class DocumentsRepository {
     });
 
     return result.count > 0;
+  }
+
+  /**
+   * Transicion terminal condicional PROCESSING -> PROCESSED, dentro de la
+   * Transaccion A unica de D-007 (Addendum AD-10.1.2). Arbiter de exclusion:
+   * si `count !== 1`, otro worker ya cerro el Documento (count=0) o el
+   * `WHERE` esta mal construido (count>1 — imposible con PK, pero la
+   * asercion es explicita). En ambos casos se lanza
+   * `TransicionNoConfirmadaError` para forzar el rollback total de la
+   * transaccion llamante — nunca se retorna silenciosamente ni se declara
+   * exito parcial (criterio 58, D-007 Regla 3 y Regla 4).
+   *
+   * Recibe el `tx` de la Transaccion A explicitamente — nunca el cliente
+   * Prisma global, nunca abre su propia transaccion. `checksumSha256` se
+   * persiste en la misma operacion atomica, no en una escritura separada.
+   */
+  async markAsProcessed(
+    tx: Prisma.TransactionClient,
+    id: string,
+    companyId: string,
+    checksumSha256: string,
+  ): Promise<void> {
+    const result = await tx.document.updateMany({
+      where: { id, companyId, status: DocumentStatus.PROCESSING },
+      data: { status: DocumentStatus.PROCESSED, checksumSha256 },
+    });
+
+    if (result.count !== 1) {
+      throw new TransicionNoConfirmadaError('document', result.count);
+    }
   }
 }
