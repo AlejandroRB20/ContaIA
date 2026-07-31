@@ -2,15 +2,15 @@
 
 ## Control del documento
 
-| Campo                                    | Valor                                                                                                                                                                                                                                                                                                                                               |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Documento                                | `MASTER_CONTEXT.md`                                                                                                                                                                                                                                                                                                                                 |
-| Versión                                  | 2.1 — extracción hacia Knowledge Platform                                                                                                                                                                                                                                                                                                           |
-| Estado                                   | Vigente — puerta de entrada oficial al proyecto                                                                                                                                                                                                                                                                                                     |
-| Fecha de creación                        | 2026-07-18                                                                                                                                                                                                                                                                                                                                          |
-| Última actualización                     | 2026-07-30                                                                                                                                                                                                                                                                                                                                          |
-| Propietario                              | Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA)                                                                                                                                                                                                                                                                       |
-| Historial de versiones de este documento | v0.1 (2026-07-18) → v2.0 (2026-07-30, rediseño ejecutivo) → v2.1 (2026-07-30, extracción de estado vivo e índice hacia documentos dedicados) → v2.1, corrección de hallazgos de auditoría (2026-07-30) → v2.1, segunda corrección — §12.3 vuelto completamente atemporal (2026-07-30, mismo día) — ver [§17](#17-qué-cambió-en-esta-reorganización) |
+| Campo                                    | Valor                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Documento                                | `MASTER_CONTEXT.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Versión                                  | 2.1 — extracción hacia Knowledge Platform                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Estado                                   | Vigente — puerta de entrada oficial al proyecto                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Fecha de creación                        | 2026-07-18                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Última actualización                     | 2026-07-31                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Propietario                              | Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA)                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Historial de versiones de este documento | v0.1 (2026-07-18) → v2.0 (2026-07-30, rediseño ejecutivo) → v2.1 (2026-07-30, extracción de estado vivo e índice hacia documentos dedicados) → v2.1, corrección de hallazgos de auditoría (2026-07-30) → v2.1, segunda corrección — §12.3 vuelto completamente atemporal (2026-07-30, mismo día) → v2.1, tercera corrección — estado operativo residual eliminado y preguntas/riesgos consolidados en `brain/` (2026-07-31) — ver [§17](#17-qué-cambió-en-esta-reorganización) |
 
 > **Regla de lectura.** Este documento da contexto y enlaza — no repite el contenido completo de ningún documento especializado, ni el estado vivo de la sesión, ni el índice de archivos. Si algo aquí contradice a un documento especializado más reciente, **el documento especializado prevalece**, salvo decisión de alcance de MVP (`docs/01_PRD.md`) o decisión arquitectónica ratificada (`brain/DECISIONS.md`).
 >
@@ -47,7 +47,7 @@
 
 **Qué NO es.** No sustituye el criterio profesional humano, no es una autoridad fiscal, no garantiza cumplimiento automático y no ejecuta ninguna acción fiscal/contable sensible sin aprobación humana explícita (§5).
 
-**En qué etapa está.** Ya no está "en diseño puro": la Etapa 0 (documentación) y buena parte de la Etapa 1 quedaron atrás. El proyecto está en implementación activa del backend fiscal — **EWO-005 (Documents & Fiscal)** — sobre una base ya construida y auditada de fundación técnica, autenticación, multiempresa y RBAC (EWO-001 a EWO-004, todos cerrados). Estado operativo detallado (sprint/tarea activos): [`AI_CONTEXT.md`](AI_CONTEXT.md). Ver §3 y §12.
+**En qué etapa está.** Ya no está "en diseño puro": la Etapa 0 (documentación) y buena parte de la Etapa 1 quedaron atrás. El proyecto está en implementación activa de su backend fiscal, sobre una base ya construida y auditada de fundación técnica, autenticación, multiempresa y RBAC (EWO-001 a EWO-004, todos cerrados). Qué EWO está activa hoy, en qué bloque/sprint/tarea y con qué estado: [`AI_CONTEXT.md`](AI_CONTEXT.md). Ver §3 y §12.
 
 **Stack real, en uso.** Monorepo pnpm + Turborepo · Next.js 15/React 19 (frontend) · NestJS 10 (backend) · PostgreSQL vía Prisma · Redis + BullMQ (jobs) · MinIO/S3 (documentos). Ver §6.
 
@@ -106,9 +106,9 @@ ContaIA se ejecuta como una serie de **Engineering Work Orders (EWO)** secuencia
 | EWO-002 | Authentication & Authorization — JWT, MFA/TOTP, RBAC base | **DONE**                                                                                                       | [`EWO-002_AUTH_REPORT.md`](docs/engineering/EWO-002_AUTH_REPORT.md)                                                                                                                                                                                                                             |
 | EWO-003 | Organization & Company Management                         | Completo funcionalmente; su bloqueo de infraestructura (migración inicial) se resolvió en el cierre de EWO-004 | [`EWO-003_COMPANY_REPORT.md`](docs/engineering/EWO-003_COMPANY_REPORT.md)                                                                                                                                                                                                                       |
 | EWO-004 | User, RBAC & Workspace Context                            | **DONE** (2026-07-22) — migración inicial aplicada, 137/137 pruebas                                            | [`EWO-004_USER_RBAC_REPORT.md`](docs/engineering/EWO-004_USER_RBAC_REPORT.md)                                                                                                                                                                                                                   |
-| EWO-005 | Documents & Fiscal (CFDI)                                 | **IN_PROGRESS** — detalle de sprint/tarea en [`AI_CONTEXT.md`](AI_CONTEXT.md)                                  | [`EWO-005_DOCUMENTS_FISCAL_PLAN.md`](docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md), [`EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`](docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md), [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) |
+| EWO-005 | Documents & Fiscal (CFDI)                                 | Ver estado vivo en [`AI_CONTEXT.md`](AI_CONTEXT.md)                                                            | [`EWO-005_DOCUMENTS_FISCAL_PLAN.md`](docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md), [`EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`](docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md), [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) |
 
-**Lo que ya existe y funciona hoy:** autenticación completa (login, MFA/TOTP, recuperación de contraseña, sesiones JWT + refresh rotable), multiempresa con Membresías y RBAC granular, gestión de Empresas (perfil fiscal, domicilio, configuración regional), workspace context en el frontend, carga y confirmación de documentos (Bloque A-D de EWO-005), y — en construcción activa — la persistencia atómica del agregado CFDI (Bloque E).
+**Lo que ya existe y funciona hoy:** autenticación completa (login, MFA/TOTP, recuperación de contraseña, sesiones JWT + refresh rotable), multiempresa con Membresías y RBAC granular, gestión de Empresas (perfil fiscal, domicilio, configuración regional), workspace context en el frontend, carga y confirmación de documentos (Bloque A-D de EWO-005), y la persistencia atómica del agregado CFDI (Bloque E) — estado de avance vivo en [`AI_CONTEXT.md`](AI_CONTEXT.md).
 
 **Lo que todavía no existe:** worker/processor de extracción XML (`XmlProcessingModule`), contabilidad (pólizas, catálogo de cuentas, estados financieros), conciliación, chat contable-fiscal con IA, y todo lo que EWO-006 en adelante deba cubrir. Ver [§11](#11-roadmap-alcance-por-etapas-y-módulos-de-largo-plazo) para el mapa completo de etapas y [§12](#12-engineering-workflow--estado-de-implementación) para el detalle de lo que sí está construido.
 
@@ -208,61 +208,11 @@ Las dos decisiones más relevantes para el trabajo activo hoy:
 
 ## 9. Preguntas abiertas
 
-### Preguntas de ingeniería (bloquean una tarea concreta)
-
-Registro completo: [`brain/QUESTIONS.md`](brain/QUESTIONS.md).
-
-| ID    | Pregunta                                                                                                       | Bloquea                                                                                                                                      |
-| ----- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q-001 | ¿Qué debe ocurrir cuando se carga un CFDI cuyo folio fiscal ya pertenece a OTRO documento de la misma Empresa? | Clasificación final de errores AD-10.2/AD-11 en EWO-005 Bloque E; el worker no puede rechazar automáticamente por duplicado hasta resolverla |
-
-### Preguntas estratégicas (nivel producto, sin dueño de tarea específico)
-
-Del `MASTER_CONTEXT.md` original (2026-07-18). Estado re-evaluado el 2026-07-30 contra la evidencia documental actual — no todas siguen abiertas:
-
-| #   | Pregunta                                                               | Estado observado                                                                                                                        |
-| --- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | ¿Se confirma la misión redactada, o se ajusta?                         | Sin confirmación formal registrada — sigue abierta                                                                                      |
-| 2   | ¿Alcance definitivo del MVP?                                           | **Resuelta** — `docs/01_PRD.md` §3-9 lo define con precisión (incluye exclusiones explícitas)                                           |
-| 3   | ¿Se confirma el stack técnico preliminar?                              | **Resuelta en la práctica** — el stack de §6 está implementado y en uso desde EWO-001                                                   |
-| 4   | ¿Qué ORM sobre PostgreSQL?                                             | **Resuelta** — Prisma, en uso desde EWO-001                                                                                             |
-| 5   | ¿Qué proveedor(es) de IA para la capa de abstracción?                  | Arquitectura de abstracción decidida (`docs/10_AI_ARCHITECTURE.md`, AD-05); proveedor(es) específico(s) sin confirmar públicamente aquí |
-| 6   | ¿Planes y precios definitivos del modelo de negocio?                   | Sigue abierta — sin definición                                                                                                          |
-| 7   | ¿Cuándo se justifica migrar de monolito modular a servicios separados? | Sigue abierta — sin umbral definido                                                                                                     |
-| 8   | ¿Quién valida el contenido cargado en `knowledge/`?                    | Sigue abierta — `knowledge/` no implementado todavía                                                                                    |
-| 9   | ¿Cuándo y con qué PAC se aborda la integración fiscal de la Etapa 4?   | Sigue abierta — Etapa 4 no iniciada                                                                                                     |
-
----
+Registro completo y única fuente — preguntas de ingeniería que bloquean una tarea concreta y preguntas estratégicas de producto: [`brain/QUESTIONS.md`](brain/QUESTIONS.md). Esta sección no repite su contenido.
 
 ## 10. Riesgos
 
-### Riesgos de producto y negocio
-
-Los 11 más relevantes hoy. Tabla íntegra original (17 riesgos): [`CHANGELOG.md`](CHANGELOG.md) → "Contenido preliminar de producto".
-
-| Riesgo                                      | Mitigación preliminar                                                               |
-| ------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Errores fiscales                            | Separar cálculo determinístico de interpretación de IA; revisión humana obligatoria |
-| Información desactualizada                  | Versionado normativo obligatorio (principio 10.5)                                   |
-| Respuestas inventadas                       | Honestidad de la IA (10.10) + Agente Supervisor de Calidad y Fuentes                |
-| Filtración de datos entre Empresas          | Aislamiento estricto (`BR-GLB-001`), cifrado, mínimos privilegios, auditoría        |
-| Uso indebido de e.firma                     | Prohibición explícita de almacenamiento inseguro (§4)                               |
-| Dependencia de un solo proveedor de IA      | Capa de abstracción de proveedores                                                  |
-| Costos elevados de IA                       | Métricas de costo por usuario; calculadoras determinísticas                         |
-| Complejidad/crecimiento prematuro           | Monolito modular (10.9); migración solo con razón operativa concreta                |
-| Incumplimiento de licencias de conocimiento | Política de clasificación de fuentes y derechos de uso                              |
-| Falta de validación profesional             | Revisión humana obligatoria (10.2) en toda acción sensible                          |
-| Cambios normativos                          | Versionado normativo; distinción vigente/histórica                                  |
-
-### Riesgos arquitectónicos activos (EWO-005 Bloque E)
-
-Catálogo completo con probabilidad/impacto/estado: [`brain/RISKS.md`](brain/RISKS.md) (R-001 a R-012). Los más relevantes hoy:
-
-| ID    | Riesgo                                                                                | Estado                                                                                    |
-| ----- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| R-005 | Política de folio duplicado no definida — el worker no puede rechazar automáticamente | **Abierto** — depende de Q-001                                                            |
-| R-010 | Pérdida de efectos externos post-commit (sin outbox transaccional)                    | **Abierto** — aceptado como post-MVP, revisar cuando exista un consumidor real del evento |
-| R-001 | Corrupción silenciosa del agregado CFDI (mezcla entre workers)                        | Mitigado por diseño (D-007), pendiente de verificación en integración (`E5-S2-T10`)       |
+Registro completo y única fuente — riesgos de producto/negocio y riesgos arquitectónicos: [`brain/RISKS.md`](brain/RISKS.md). Esta sección no repite su contenido.
 
 ---
 
@@ -272,15 +222,15 @@ Catálogo completo con probabilidad/impacto/estado: [`brain/RISKS.md`](brain/RIS
 
 ### 11.1 Etapas
 
-| Etapa                       | Contenido                                                                                                                                                             | Estado                                                                                                          |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 0 — Documentación y diseño  | Visión, PRD, reglas de negocio, arquitectura, UX/UI, BD, seguridad, IA, pruebas                                                                                       | Sustancialmente completa (docs/00-25 existen, en `Draft v1.0`)                                                  |
-| 1 — Prototipo visual        | Landing, login simulado, dashboard, navegación, empresas, asistente IA visual                                                                                         | Parcialmente superada por implementación real (EWO-001 a EWO-004)                                               |
-| 2 — MVP funcional           | Usuarios/auth/roles/empresas · XML CFDI · organización documental · catálogo/pólizas · balanza/EF básicos · chat contable-fiscal · calculadoras · historial/auditoría | **En curso** — EWO-001 a EWO-004 cerrados; EWO-005 (CFDI) en curso, detalle en [`AI_CONTEXT.md`](AI_CONTEXT.md) |
-| 3 — Automatización contable | Clasificación, pólizas sugeridas, conciliaciones, reglas recurrentes                                                                                                  | No iniciada                                                                                                     |
-| 4 — Integraciones fiscales  | PAC autorizado, descarga masiva SAT, declaraciones asistidas                                                                                                          | No iniciada — bloqueada además por pregunta 9 (§9)                                                              |
-| 5 — Gestión empresarial     | Inventarios, activos, nómina, tesorería, presupuestos                                                                                                                 | No iniciada                                                                                                     |
-| 6 — Expansión               | API pública, app móvil, marketplace, integraciones bancarias                                                                                                          | No iniciada                                                                                                     |
+| Etapa                       | Contenido                                                                                                                                                             | Estado                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 0 — Documentación y diseño  | Visión, PRD, reglas de negocio, arquitectura, UX/UI, BD, seguridad, IA, pruebas                                                                                       | Sustancialmente completa (docs/00-25 existen, en `Draft v1.0`)                                         |
+| 1 — Prototipo visual        | Landing, login simulado, dashboard, navegación, empresas, asistente IA visual                                                                                         | Parcialmente superada por implementación real (EWO-001 a EWO-004)                                      |
+| 2 — MVP funcional           | Usuarios/auth/roles/empresas · XML CFDI · organización documental · catálogo/pólizas · balanza/EF básicos · chat contable-fiscal · calculadoras · historial/auditoría | **En curso** — EWO-001 a EWO-004 cerrados; EWO activa y su detalle en [`AI_CONTEXT.md`](AI_CONTEXT.md) |
+| 3 — Automatización contable | Clasificación, pólizas sugeridas, conciliaciones, reglas recurrentes                                                                                                  | No iniciada                                                                                            |
+| 4 — Integraciones fiscales  | PAC autorizado, descarga masiva SAT, declaraciones asistidas                                                                                                          | No iniciada — bloqueada además por pregunta 9 (§9)                                                     |
+| 5 — Gestión empresarial     | Inventarios, activos, nómina, tesorería, presupuestos                                                                                                                 | No iniciada                                                                                            |
+| 6 — Expansión               | API pública, app móvil, marketplace, integraciones bancarias                                                                                                          | No iniciada                                                                                            |
 
 ### 11.2 Módulos de largo plazo
 
@@ -314,7 +264,7 @@ Ver tabla completa en [§3](#3-estado-actual-del-proyecto). Esta sección resume
 Para conocer el estado actual, consultar:
 
 - [`AI_CONTEXT.md`](AI_CONTEXT.md) — estado vivo, minuto a minuto.
-- El checklist de implementación de la EWO activa — su nombre exacto de archivo está en la columna "Informe" de la fila marcada `IN_PROGRESS` en [§3](#3-estado-actual-del-proyecto) — para el detalle por tarea.
+- El checklist de implementación de la EWO activa — su nombre exacto de archivo está en la columna "Informe" de la fila correspondiente en [§3](#3-estado-actual-del-proyecto) (identifica la EWO activa quien consulte `AI_CONTEXT.md`) — para el detalle por tarea.
 
 ### 12.4 Convención de cierre de tarea (aplica a toda tarea de todo EWO)
 
@@ -408,7 +358,7 @@ Cubre solo el lenguaje usado en este documento. No es fuente fiscal/contable/leg
 | §18                        | Experiencia de usuario (UX/UI)         | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
 | §19                        | Modelo de negocio preliminar           | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
 | §20                        | Indicadores de éxito preliminares      | `CHANGELOG.md` → "Contenido preliminar de producto"                                          |
-| §21                        | Riesgos principales                    | [§10](#10-riesgos) (11 de 17) / `CHANGELOG.md` (tabla completa)                              |
+| §21                        | Riesgos principales                    | `brain/RISKS.md` (11 de 17) / `CHANGELOG.md` (tabla completa)                                |
 | §22                        | Gobierno del proyecto                  | [§15](#15-gobierno-y-mantenimiento-de-este-documento)                                        |
 | §23                        | Definición de terminado                | [§13](#13-definición-de-terminado)                                                           |
 | §24                        | Glosario inicial                       | [§14](#14-glosario-mínimo)                                                                   |
@@ -421,6 +371,16 @@ Cubre solo el lenguaje usado en este documento. No es fuente fiscal/contable/leg
 ---
 
 ## 17. Qué cambió en esta reorganización
+
+### Tercera corrección de hallazgos de auditoría (2026-07-31)
+
+Tercera auditoría `READ ONLY` (Codex): veredicto `FAILED` con 3 hallazgos. Corrección aplicada por Claude Code en modo `IMPLEMENTACIÓN DOCUMENTAL CONTROLADA` (sin tocar código, sin reorganizar la arquitectura documental):
+
+- **Estado operativo residual en este documento (ALTO):** aunque [§12.3](#12-engineering-workflow--estado-de-implementación) ya era atemporal desde la corrección anterior, [§1](#1-contaia-en-60-segundos), [§3](#3-estado-actual-del-proyecto), [§11.1](#111-etapas) y [§18](#18-historial-ejecutivo) seguían nombrando la EWO activa, marcando su estado (`IN_PROGRESS`) o detallando tareas individuales de un sprint en curso (`E5-S2-T01` a `E5-S2-T09`). Se sustituyó todo ese dato vivo por punteros a [`AI_CONTEXT.md`](AI_CONTEXT.md) — ninguna sección de este documento vuelve a nombrar una EWO, bloque, sprint o tarea como "activa" ni a marcar `IN_PROGRESS`.
+- **`brain/QUESTIONS.md` y `brain/RISKS.md` no eran la fuente única (ALTO):** las preguntas estratégicas de producto y los riesgos de producto/negocio vivían únicamente en [§9](#9-preguntas-abiertas) y [§10](#10-riesgos) de este documento. Se trasladó ese contenido íntegro a `brain/QUESTIONS.md` y `brain/RISKS.md` respectivamente; ambas secciones de este documento quedaron como enlace puro, sin repetir ninguna tabla.
+- **Referencias a auditorías fuera de HEAD (MEDIO):** los 7 archivos de `docs/engineering/audits/` existían en disco con contenido real, pero nunca se habían agregado a git — cualquier revisión del estado versionado los vería como enlaces rotos. Se agregaron (`git add`) al control de versiones; no se modificó ningún texto de documentación para resolver este hallazgo.
+
+No se modificó código, pruebas, `schema.prisma`, arquitectura de la Knowledge Platform ni el contenido sustantivo de ninguna decisión, pregunta o riesgo — solo su ubicación. Listo para una reauditoría `READ ONLY` final.
 
 ### Segunda corrección de hallazgos de auditoría (2026-07-30, mismo día)
 
@@ -462,17 +422,17 @@ Ver detalle en el historial: el rediseño original que redujo el documento de 65
 
 Solo hitos mayores. Detalle completo, línea por línea, de **todo** cambio del proyecto: [`CHANGELOG.md`](CHANGELOG.md).
 
-| Fecha                   | Hito                                                                                                                                                                        |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-18              | Primera versión de `MASTER_CONTEXT.md` (v0.1)                                                                                                                               |
-| 2026-07-19              | EWO-002 (Authentication & Authorization) → `DONE`                                                                                                                           |
-| 2026-07-19              | Primer commit del repositorio (`756358d`)                                                                                                                                   |
-| 2026-07-19              | EWO-003 (Organization & Company Management) implementado                                                                                                                    |
-| 2026-07-20              | EWO-004 (User, RBAC & Workspace Context) implementado                                                                                                                       |
-| 2026-07-22              | EWO-004 → `DONE` — migración inicial de Prisma aplicada, 137/137 pruebas                                                                                                    |
-| 2026-07-25              | **D-007** ratificada — estrategia de concurrencia y persistencia atómica del agregado CFDI (EWO-005 Bloque E)                                                               |
-| 2026-07-26              | Sprint 1 de Bloque E (EWO-005) → `COMPLETADO`, `PASSED`                                                                                                                     |
-| 2026-07-26              | **D-008** ratificada — recuperación de `E5-S1-T07`                                                                                                                          |
-| 2026-07-29 – 2026-07-30 | Sprint 2 de Bloque E en curso: `E5-S2-T01` a `E5-S2-T08` → `PASSED`; `E5-S2-T09` implementada, pendiente de auditoría                                                       |
-| 2026-07-30              | Rediseño ejecutivo de `MASTER_CONTEXT.md` (v0.1 → v2.0); historial detallado migrado a `CHANGELOG.md`                                                                       |
-| 2026-07-30              | Knowledge Platform completo (v2.0 → v2.1): `AI_CONTEXT.md`, `PROJECT_INDEX.md`, `DASHBOARD.md`, `brain/DECISION_INDEX.md`, `AI_PLAYBOOK.md`, `DOCUMENTATION_STYLE_GUIDE.md` |
+| Fecha      | Hito                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-18 | Primera versión de `MASTER_CONTEXT.md` (v0.1)                                                                                                                               |
+| 2026-07-19 | EWO-002 (Authentication & Authorization) → `DONE`                                                                                                                           |
+| 2026-07-19 | Primer commit del repositorio (`756358d`)                                                                                                                                   |
+| 2026-07-19 | EWO-003 (Organization & Company Management) implementado                                                                                                                    |
+| 2026-07-20 | EWO-004 (User, RBAC & Workspace Context) implementado                                                                                                                       |
+| 2026-07-22 | EWO-004 → `DONE` — migración inicial de Prisma aplicada, 137/137 pruebas                                                                                                    |
+| 2026-07-25 | **D-007** ratificada — estrategia de concurrencia y persistencia atómica del agregado CFDI (EWO-005 Bloque E)                                                               |
+| 2026-07-26 | Sprint 1 de Bloque E (EWO-005) → `COMPLETADO`, `PASSED`                                                                                                                     |
+| 2026-07-26 | **D-008** ratificada — recuperación de `E5-S1-T07`                                                                                                                          |
+| 2026-07-29 | Inicio de Sprint 2 de Bloque E (EWO-005) — estado y detalle por tarea, siempre vivos, en `AI_CONTEXT.md`                                                                    |
+| 2026-07-30 | Rediseño ejecutivo de `MASTER_CONTEXT.md` (v0.1 → v2.0); historial detallado migrado a `CHANGELOG.md`                                                                       |
+| 2026-07-30 | Knowledge Platform completo (v2.0 → v2.1): `AI_CONTEXT.md`, `PROJECT_INDEX.md`, `DASHBOARD.md`, `brain/DECISION_INDEX.md`, `AI_PLAYBOOK.md`, `DOCUMENTATION_STYLE_GUIDE.md` |
