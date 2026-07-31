@@ -71,6 +71,10 @@ Protocolo completo: [`AI_PLAYBOOK.md`](AI_PLAYBOOK.md). Resumen de una línea ca
 
 ~45 referencias cruzadas en `docs/*.md` citan la numeración de secciones de `MASTER_CONTEXT.md` anterior a 2026-07-30. Mapa de resolución: [Mapeo de numeración histórico](MASTER_CONTEXT.md#16-mapeo-de-numeración-histórico). No es un bloqueador de ingeniería — es limpieza documental pendiente.
 
+## Cierre de la iniciativa Knowledge Platform
+
+Auditoría final `READ ONLY` (Codex, 2026-07-31) sobre HEAD `26356bffcc1c38df40a3eadd13981765a97c5a6b`: **`PASSED`**. Los ocho pilares documentales quedan adoptados como vigentes. Evidencia: [`KNOWLEDGE_PLATFORM_FINAL_AUDIT.md`](docs/engineering/audits/KNOWLEDGE_PLATFORM_FINAL_AUDIT.md); detalle en `MASTER_CONTEXT.md` §17. Este archivo sigue siendo la única fuente de estado vivo — el cierre no cambia esa regla.
+
 ---
 
 **Si acabas de terminar una tarea de ingeniería:** actualiza la tabla "Estado actual" de este archivo antes de cerrar la sesión. Es la única acción de mantenimiento que este documento requiere.

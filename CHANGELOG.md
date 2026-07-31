@@ -75,6 +75,15 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **Corrección posterior (mismo día), tras auditoría `READ ONLY` de Codex con veredicto `FAILED`:** se eliminó de `MASTER_CONTEXT.md` §12.3 la tabla de estado por tarea (duplicaba `AI_CONTEXT.md` y el checklist activo); se corrigieron referencias numéricas de sección rotas en `AI_CONTEXT.md`, `DASHBOARD.md`, `AI_PLAYBOOK.md` y `DOCUMENTATION_STYLE_GUIDE.md`; y se corrigió `AI_PLAYBOOK.md`/`DOCUMENTATION_STYLE_GUIDE.md` para atribuir la creación del archivo `_FINAL_AUDIT.md` a Claude Code durante el cierre administrativo, nunca a Codex (auditor `READ ONLY`). Detalle completo de la corrección: `MASTER_CONTEXT.md` → [Qué cambió en esta reorganización](MASTER_CONTEXT.md#17-qué-cambió-en-esta-reorganización).
 - **Confirmado:** ninguna decisión (`brain/DECISIONS.md`), pregunta (`brain/QUESTIONS.md`) ni riesgo (`brain/RISKS.md`) se modificó, eliminó ni perdió — únicamente se reorganizó la arquitectura documental.
 
+## 2026-07-31 — Cierre administrativo de la iniciativa Knowledge Platform
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- **Tercera corrección de hallazgos (commit `26356bf`):** eliminado el estado operativo residual de `MASTER_CONTEXT.md` (EWO activa, `IN_PROGRESS`, tareas individuales de un sprint en curso — todo sustituido por punteros a `AI_CONTEXT.md`); migradas las preguntas estratégicas de producto a `brain/QUESTIONS.md` y los riesgos de producto/negocio a `brain/RISKS.md`, que quedan como fuente única de cada uno; versionados en git los siete artefactos de `docs/engineering/audits/` que ya eran referenciados desde la documentación pero nunca se habían agregado al control de versiones.
+- **Auditoría final independiente `READ ONLY` (Codex) sobre el HEAD `26356bffcc1c38df40a3eadd13981765a97c5a6b`: veredicto `PASSED`.** Evidencia: [`KNOWLEDGE_PLATFORM_FINAL_AUDIT.md`](docs/engineering/audits/KNOWLEDGE_PLATFORM_FINAL_AUDIT.md). Se verificaron fuente única de estado vivo, responsabilidad documental, trazabilidad de auditorías, conservación de información y continuidad entre sesiones.
+- **Los ocho pilares documentales quedan adoptados formalmente como vigentes** y la iniciativa **Knowledge Platform** se cierra administrativamente. La continuidad operativa del proyecto sigue basada exclusivamente en `AI_CONTEXT.md`.
+- **Deuda pendiente, independiente de este cierre:** ~45 referencias cruzadas externas a la numeración de secciones de `MASTER_CONTEXT.md` anterior a la reorganización del 2026-07-30 (`MASTER_CONTEXT.md` §16) siguen sin corregirse una por una.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
