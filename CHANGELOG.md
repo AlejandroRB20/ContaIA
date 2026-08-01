@@ -102,6 +102,13 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **Sprint 3 → `NOT_STARTED`.** No se inicia; pendiente de planificación y autorización del responsable de producto.
 - **Q-001 permanece `ABIERTA`** — sin relación con el cierre de Sprint 2.
 
+## 2026-07-31 — Cierre administrativo de E5-S3-T01 (scaffold `XmlProcessingModule`, Sprint 3)
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- **Auditoría final independiente `READ ONLY` (Codex) sobre HEAD `87a0f2dd66e8517390c212488167c21eacef9b33`: veredicto `PASSED`, sin hallazgos.** Evidencia: [`E5-S3-T01_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T01_FINAL_AUDIT.md). Confirmó el módulo `XmlProcessingModule` vacío (`imports: []`, `providers: []`, `exports: []`), sin `forwardRef()` y sin dependencias con `JobsModule`/`DocumentsModule`/`StorageModule`/`@contaia/database`/`bullmq`/`fast-xml-parser`.
+- **`E5-S3-T01` → `PASSED`.** Sprint 3 **permanece `IN_PROGRESS`**: `E5-S3-T02` (instalar `fast-xml-parser`) queda habilitada; `E5-S3-T03`–`T12` permanecen `BLOCKED`.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
