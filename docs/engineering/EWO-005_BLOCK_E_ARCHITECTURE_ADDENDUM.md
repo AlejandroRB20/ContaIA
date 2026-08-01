@@ -1222,6 +1222,14 @@ No depender únicamente de la configuración del parser para estos dos últimos 
 
 ### 5.3 Pre-validaciones antes del parser
 
+**Implementadas en `E5-S3-T03`** (`apps/api/src/modules/xml-processing/xml-pre-validation.ts`) como **función pura** `preValidateXmlBuffer(buffer, limits)`, sin NestJS y sin importar `fast-xml-parser`.
+
+**Frontera de responsabilidad con Sprint 4 (regla vinculante).** `E5-S3-T03` decide únicamente sobre bytes y texto previos al parseo, y su única salida ante un fallo es **un error tipado interno** (`XmlPreValidationError`, con `code` discriminante). `E5-S3-T03` **no** traduce a `XML_INVALID`, **no** ejecuta la Transacción C y **no** envuelve nada en `UnrecoverableError`. Esa clasificación externa pertenece al worker de **Sprint 4** (AD-11), que es quien: (a) traduce el `code` recibido a `XML_INVALID`; (b) ejecuta la Transacción C (`REJECTED: XML_INVALID` + `Job FAILED`); y (c) determina `UnrecoverableError` para BullMQ. Ningún criterio de aceptación de `E5-S3-T03` debe exigirle ejecutar (a), (b) ni (c).
+
+**Política fail-closed de `DOCTYPE`/`ENTITY` (regla vinculante de `E5-S3-T03`).** El escaneo del paso 4 es **textual sobre el documento completo** y rechaza aunque la cadena aparezca dentro de un comentario XML o de una sección `CDATA`. Es deliberado: distinguir el contexto exigiría parsear contenido no confiable, exactamente lo que esta prevalidación existe para evitar. Se acepta el falso positivo teórico sobre un documento que contuviera `<!DOCTYPE` o `<!ENTITY` como texto literal — un CFDI legítimo no lo contiene, y la dirección segura del error es rechazar.
+
+**Orden obligatorio de los controles** (el orden es parte del contrato de seguridad): precondiciones de programación → Buffer vacío → tamaño → BOM sobre bytes crudos → byte `NUL` sobre bytes crudos → decodificación UTF-8 estricta → declaración de encoding → `DOCTYPE`/`ENTITY` → forma mínima. El escaneo de `NUL` **no** es redundante con la decodificación estricta: `U+0000` es UTF-8 válido, de modo que un UTF-16LE sin BOM con contenido ASCII atraviesa un decodificador `fatal: true` sin error y podría ocultar un `<!ENTITY` de un escaneo hecho solo sobre el texto decodificado.
+
 Antes de pasar el Buffer a `fast-xml-parser`:
 
 1. **Tamaño:** verificar que el Buffer no exceda `XML_MAX_FILE_SIZE_BYTES` (config central, §10.3). Si excede → error permanente.
@@ -1232,7 +1240,14 @@ Antes de pasar el Buffer a `fast-xml-parser`:
 
 ### 5.4 Pruebas negativas de seguridad requeridas
 
-El test suite del `XmlValidationService` debe incluir:
+**Ubicación de cada prueba según la capa que decide.** Las pruebas de esta tabla se reparten entre dos suites distintas, conforme a la frontera de §5.3:
+
+- **Prevalidación (`E5-S3-T03`)** → `apps/api/src/modules/xml-processing/xml-pre-validation.spec.ts`. Cubre lo que se decide sobre bytes y texto previos al parseo: `DOCTYPE`, `ENTITY`, XXE, Billion Laughs, BOM, encoding declarado, XML vacío, archivo binario/PDF renombrado. La aserción es el `code` de `XmlPreValidationError`, no `valid: false`/`XML_INVALID` — ver la frontera de §5.3.
+- **`XmlValidationService` (`E5-S3-T04`)** → suite propia del servicio. Cubre lo que exige un árbol parseado: XML no bien formado, profundidad, número de nodos y número de atributos.
+
+La columna "Resultado esperado" de abajo describe el **efecto observable de extremo a extremo** una vez integrado el worker de Sprint 4; en la suite unitaria de `E5-S3-T03` ese mismo caso se verifica como el `code` correspondiente.
+
+El conjunto de pruebas negativas debe incluir:
 
 | Caso                                                    | Resultado esperado                  |
 | ------------------------------------------------------- | ----------------------------------- |
