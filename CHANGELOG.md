@@ -109,6 +109,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **Auditoría final independiente `READ ONLY` (Codex) sobre HEAD `87a0f2dd66e8517390c212488167c21eacef9b33`: veredicto `PASSED`, sin hallazgos.** Evidencia: [`E5-S3-T01_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T01_FINAL_AUDIT.md). Confirmó el módulo `XmlProcessingModule` vacío (`imports: []`, `providers: []`, `exports: []`), sin `forwardRef()` y sin dependencias con `JobsModule`/`DocumentsModule`/`StorageModule`/`@contaia/database`/`bullmq`/`fast-xml-parser`.
 - **`E5-S3-T01` → `PASSED`.** Sprint 3 **permanece `IN_PROGRESS`**: `E5-S3-T02` (instalar `fast-xml-parser`) queda habilitada; `E5-S3-T03`–`T12` permanecen `BLOCKED`.
 
+## 2026-07-31 — Cierre administrativo de E5-S3-T02 (dependencia `fast-xml-parser`, Sprint 3)
+
+**Solo documentación.** Sin cambios de código durante el cierre.
+
+- **Reauditoría final independiente `READ ONLY` (Codex) sobre HEAD `939c88943225f2e45ee1de466294ad1725b7de3a`: veredicto `PASSED`, sin hallazgos nuevos.** Evidencia: [`E5-S3-T02_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T02_FINAL_AUDIT.md). Confirmó `fast-xml-parser` `5.10.1` aprobada como versión exacta y fijada.
+- **`H-T02-01` y `H-T02-02` (`MEDIO`) → `RESOLVED`**: eliminación del CVE `GHSA-gh4j-gqv2-49f6` (`XMLBuilder`, corregido desde `5.7.0`) y sincronización de `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §5.2 con el estado real de la dependencia.
+- **`E5-S3-T02` → `PASSED`.** `E5-S3-T03` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
