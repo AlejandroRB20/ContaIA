@@ -84,6 +84,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **Los ocho pilares documentales quedan adoptados formalmente como vigentes** y la iniciativa **Knowledge Platform** se cierra administrativamente. La continuidad operativa del proyecto sigue basada exclusivamente en `AI_CONTEXT.md`.
 - **Deuda pendiente, independiente de este cierre:** ~45 referencias cruzadas externas a la numeración de secciones de `MASTER_CONTEXT.md` anterior a la reorganización del 2026-07-30 (`MASTER_CONTEXT.md` §16) siguen sin corregirse una por una.
 
+## 2026-07-31 — Cierre administrativo de E5-S2-T10 (pruebas unitarias de persistencia, Sprint 2)
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- **Auditoría final independiente `READ ONLY` (Codex/GPT-5 Codex) sobre HEAD `2b90de8297731149a02b0535938f501926c25866`: veredicto `PASSED`.** Evidencia: [`E5-S2-T10_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T10_FINAL_AUDIT.md). Confirmó los cuatro criterios de la tarjeta (`CfdiRepository.create()` nunca invoca `upsert`; guarda de invariante ante `Cfdi` preexistente; `markAsProcessed`/`markAsCompleted` exigen `count === 1`; el orquestador revierte ante cualquier fallo intermedio) y cobertura ≥ 80 % archivo por archivo en los repositorios del Sprint 2 y el orquestador.
+- **Hallazgo `H-T10-01` (`MEDIO`) de la auditoría previa `RESOLVED`:** los dos resúmenes vigentes de Sprint 2 del checklist declaraban `E5-S2-T10` como `BLOCKED`, contradiciendo su tarjeta propia y `AI_CONTEXT.md`; corregido en el commit `2b90de8`.
+- **`E5-S2-T10` → `PASSED`.** Sprint 2 **permanece abierto (`IN_PROGRESS`)**: `E5-S2-T03` y `E5-S2-T07` siguen `READY_FOR_AUDIT`, pendientes de su propia auditoría independiente `READ ONLY` con Codex antes de que Sprint 2 pueda declararse `COMPLETADO`. Sprint 3 no se inicia.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.

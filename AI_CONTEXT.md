@@ -12,11 +12,11 @@
 | Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                              |
 | Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                    |
 | Sprint / Bloque activo                                            | Sprint 2 de Bloque E — Sprint 1 ya `COMPLETADO`                                                                                             |
-| Última tarea cerrada (`PASSED`)                                   | `E5-S2-T09` — Logging mínimo de la transacción — cierre administrativo 2026-07-31                                                           |
-| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S2-T03`, `E5-S2-T07`, `E5-S2-T10` (más reciente: pruebas unitarias de persistencia, 21 pruebas nuevas, sin tocar código de producción)  |
-| Siguiente paso inmediato                                          | Auditoría `READ ONLY` con Codex de `E5-S2-T10`                                                                                              |
-| Tarea siguiente en la secuencia                                   | Ninguna de Sprint 3 habilitada — Sprint 2 cierra solo cuando `E5-S2-T03`, `E5-S2-T07` y `E5-S2-T10` estén las tres `PASSED`                 |
-| Última auditoría cerrada                                          | [`E5-S2-T09_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T09_FINAL_AUDIT.md) — `PASSED`                                                   |
+| Última tarea cerrada (`PASSED`)                                   | `E5-S2-T10` — Pruebas unitarias de persistencia — cierre administrativo 2026-07-31                                                          |
+| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S2-T03`, `E5-S2-T07`                                                                                                                    |
+| Siguiente paso inmediato                                          | Auditorías `READ ONLY` con Codex de `E5-S2-T03` y `E5-S2-T07`                                                                               |
+| Tarea siguiente en la secuencia                                   | Ninguna de Sprint 3 habilitada — Sprint 2 cierra `COMPLETADO` solo cuando `E5-S2-T03` y `E5-S2-T07` estén también `PASSED`                  |
+| Última auditoría cerrada                                          | [`E5-S2-T10_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T10_FINAL_AUDIT.md) — `PASSED`                                                   |
 | Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea |
 
 ## Decisiones activas más relevantes
