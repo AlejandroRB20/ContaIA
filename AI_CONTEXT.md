@@ -4,20 +4,20 @@
 >
 > **Regla de mantenimiento:** este archivo se actualiza al final de cada sesión de ingeniería que cierre, corrija o audite una tarea. Es una edición mecánica de la tabla de abajo — nunca una reescritura de prosa. Ver [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md) si tienes dudas de formato.
 
-## Estado actual (2026-07-31)
+## Estado actual (2026-08-01)
 
-| Campo                                                             | Valor                                                                                                                                       |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Proyecto                                                          | ContaIA — monorepo `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/database` (Prisma)                                                |
-| Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                              |
-| Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                    |
-| Sprint / Bloque activo                                            | Sprint 2 de Bloque E — **`COMPLETADO`** · Sprint 1 ya `COMPLETADO` · Sprint 3 `IN_PROGRESS`                                                 |
-| Última tarea cerrada (`PASSED`)                                   | `E5-S3-T03` — Prevalidaciones de seguridad sobre el Buffer XML — cierre administrativo 2026-08-01                                           |
-| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | Ninguna                                                                                                                                     |
-| Siguiente paso inmediato                                          | Análisis técnico previo de `E5-S3-T04` con Claude Code antes de implementar `XmlValidationService`                                          |
-| Tarea siguiente en la secuencia                                   | `E5-S3-T04` — habilitada, no iniciada. Sprint 3 `IN_PROGRESS`; `E5-S3-T05`–`T12` conservan su estado vigente (`BLOCKED`)                    |
-| Última auditoría cerrada                                          | [`E5-S3-T03_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T03_FINAL_AUDIT.md) — `PASSED`                                                   |
-| Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea |
+| Campo                                                             | Valor                                                                                                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Proyecto                                                          | ContaIA — monorepo `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/database` (Prisma)                                                           |
+| Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                                         |
+| Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                               |
+| Sprint / Bloque activo                                            | Sprint 2 de Bloque E — **`COMPLETADO`** · Sprint 1 ya `COMPLETADO` · Sprint 3 `IN_PROGRESS`                                                            |
+| Última tarea cerrada (`PASSED`)                                   | `E5-S3-T03` — Prevalidaciones de seguridad sobre el Buffer XML — cierre administrativo 2026-08-01                                                      |
+| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S3-T04` — Validación estructural XML (`validateXml`), implementada 2026-08-01                                                                      |
+| Siguiente paso inmediato                                          | Auditoría `READ ONLY` de `E5-S3-T04` con Codex, verificando primero el nuevo HEAD exacto                                                               |
+| Tarea siguiente en la secuencia                                   | `E5-S3-T05` — bloqueada, depende del cierre `PASSED` de `E5-S3-T04`. Sprint 3 `IN_PROGRESS`; `E5-S3-T06`–`T12` conservan su estado vigente (`BLOCKED`) |
+| Última auditoría cerrada                                          | [`E5-S3-T03_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T03_FINAL_AUDIT.md) — `PASSED`                                                              |
+| Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea            |
 
 ## Decisiones activas más relevantes
 

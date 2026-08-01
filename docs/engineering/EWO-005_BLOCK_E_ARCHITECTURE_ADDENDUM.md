@@ -1205,20 +1205,20 @@ Antes de escribir código de parseo en el Bloque E, la implementación debe:
 
 Las siguientes opciones deben configurarse explícitamente y revisarse contra la versión instalada antes de la implementación (paso 2 arriba):
 
-| Control                    | Configuración requerida                                                                                                         | Riesgo que mitiga                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| DTD / DOCTYPE              | Rechazar cualquier XML que contenga `<!DOCTYPE`                                                                                 | XXE, Entity injection                               |
-| ENTITY externas            | Deshabilitar resolución de entidades externas                                                                                   | SSRF, XXE, lectura de filesystem                    |
-| Entidades parametricas     | Deshabilitar                                                                                                                    | Billion Laughs, Entity Expansion                    |
-| Recursos externos          | No resolver ninguna URL ni path durante parsing                                                                                 | SSRF                                                |
-| Acceso a red/filesystem    | Cero — el parser no debe salir de la memoria del proceso                                                                        | SSRF                                                |
-| Transformaciones XSLT      | No ejecutar                                                                                                                     | Ejecución de código arbitrario                      |
-| Profundidad máxima         | `XML_MAX_DEPTH` (config central, §10.3)                                                                                         | Ataques de profundidad                              |
-| Tamaño máximo del Buffer   | `XML_MAX_FILE_SIZE_BYTES` (config central, §10.3) — verificado antes de pasar al parser                                         | Memory exhaustion                                   |
-| Número máximo de nodos     | `XML_MAX_NODE_COUNT` (config central, §10.3) — recorrido manual si el parser no lo soporta nativamente (ver paso 4 arriba)      | Memory/CPU exhaustion (explosión de nodos pequeños) |
-| Número máximo de atributos | `XML_MAX_ATTRIBUTE_COUNT` (config central, §10.3) — recorrido manual si el parser no lo soporta nativamente (ver paso 4 arriba) | Memory/CPU exhaustion (explosión de atributos)      |
+| Control                    | Configuración requerida                                                                                                                               | Riesgo que mitiga                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| DTD / DOCTYPE              | Rechazar cualquier XML que contenga `<!DOCTYPE`                                                                                                       | XXE, Entity injection                               |
+| ENTITY externas            | Deshabilitar resolución de entidades externas                                                                                                         | SSRF, XXE, lectura de filesystem                    |
+| Entidades parametricas     | Deshabilitar                                                                                                                                          | Billion Laughs, Entity Expansion                    |
+| Recursos externos          | No resolver ninguna URL ni path durante parsing                                                                                                       | SSRF                                                |
+| Acceso a red/filesystem    | Cero — el parser no debe salir de la memoria del proceso                                                                                              | SSRF                                                |
+| Transformaciones XSLT      | No ejecutar                                                                                                                                           | Ejecución de código arbitrario                      |
+| Profundidad máxima         | `XML_MAX_DEPTH` (config central, §10.3) — `maxNestedTags` de `fast-xml-parser`, **más** un recorrido posterior (ver corrección `E5-S3-T04` más abajo) | Ataques de profundidad                              |
+| Tamaño máximo del Buffer   | `XML_MAX_FILE_SIZE_BYTES` (config central, §10.3) — verificado antes de pasar al parser                                                               | Memory exhaustion                                   |
+| Número máximo de nodos     | `XML_MAX_NODE_COUNT` (config central, §10.3) — recorrido manual posterior al parseo (`fast-xml-parser` no lo soporta nativamente)                     | Memory/CPU exhaustion (explosión de nodos pequeños) |
+| Número máximo de atributos | `XML_MAX_ATTRIBUTE_COUNT` (config central, §10.3) — recorrido manual posterior al parseo (`fast-xml-parser` no lo soporta nativamente)                | Memory/CPU exhaustion (explosión de atributos)      |
 
-No depender únicamente de la configuración del parser para estos dos últimos controles: si la versión instalada no los soporta nativamente, el conteo debe implementarse como código propio de `XmlValidationService`, ejecutado sobre el resultado del parseo o durante un recorrido dedicado.
+**Corrección `E5-S3-T04` (`I-06`, verificado empíricamente contra `fast-xml-parser` `5.10.1` instalado).** De los tres controles anteriores, **solo la profundidad** tiene soporte nativo durante el parseo (`maxNestedTags`); nodos y atributos **no** lo tienen — no existe ninguna opción de configuración para ninguno de los dos en la versión instalada, y ambos exigen siempre un recorrido manual posterior al parseo (nunca "durante el parseo", esa alternativa no existe para estos dos controles). Además, el soporte nativo de profundidad **no aplica un corte exacto**: con `maxNestedTags: N`, la librería acepta nativamente hasta `N + 1` niveles y solo lanza en `N + 2` — un corte más laxo que `XML_MAX_DEPTH`. Por eso el corte exacto en `XML_MAX_DEPTH` (inclusive; `+ 1` rechaza) lo garantiza únicamente el recorrido posterior de `E5-S3-T04`, no `maxNestedTags` por sí solo — `maxNestedTags` sigue siendo valioso porque acota el peor caso de memoria durante el parseo mismo, antes de construir el árbol completo, pero no sustituye la verificación exacta.
 
 ### 5.3 Pre-validaciones antes del parser
 
@@ -1238,6 +1238,22 @@ Antes de pasar el Buffer a `fast-xml-parser`:
 4. **DOCTYPE/ENTITY scan completo:** escanear el XML normalizado completo (tras eliminar BOM y whitespace inicial, pasos 2 y 3 anteriores) para detectar `<!DOCTYPE` o `<!ENTITY` — **no solo los primeros bytes**, ya que estas declaraciones pueden aparecer en cualquier posición del prólogo XML. Rechazar inmediatamente si se encuentran; no es necesario pasar por `fast-xml-parser` para este control.
 5. **Archivo binario:** si el Buffer no comienza con `<` (tras remover BOM y whitespace inicial), rechazar como `XML_INVALID` antes de parsear.
 
+### 5.3bis Validación estructural del parseo (`E5-S3-T04`)
+
+**Implementada en `E5-S3-T04`** (`apps/api/src/modules/xml-processing/xml-validation.ts`) como **función pura** `validateXml(xmlText, limits)`, sin NestJS, recibiendo únicamente el `xmlText` ya aprobado por `E5-S3-T03` — nunca el `Buffer`.
+
+**Frontera de responsabilidad con Sprint 4 (regla vinculante, corrección `I-04`).** Igual que `E5-S3-T03`, `E5-S3-T04` decide únicamente sobre la buena formación y los límites estructurales del árbol ya parseado, y su única salida ante un fallo es **un error tipado interno** (`XmlValidationError`, con `code` discriminante). `E5-S3-T04` **no** traduce a `XML_INVALID`, **no** ejecuta la Transacción C y **no** envuelve nada en `UnrecoverableError`. Esa clasificación externa sigue perteneciendo al worker de **Sprint 4** (AD-11). La redacción anterior del criterio de aceptación de la tarjeta `E5-S3-T04` ("cada control excedido produce `XML_INVALID` vía Transacción C + `UnrecoverableError`") describía el mismo defecto documental ya identificado y corregido en `E5-S3-T03` (`H-T03`) — queda **sustituida** por esta frontera.
+
+**Estrategia de parseo (Decisión vinculante).** Un único `XMLParser.parse(xmlText)` de un solo argumento — nunca `XMLValidator.validate()`, nunca la sobrecarga deprecated de dos argumentos, nunca `fast-xml-validator`. Verificado empíricamente contra `fast-xml-parser` `5.10.1`: esta forma **no es un validador de buena formación** — tolera en silencio, sin lanzar, tags sin cerrar, tags mal anidados, XML truncado y texto significativo fuera de la raíz (este último se descarta sin dejar rastro). Es una limitación conocida y declarada del diseño aprobado — cerrarla exigiría reintroducir una de las alternativas deprecated/diferidas, fuera de alcance de `E5-S3-T04`.
+
+**Definiciones de conteo (corrección `I-07`).** Sobre el árbol `preserveOrder`:
+
+- **Profundidad:** número de elementos anidados desde la raíz hasta el más profundo; **la raíz cuenta como profundidad 1**. Texto, atributos, comentarios y CDATA no incrementan la profundidad.
+- **Nodo:** cada elemento (tag) del documento, incluida la raíz. `#text` no cuenta como nodo; los atributos tienen su propio límite y no cuentan como nodo; comentarios y CDATA no generan nodo (excluidos del árbol por configuración, `commentPropName`/`cdataPropName: false`).
+- **Atributo:** cada par nombre-valor bajo la agrupación `:@`, contado **globalmente sobre todo el documento** — no por nodo individual.
+- **Los tres límites (`XML_MAX_DEPTH`, `XML_MAX_NODE_COUNT`, `XML_MAX_ATTRIBUTE_COUNT`) son inclusivos**: el valor exacto del límite se acepta; `límite + 1` se rechaza.
+- **Raíz única:** exactamente una entrada de elemento en el array de nivel superior del árbol `preserveOrder`, excluyendo la declaración `<?xml ...?>` y cualquier processing instruction. Cero o más de una → `XML_STRUCTURE_INVALID`.
+
 ### 5.4 Pruebas negativas de seguridad requeridas
 
 **Ubicación de cada prueba según la capa que decide.** Las pruebas de esta tabla se reparten entre dos suites distintas, conforme a la frontera de §5.3:
@@ -1245,7 +1261,7 @@ Antes de pasar el Buffer a `fast-xml-parser`:
 - **Prevalidación (`E5-S3-T03`)** → `apps/api/src/modules/xml-processing/xml-pre-validation.spec.ts`. Cubre lo que se decide sobre bytes y texto previos al parseo: `DOCTYPE`, `ENTITY`, XXE, Billion Laughs, BOM, encoding declarado, XML vacío, archivo binario/PDF renombrado. La aserción es el `code` de `XmlPreValidationError`, no `valid: false`/`XML_INVALID` — ver la frontera de §5.3.
 - **`XmlValidationService` (`E5-S3-T04`)** → suite propia del servicio. Cubre lo que exige un árbol parseado: XML no bien formado, profundidad, número de nodos y número de atributos.
 
-La columna "Resultado esperado" de abajo describe el **efecto observable de extremo a extremo** una vez integrado el worker de Sprint 4; en la suite unitaria de `E5-S3-T03` ese mismo caso se verifica como el `code` correspondiente.
+La columna "Resultado esperado" de abajo describe el **efecto observable de extremo a extremo** una vez integrado el worker de Sprint 4; en la suite unitaria de `E5-S3-T03` ese mismo caso se verifica como el `code` correspondiente, y en la suite unitaria de `E5-S3-T04` (`xml-validation.spec.ts`) los casos de profundidad, nodos y atributos se verifican de la misma forma, como el `code` de `XmlValidationError` correspondiente — **nunca** como `valid: false`/`XML_INVALID` dentro de esa suite (corrección `I-05`; ninguna de las dos tareas produce esa forma internamente).
 
 El conjunto de pruebas negativas debe incluir:
 
