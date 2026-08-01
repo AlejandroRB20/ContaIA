@@ -125,6 +125,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **`H-T03` (`MEDIO`) → `RESOLVED`**: corrección documental del criterio de aceptación de la tarjeta y de Addendum §5.3, que exigían efectos (Transacción C, `UnrecoverableError`) fuera del alcance de una función pura y pertenecientes al worker de Sprint 4.
 - **`E5-S3-T03` → `PASSED`.** `E5-S3-T04` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
 
+## 2026-08-01 — Cierre administrativo de E5-S3-T04 (validación estructural XML, Sprint 3)
+
+**Solo documentación.** Sin cambios de código durante el cierre.
+
+- **Reauditoría final independiente `READ ONLY` (Codex) sobre HEAD `66703145866349bc362c1f6a1c7bd8cf96ca3466`: veredicto `PASSED`, sin hallazgos nuevos.** Evidencia: [`E5-S3-T04_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T04_FINAL_AUDIT.md). Confirmó la buena formación garantizada por una barrera sintáctica previa al parseo, el parseo estructural seguro, los límites de profundidad, nodos y atributos, la protección frente a propiedades peligrosas, los errores sanitizados y la cobertura individual superior al 90 %.
+- **`H-T04-01` (`ALTO`) → `RESOLVED`**: `validateXml` aceptaba XML no bien formado —tags sin cerrar, tags mal anidados, XML truncado y texto significativo fuera de la raíz—, de modo que un documento inválido podía avanzar con contenido truncado o descartado en silencio, vulnerando BR-XML-001. Corregido en el commit `6670314` mediante la barrera sintáctica previa al parseo estructural. Una auditoría previa sobre HEAD `f2bb09c1bf8dde487000ede4e0c9a8ca98766df0` había resultado `FAILED` por este hallazgo.
+- **`E5-S3-T04` → `PASSED`.** `E5-S3-T05` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
