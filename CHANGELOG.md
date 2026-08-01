@@ -92,6 +92,16 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **Hallazgo `H-T10-01` (`MEDIO`) de la auditoría previa `RESOLVED`:** los dos resúmenes vigentes de Sprint 2 del checklist declaraban `E5-S2-T10` como `BLOCKED`, contradiciendo su tarjeta propia y `AI_CONTEXT.md`; corregido en el commit `2b90de8`.
 - **`E5-S2-T10` → `PASSED`.** Sprint 2 **permanece abierto (`IN_PROGRESS`)**: `E5-S2-T03` y `E5-S2-T07` siguen `READY_FOR_AUDIT`, pendientes de su propia auditoría independiente `READ ONLY` con Codex antes de que Sprint 2 pueda declararse `COMPLETADO`. Sprint 3 no se inicia.
 
+## 2026-07-31 — Cierre administrativo del Sprint 2 completo (EWO-005 Bloque E)
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- **`E5-S2-T03` → `PASSED`** — auditoría final independiente `READ ONLY` (Codex/GPT-5 Codex) sobre HEAD `e05fa7b07deb0a9b17f4009073d24f5f87a8b8b3`. Hallazgos `H-T03-01` (`HIGH`) y `L-T03-02` (`LOW`) confirmados `RESOLVED`; sin hallazgos nuevos. Evidencia: [`E5-S2-T03_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T03_FINAL_AUDIT.md).
+- **`E5-S2-T07` → `PASSED`** — auditoría final independiente `READ ONLY` (Codex/GPT-5 Codex) sobre HEAD `e05fa7b07deb0a9b17f4009073d24f5f87a8b8b3`. Sin hallazgos. Evidencia: [`E5-S2-T07_FINAL_AUDIT.md`](docs/engineering/audits/E5-S2-T07_FINAL_AUDIT.md).
+- **Sprint 2 → `COMPLETADO`.** Las diez tareas (`E5-S2-T01` a `E5-S2-T10`) están `PASSED`, cada una con auditoría final independiente registrada en `docs/engineering/audits/`.
+- **Sprint 3 → `NOT_STARTED`.** No se inicia; pendiente de planificación y autorización del responsable de producto.
+- **Q-001 permanece `ABIERTA`** — sin relación con el cierre de Sprint 2.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
