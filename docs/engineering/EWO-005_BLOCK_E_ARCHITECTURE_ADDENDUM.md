@@ -1183,9 +1183,21 @@ Todo archivo cargado se considera **no confiable por defecto** (`docs/11_SECURIT
 
 ### 5.2 Configuración requerida de `fast-xml-parser`
 
-**Estado real de la dependencia:** `fast-xml-parser` **no está instalado actualmente** (verificado en `apps/api/package.json` — no aparece en `dependencies` ni `devDependencies`). Este addendum documenta la **intención de configuración de seguridad**, no una configuración ya validada contra la API real de una versión concreta. Antes de escribir código en el Bloque E, la implementación debe:
+**Estado real de la dependencia (actualizado 2026-07-31, `E5-S3-T02`):** `fast-xml-parser` **ya está instalado** en `apps/api/package.json` (`dependencies`), en la **versión exacta y fijada `5.10.1`** — sin `^`, `~`, `>=` ni `latest`, conforme a la política de versión fija de esta sección. Cualquier cambio de versión exige una nueva revisión de esta sección contra la API real de la versión destino.
 
-1. Agregar `fast-xml-parser` con una versión concreta y fijada (no rango abierto) a `apps/api/package.json`.
+**Alcance de `E5-S3-T02`:** la tarea **solo instala la dependencia**. No aporta configuración, providers, servicios ni lógica de parseo. Los controles de seguridad de esta sección —**XXE, `DOCTYPE`, `ENTITY`, profundidad, número de nodos, número de atributos, `encoding` y BOM**— **siguen pendientes** y corresponden a `E5-S3-T03` (pre-validaciones sobre el Buffer) y `E5-S3-T04` (configuración del parser y límites estructurales). Instalar la dependencia **no** activa ninguna de esas protecciones.
+
+**Superficie de API aprobada para el pipeline CFDI:**
+
+- **`XMLParser`** — es la clase que usará Sprint 3 para el parseo del CFDI entrante.
+- **`XMLValidator`** — puede utilizarse cuando corresponda, con una advertencia verificada contra la versión instalada: en `5.10.1` tanto la clase `XMLValidator` como la sobrecarga `XMLParser.parse(xmlData, validationOptions)` están marcadas **`@deprecated`** por el mantenedor, que remite al paquete separado `fast-xml-validator`. Ambas siguen presentes y funcionales en `5.10.1`; adoptar `fast-xml-validator` sería una dependencia nueva y queda **fuera del alcance de Sprint 3** — decisión diferida, no resuelta aquí.
+- **`XMLBuilder`** — **queda fuera del alcance del pipeline CFDI.** El Bloque E solo consume XML entrante; nunca genera ni serializa XML. Esta exclusión es vinculante.
+
+**Cambios de API verificados entre la línea `4.x` y `5.10.1`** (inspección directa de los tipos instalados, no supuestos): las seis opciones que esta sección requiere —`preserveOrder`, `ignoreAttributes`, `parseTagValue`, `parseAttributeValue`, `stopNodes`, `processEntities`— existen en `5.10.1` con los mismos nombres. `processEntities` acepta además un objeto de límites (`enabled`, `maxEntitySize`, `maxExpansionDepth`, `maxTotalExpansions`, `maxExpandedLength`, `maxEntityCount`, `allowedTags`, `tagFilter`), y existen `maxNestedTags`, `strictReservedNames` y `onDangerousProperty`. `addEntity()` está `@deprecated` en favor de `entityDecoder`. La firma de `tagFilter` cambió de `(tagName, jPath)` a `(tagName, jPathOrMatcher)`.
+
+Antes de escribir código de parseo en el Bloque E, la implementación debe:
+
+1. Mantener `fast-xml-parser` con una versión concreta y fijada (no rango abierto) en `apps/api/package.json` — **cumplido: `5.10.1`**.
 2. Revisar la API real de esa versión instalada — los nombres de opciones de `fast-xml-parser` han cambiado entre versiones mayores; no asumir que las opciones descritas abajo existen literalmente con esos nombres.
 3. Comprobar qué controles de la tabla siguiente el parser soporta **nativamente** vía sus opciones de configuración.
 4. Para los controles que el parser **no** soporte nativamente (p. ej., límite de nodos o de atributos totales — `fast-xml-parser` no expone típicamente estos dos como opciones de configuración), implementar un recorrido/conteo manual adicional sobre el árbol ya parseado o durante el parseo — la seguridad de este bloque **no depende únicamente** de la configuración del parser.
