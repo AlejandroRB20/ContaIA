@@ -1431,6 +1431,34 @@ Flujo secuencial obligatorio — cada fase depende de que la anterior cierre su 
 
 ---
 
+> **Implementación completada (2026-07-31).**
+
+- **Naturaleza de la tarjeta:** exclusivamente pruebas — ningún archivo de producción se modificó. Alcance decidido explícitamente por el responsable de producto: la cobertura ≥80% se interpreta **a nivel de archivo completo** de cada repositorio (no solo los métodos añadidos en Sprint 2), incluyendo los métodos de Bloques A/B/C de `DocumentsRepository` que antes carecían de prueba directa.
+
+- **Archivos de prueba modificados (3, todos `*.spec.ts`):**
+  - `persist-cfdi-aggregate.spec.ts` — 6 pruebas nuevas: 3 de clasificación de error con instancias **reales** (no simuladas con `Object.assign`) — `ViolacionDeInvarianteError`, `Prisma.PrismaClientKnownRequestError` (`P2002`), `UnrecoverableError` de `bullmq` — cada una verificando identidad exacta del error relanzado (`rejects.toBe`), nivel de log correcto (`error`/`warn` vía `jest.spyOn(Logger.prototype, ...)`), ausencia de log de `commit` y ausencia de dependencia de `error.meta.target`; y 3 de verificaciones estructurales antes no cubiertas (`cfdi_tax_count`, `concept_tax_count`, `concept_tax_positions`), cada una confirmando `AgregadoNoVerificadoError` con el campo `verificacion` correcto y que ni `markAsProcessed` ni `markAsCompleted` se invocan.
+  - `cfdi-tax.repository.spec.ts` — 1 prueba nueva: rama `!createdConcept` de `upsertConceptTaxes` (arreglos de igual longitud pero con un elemento faltante en `createdConcepts` pese a igual `.length` — distinta del desajuste de `position` en un índice, ya cubierto por una prueba preexistente) — confirma `ViolacionDeInvarianteError('concept_tax_correspondence_mismatch')` y cero `upsert` ejecutados.
+  - `documents.repository.spec.ts` — 14 pruebas nuevas cubriendo directamente `create`, `deleteCreatedDocument`, `findManyByCompany`, `countByCompany`, `findById` (incluida una prueba que documenta explícitamente la ausencia deliberada de `companyId` en su `where` — autorización delegada a `DocumentsAuthorizationService`, excepción ya registrada en `E5-S2-T08`) y `confirmUpload` — cada una verificando el método Prisma exacto, `where`/`data` exactos, y propagación intacta de errores.
+
+- **Cobertura dirigida (antes → después), `modules/cfdi/**/*.ts` + `modules/documents/documents.repository.ts` + `modules/jobs/jobs.repository.ts`:**
+
+  | Archivo                                                                                       | Antes (Stmts/Branch/Funcs/Lines) | Después (Stmts/Branch/Funcs/Lines)                                                                             |
+  | --------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+  | `persist-cfdi-aggregate.ts`                                                                   | 91.3 / 70 / 92.3 / 90.76         | 98.55 / 95 / 92.3 / 98.46                                                                                      |
+  | `cfdi-tax.repository.ts`                                                                      | 96.15 / 66.66 / 100 / 95.83      | 100 / 100 / 100 / 100                                                                                          |
+  | `documents.repository.ts`                                                                     | 58.82 / 100 / 14.28 / 53.33      | 100 / 100 / 100 / 100                                                                                          |
+  | `cfdi.repository.ts` / `cfdi-concept.repository.ts` / `cfdi.errors.ts` / `jobs.repository.ts` | ya 100%                          | sin cambios, 100%                                                                                              |
+  | `cfdi-aggregate.types.ts`                                                                     | 0 / 100 / 100 / 0 (línea 17)     | sin cambios — módulo de tipos, no es un repositorio ni el orquestador; fuera del alcance literal de la tarjeta |
+  | **Global del directorio**                                                                     | 91.07 / 78.12 / 80 / 90.25       | **98.8 / 96.87 / 97.14 / 98.7**                                                                                |
+
+  Todos los archivos individuales relevantes (repositorios + orquestador) superan el umbral de 80% en las 4 dimensiones. Un único residual: `persist-cfdi-aggregate.ts` línea 322 (construcción del mensaje de `AgregadoNoVerificadoError` dentro de `assertExactPositionSet`) permanece marcada por Istanbul pese a que las 3 ramas de verificación estructural (`cfdi_tax_positions`, `concept_tax_positions`, ya cubiertas antes y ahora) ejercitan ese mismo camino — se documenta como hallazgo menor, sin impacto en el umbral (branch 95% > 80%).
+
+- **Suite total ejecutada:** regresión completa Bloque E Sprint 2 + Jobs: 16 suites / **271/271 `PASSED`** (250 preexistentes + 21 nuevas). `nest build`: exit 0. `git diff --check`: limpio.
+
+- **Estado:** **`READY_FOR_AUDIT`** — pruebas unitarias agregadas el 2026-07-31, sin tocar código de producción. Sprint 2 continúa abierto: `E5-S2-T03` y `E5-S2-T07` conservan su estado `READY_FOR_AUDIT` sin alteración. Sprint 3 **no** se habilita. Pendiente de **auditoría independiente `READ ONLY` con Codex** antes de `PASSED`. No se creó `E5-S2-T10_FINAL_AUDIT.md`.
+
+---
+
 ## 11. Sprint 3 — Parser CFDI
 
 > Bloqueado por Sprint 1 (los tipos de dominio de `E5-S2-T01` son su contrato de salida). **No depende de Q-001** — este sprint es validación estructural pura; ninguna tarea aquí decide qué hacer ante un folio duplicado, esa decisión pertenece exclusivamente a Sprint 5/AD-10.2 CASO F.

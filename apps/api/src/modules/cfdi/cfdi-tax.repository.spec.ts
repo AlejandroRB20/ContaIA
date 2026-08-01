@@ -382,6 +382,52 @@ describe('CfdiTaxRepository', () => {
       expect(mock.cfdiTax.upsert).not.toHaveBeenCalled();
     });
 
+    it('lanza ViolacionDeInvarianteError y no llama a upsert cuando, con la misma longitud, falta el elemento correspondiente en createdConcepts (E5-S2-T10 — distinto del desajuste de position ya cubierto arriba)', async () => {
+      // Longitud igual (2) en ambos arreglos — el chequeo de longitud (línea
+      // 80) pasa — pero createdConcepts[1] nunca se asignó (hueco genuino,
+      // no un valor con position distinta): simula un defecto de contrato en
+      // quien llama (p. ej. un futuro cambio en CfdiConceptRepository.upsertMany
+      // que devolviera un arreglo disperso). Distinto del caso ya cubierto por
+      // "solo el ultimo par diverge" (ese usa position=3 en vez de undefined).
+      const { mock, tx } = buildTx();
+      const conceptA = buildConcept({ position: 1, taxes: [buildTax()] });
+      const conceptB = buildConcept({ position: 2, taxes: [buildTax()] });
+      const createdConceptA = buildConceptRow({ id: 'concept-a', position: 1 });
+      const createdConcepts = new Array<CfdiConcept>(2);
+      createdConcepts[0] = createdConceptA;
+      const repository = new CfdiTaxRepository();
+
+      await expect(
+        repository.upsertConceptTaxes(
+          tx,
+          CFDI_ID,
+          COMPANY_ID,
+          [conceptA, conceptB],
+          createdConcepts,
+        ),
+      ).rejects.toBeInstanceOf(ViolacionDeInvarianteError);
+      await expect(
+        repository.upsertConceptTaxes(
+          tx,
+          CFDI_ID,
+          COMPANY_ID,
+          [conceptA, conceptB],
+          createdConcepts,
+        ),
+      ).rejects.toMatchObject({ razon: 'concept_tax_correspondence_mismatch' });
+      await expect(
+        repository.upsertConceptTaxes(
+          tx,
+          CFDI_ID,
+          COMPANY_ID,
+          [conceptA, conceptB],
+          createdConcepts,
+        ),
+      ).rejects.toThrow(/falta createdConcepts\[1\]/);
+
+      expect(mock.cfdiTax.upsert).not.toHaveBeenCalled();
+    });
+
     it('propaga intacto un error de Prisma durante el upsert de impuestos de concepto, sin envolverlo ni reemplazarlo', async () => {
       const { mock, tx } = buildTx();
       const prismaError = new Error('P2002: unique constraint violation (simulado)');

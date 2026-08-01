@@ -1,4 +1,6 @@
-import { prisma, type Prisma } from '@contaia/database';
+import { prisma, Prisma } from '@contaia/database';
+import { Logger } from '@nestjs/common';
+import { UnrecoverableError } from 'bullmq';
 
 import type { DocumentsRepository } from '../documents/documents.repository';
 import type { JobsRepository } from '../jobs/jobs.repository';
@@ -6,7 +8,11 @@ import type { JobsRepository } from '../jobs/jobs.repository';
 import type { ExtractedCfdiAggregate } from './cfdi-aggregate.types';
 import type { CfdiConceptRepository } from './cfdi-concept.repository';
 import type { CfdiTaxRepository } from './cfdi-tax.repository';
-import { AgregadoNoVerificadoError, TransicionNoConfirmadaError } from './cfdi.errors';
+import {
+  AgregadoNoVerificadoError,
+  TransicionNoConfirmadaError,
+  ViolacionDeInvarianteError,
+} from './cfdi.errors';
 import type { CfdiRepository } from './cfdi.repository';
 import { PersistCfdiAggregateService } from './persist-cfdi-aggregate';
 
@@ -135,8 +141,19 @@ function buildService(repos: ReturnType<typeof buildRepos>) {
 }
 
 describe('PersistCfdiAggregateService', () => {
+  let logSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('caso feliz — Transacción A completa', () => {
@@ -525,6 +542,211 @@ describe('PersistCfdiAggregateService', () => {
           aggregate: AGGREGATE,
         }),
       ).rejects.toBe(jobError);
+    });
+  });
+
+  describe('clasificación de errores (E5-S2-T09/T10) — instancias reales de cada rama de logTransactionFailure', () => {
+    it('ViolacionDeInvarianteError real: nivel error, evento failed.invariant, identidad preservada, sin log de commit', async () => {
+      const { tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      const invarianteError = new ViolacionDeInvarianteError(
+        'cfdi_preexistente_con_document_processing',
+      );
+      (repos.cfdiRepository.create as jest.Mock).mockRejectedValue(invarianteError);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: AGGREGATE,
+        }),
+      ).rejects.toBe(invarianteError);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('cfdi.persistence.transaction.failed.invariant'),
+      );
+      expect(errorSpy.mock.calls[0]?.[0]).toEqual(
+        expect.stringContaining('razon=cfdi_preexistente_con_document_processing'),
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('committed'));
+      expect(invarianteError.name).toBe('ViolacionDeInvarianteError');
+      expect(invarianteError.razon).toBe('cfdi_preexistente_con_document_processing');
+    });
+
+    it('Prisma.PrismaClientKnownRequestError real (P2002): nivel warn, evento failed.recoverable, identidad preservada, sin log de commit, sin depender de meta.target', async () => {
+      const { tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      const p2002 = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on the fields: (`companyId`,`folioFiscal`)',
+        { code: 'P2002', clientVersion: 'test' },
+      );
+      (repos.cfdiRepository.create as jest.Mock).mockRejectedValue(p2002);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: AGGREGATE,
+        }),
+      ).rejects.toBe(p2002);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('cfdi.persistence.transaction.failed.recoverable'),
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).toEqual(expect.stringContaining('code=P2002'));
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('committed'));
+      expect(p2002.code).toBe('P2002');
+    });
+
+    it('UnrecoverableError real de bullmq: nivel error, evento failed.unrecoverable, identidad preservada, sin log de commit (rama defensiva)', async () => {
+      const { mock: txMock, tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      mockHappyPath(repos, txMock);
+      const unrecoverable = new UnrecoverableError('error permanente simulado');
+      (repos.jobsRepository.markAsCompleted as jest.Mock).mockRejectedValue(unrecoverable);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: AGGREGATE,
+        }),
+      ).rejects.toBe(unrecoverable);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('cfdi.persistence.transaction.failed.unrecoverable'),
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('committed'));
+      expect(unrecoverable).toBeInstanceOf(UnrecoverableError);
+    });
+  });
+
+  describe('verificaciones estructurales restantes (E5-S2-T10) — cfdi_tax_count, concept_tax_count, concept_tax_positions', () => {
+    it('cfdi_tax_count: releer 0 impuestos de comprobante cuando el agregado esperaba 1 lanza AgregadoNoVerificadoError antes de tocar Document/Job', async () => {
+      const { mock: txMock, tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      const aggregateConUnImpuestoGlobal: ExtractedCfdiAggregate = {
+        ...AGGREGATE,
+        cfdiTaxes: [
+          {
+            position: 1,
+            type: 'TRANSFER',
+            impuesto: '002',
+            tipoFactor: 'Tasa',
+            tasaOCuota: '0.160000',
+            base: '100.00',
+            importe: '16.00',
+          },
+        ],
+      };
+      (repos.cfdiRepository.create as jest.Mock).mockResolvedValue(CREATED_CFDI);
+      (repos.cfdiConceptRepository.upsertMany as jest.Mock).mockResolvedValue([CREATED_CONCEPT]);
+      (repos.cfdiTaxRepository.upsertComprobanteTaxes as jest.Mock).mockResolvedValue([]);
+      (repos.cfdiTaxRepository.upsertConceptTaxes as jest.Mock).mockResolvedValue([
+        CREATED_CONCEPT_TAX,
+      ]);
+      txMock.cfdiConcept.findMany.mockResolvedValue([{ position: 1 }]);
+      // Releída: cero impuestos con conceptSlot=0 (comprobante), pero el
+      // agregado esperaba 1 — solo queda el impuesto de concepto.
+      txMock.cfdiTax.findMany.mockResolvedValue([{ conceptSlot: 1, position: 1 }]);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: aggregateConUnImpuestoGlobal,
+        }),
+      ).rejects.toMatchObject({ verificacion: 'cfdi_tax_count' });
+
+      expect(repos.documentsRepository.markAsProcessed).not.toHaveBeenCalled();
+      expect(repos.jobsRepository.markAsCompleted).not.toHaveBeenCalled();
+    });
+
+    it('concept_tax_count: releer 0 impuestos para un concepto que esperaba 1 lanza AgregadoNoVerificadoError antes de tocar Document/Job', async () => {
+      const { mock: txMock, tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      (repos.cfdiRepository.create as jest.Mock).mockResolvedValue(CREATED_CFDI);
+      (repos.cfdiConceptRepository.upsertMany as jest.Mock).mockResolvedValue([CREATED_CONCEPT]);
+      (repos.cfdiTaxRepository.upsertComprobanteTaxes as jest.Mock).mockResolvedValue([]);
+      (repos.cfdiTaxRepository.upsertConceptTaxes as jest.Mock).mockResolvedValue([
+        CREATED_CONCEPT_TAX,
+      ]);
+      txMock.cfdiConcept.findMany.mockResolvedValue([{ position: 1 }]);
+      // Releída: ningún impuesto con conceptSlot=1 (el concepto de position=1),
+      // pero AGGREGATE.concepts[0].taxes tiene exactamente 1 — sin impuestos
+      // de comprobante tampoco, así que cfdi_tax_count (0 esperados=0) pasa.
+      txMock.cfdiTax.findMany.mockResolvedValue([]);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: AGGREGATE,
+        }),
+      ).rejects.toMatchObject({ verificacion: 'concept_tax_count' });
+
+      expect(repos.documentsRepository.markAsProcessed).not.toHaveBeenCalled();
+      expect(repos.jobsRepository.markAsCompleted).not.toHaveBeenCalled();
+    });
+
+    it('concept_tax_positions: releer el impuesto del concepto con position=2 cuando se esperaba position=1 lanza AgregadoNoVerificadoError antes de tocar Document/Job', async () => {
+      const { mock: txMock, tx } = buildTx();
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (cb: (tx: Prisma.TransactionClient) => unknown) => cb(tx),
+      );
+      const repos = buildRepos();
+      (repos.cfdiRepository.create as jest.Mock).mockResolvedValue(CREATED_CFDI);
+      (repos.cfdiConceptRepository.upsertMany as jest.Mock).mockResolvedValue([CREATED_CONCEPT]);
+      (repos.cfdiTaxRepository.upsertComprobanteTaxes as jest.Mock).mockResolvedValue([]);
+      (repos.cfdiTaxRepository.upsertConceptTaxes as jest.Mock).mockResolvedValue([
+        CREATED_CONCEPT_TAX,
+      ]);
+      txMock.cfdiConcept.findMany.mockResolvedValue([{ position: 1 }]);
+      // Releída: el conteo coincide (1 impuesto con conceptSlot=1), pero su
+      // position es 2, no 1 — hueco en {1} y fuera de rango. El conteo por sí
+      // solo no lo detecta.
+      txMock.cfdiTax.findMany.mockResolvedValue([{ conceptSlot: 1, position: 2 }]);
+
+      await expect(
+        buildService(repos).persist({
+          documentId: DOCUMENT_ID,
+          companyId: COMPANY_ID,
+          jobId: JOB_ID,
+          checksumSha256: CHECKSUM,
+          aggregate: AGGREGATE,
+        }),
+      ).rejects.toMatchObject({ verificacion: 'concept_tax_positions' });
+
+      expect(repos.documentsRepository.markAsProcessed).not.toHaveBeenCalled();
+      expect(repos.jobsRepository.markAsCompleted).not.toHaveBeenCalled();
     });
   });
 });
