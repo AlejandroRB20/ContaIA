@@ -18,6 +18,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 
 ---
 
+## 2026-08-01 — Cierre administrativo de E5-S3-T05 (detección de CFDI 4.0, Sprint 3)
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- Auditoría independiente `READ ONLY` de Codex sobre HEAD `598aebe35f8eb0162158b1e59f6bc560b618019e`: **`PASSED`**. Evidencia: [`E5-S3-T05_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T05_FINAL_AUDIT.md).
+- Confirma la detección estructural de CFDI 4.0 por namespace URI efectivo (nunca por prefijo textual), resolución segura de ámbitos mediante propiedades propias, rechazo de prefijos no declarados y comparación exacta de `Version`. El hallazgo `MEDIO` previo (`H-T05-01`, resolución de namespaces mediante propiedades heredadas de `Object.prototype`) queda **`RESOLVED`**.
+- `E5-S3-T05` pasa a `PASSED`; `E5-S3-T06` queda habilitada, no iniciada; Sprint 3 continúa `IN_PROGRESS`.
+
 ## 2026-07-25 — Decisión arquitectónica D-007 (EWO-005 Bloque E)
 
 **Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
