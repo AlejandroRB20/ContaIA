@@ -1,4 +1,4 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 import { XmlValidationError } from './xml-validation.errors';
 
@@ -25,21 +25,38 @@ import { XmlValidationError } from './xml-validation.errors';
  * traduce a `XML_INVALID`, no ejecuta la Transacción C y no envuelve nada en
  * `UnrecoverableError` (AD-11) — esa clasificación externa es del worker.
  *
- * **Hallazgo empírico determinante (verificado contra `fast-xml-parser`
- * `5.10.1` instalado, no supuesto).** `XMLParser.parse(xmlText)` de un solo
- * argumento —la única forma no deprecated, Decisión 4— **no es un validador
- * de buena formación**. Tolera en silencio, sin lanzar y a veces con pérdida
- * silenciosa de contenido: tags sin cerrar, tags mal anidados, XML truncado
- * (falta el cierre de la raíz) y texto significativo fuera de la raíz — este
- * último se descarta sin dejar rastro alguno en el árbol resultante. Solo
- * lanza de forma nativa ante: atributo mal formado (comilla sin cerrar),
- * nombre de tag reservado (`__proto__`/`constructor`/`prototype`),
- * `DOCTYPE` múltiple, y `maxNestedTags` excedido. Esta función **no**
- * reintroduce `XMLValidator` ni `fast-xml-validator` para cerrar esa brecha
- * (fuera de alcance de esta tarea, Decisión 4) — queda documentada como
- * limitación conocida del diseño aprobado, no oculta. Ver
- * `xml-validation.spec.ts`, bloque "comportamiento real de fast-xml-parser",
- * para la evidencia caso por caso.
+ * **Dos fases obligatorias (corrección del hallazgo `ALTO` de la auditoría
+ * `FAILED` de 2026-08-01).** La validación ocurre en dos pasadas distintas y
+ * no intercambiables:
+ *
+ * 1. **Barrera sintáctica** — `XMLValidator.validate()` sobre el texto, antes
+ *    de cualquier parseo. Es quien garantiza la buena formación.
+ * 2. **Parseo estructural** — `XMLParser.parse()` y el recorrido iterativo,
+ *    que aplican los límites de profundidad, nodos y atributos.
+ *
+ * La fase 1 es indispensable, y no una redundancia: verificado empíricamente
+ * contra la versión instalada que `XMLParser.parse(xmlText)` de un solo
+ * argumento **no es un validador de buena formación** — acepta en silencio
+ * tags sin cerrar, tags mal anidados, XML truncado y texto significativo
+ * fuera de la raíz (este último se descarta del árbol sin dejar rastro).
+ * Confiar solo en el parseo permitiría que un CFDI truncado avanzara al
+ * extractor con conceptos perdidos silenciosamente, violando BR-XML-001.
+ *
+ * **Coste aceptado de la doble pasada.** Medido sobre un documento de 10 MB
+ * (el máximo que `XML_MAX_FILE_SIZE_BYTES` permite llegar hasta aquí):
+ * ~527 ms de validación frente a ~1036 ms de parseo — un sobrecoste de
+ * aproximadamente el 50 % del parseo. Se acepta deliberadamente: la
+ * alternativa es admitir documentos mal formados. El coste está acotado por
+ * el límite de tamaño que `E5-S3-T03` ya impuso antes de llegar aquí.
+ *
+ * **Deuda técnica declarada.** `XMLValidator` está marcado `@deprecated` en
+ * `5.10.1`; el mantenedor remite al paquete separado `fast-xml-validator`.
+ * Se adopta igualmente porque es la única opción que cumple el objetivo
+ * literal de `E5-S3-T04` **sin agregar una dependencia nueva** (
+ * `fast-xml-validator@1.4.1` arrastraría tres paquetes transitivos
+ * adicionales). Sigue presente y funcional en la versión instalada. Si una
+ * versión mayor futura lo eliminara, la migración a `fast-xml-validator`
+ * queda registrada como la ruta prevista — ver Addendum §5.3bis.
  */
 
 /** Límites estructurales inyectados por el llamador. */
@@ -108,6 +125,53 @@ function esEntradaDeElemento(entrada: unknown): entrada is NodoPreserveOrder {
   return Object.keys(entrada as NodoPreserveOrder).some(
     (clave) => clave !== CLAVE_ATRIBUTOS && clave !== CLAVE_TEXTO && !clave.startsWith('?'),
   );
+}
+
+/**
+ * Opciones de la barrera sintáctica. Explícitas y alineadas con las del
+ * `XMLParser` de la fase 2 — en particular `allowBooleanAttributes: false`,
+ * para que ambas fases coincidan en qué es un atributo aceptable y ningún
+ * documento pueda pasar una y fallar la otra por criterios distintos.
+ */
+const OPCIONES_VALIDACION_SINTACTICA: { allowBooleanAttributes: boolean; unpairedTags: string[] } =
+  {
+    allowBooleanAttributes: false,
+    unpairedTags: [],
+  };
+
+/**
+ * Fase 1 — barrera de buena formación, previa a cualquier parseo.
+ *
+ * Verificado empíricamente contra `fast-xml-parser` `5.10.1` que rechaza los
+ * ocho casos obligatorios: texto vacío, solo whitespace, tag sin cerrar, tags
+ * mal anidados, XML truncado, atributo sin cerrar, múltiples raíces y texto
+ * significativo fuera de la raíz (tanto antes como después). Verificado
+ * también que **no** impone un límite de profundidad propio (300 niveles
+ * pasan), de modo que no interfiere con el contrato de `XML_MAX_DEPTH`, que
+ * sigue siendo competencia exclusiva de la fase 2.
+ *
+ * **No altera `xmlText`** — `validate()` no muta su entrada y aquí se pasa
+ * tal cual se recibió de `E5-S3-T03`.
+ *
+ * **Todo fallo se colapsa en `XML_SYNTAX_INVALID`, deliberadamente.** El
+ * `code` que devuelve el validador (`InvalidXml`, `InvalidTag`, `InvalidAttr`,
+ * `InvalidChar`) **no** separa de forma estable un problema de sintaxis de uno
+ * de estructura: `InvalidXml` cubre por igual el texto vacío, un tag sin
+ * cerrar, múltiples raíces y texto sobrante al final. Derivar
+ * `XML_STRUCTURE_INVALID` de esos códigos exigiría además leer el `msg`, y ese
+ * mensaje **contiene contenido controlado por quien sube el archivo** (nombres
+ * de tag y de atributo literales, verificado empíricamente) y su redacción no
+ * es estable entre versiones. Se descarta por completo `msg`, `line` y `col`:
+ * de la respuesta del validador solo se usa el hecho binario de si pasó.
+ */
+function validarBuenaFormacion(xmlText: string): void {
+  // `XMLValidator` es `@deprecated` en 5.10.1 — deuda declarada y justificada
+  // en el encabezado de este archivo y en Addendum §5.3bis.
+  const resultado = XMLValidator.validate(xmlText, OPCIONES_VALIDACION_SINTACTICA);
+
+  if (resultado !== true) {
+    throw new XmlValidationError('XML_SYNTAX_INVALID');
+  }
 }
 
 const MENSAJE_NATIVO_PROPIEDAD_PELIGROSA = '[SECURITY] Invalid name';
@@ -255,6 +319,11 @@ export function validateXml(xmlText: string, limits: XmlValidationLimits): Valid
     );
   }
 
+  // Fase 1 — buena formación. Debe ejecutarse antes del parseo: si falla,
+  // `XMLParser.parse()` no llega a invocarse.
+  validarBuenaFormacion(xmlText);
+
+  // Fase 2 — parseo estructural y límites.
   const parser = new XMLParser({
     preserveOrder: true,
     ignoreAttributes: false,
@@ -273,8 +342,9 @@ export function validateXml(xmlText: string, limits: XmlValidationLimits): Valid
 
   let parsedXml: unknown;
   try {
-    // Parseo único (Decisión 4): nunca `XMLValidator.validate()`, nunca la
-    // sobrecarga deprecated de dos argumentos.
+    // Un solo `parse`, con un solo argumento: la validación ya ocurrió en la
+    // fase 1, de modo que la sobrecarga deprecated `parse(xml, options)` —que
+    // volvería a validar dentro del propio parseo— sigue sin usarse.
     parsedXml = parser.parse(xmlText);
   } catch (error) {
     throw clasificarErrorNativo(error);

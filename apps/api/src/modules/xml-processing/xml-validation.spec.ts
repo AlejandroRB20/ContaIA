@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 import { validateXml, type XmlValidationLimits, type ValidatedXml } from './xml-validation';
 import { XmlValidationError, type XmlValidationErrorCode } from './xml-validation.errors';
@@ -252,58 +252,42 @@ describe('validateXml — documentos válidos', () => {
 });
 
 describe('validateXml — raíz y estructura básica', () => {
-  it('rechaza un documento vacío (cero raíces) con XML_STRUCTURE_INVALID', () => {
-    esperarRechazo('', LIMITES, 'XML_STRUCTURE_INVALID');
-  });
-
-  it('rechaza un documento de solo whitespace (cero raíces) con XML_STRUCTURE_INVALID', () => {
-    esperarRechazo('   \n\t  ', LIMITES, 'XML_STRUCTURE_INVALID');
-  });
-
-  it('rechaza múltiples raíces de elemento con XML_STRUCTURE_INVALID', () => {
-    esperarRechazo('<a></a><b></b>', LIMITES, 'XML_STRUCTURE_INVALID');
-  });
-
   it('la declaración <?xml ...?> no cuenta como una segunda raíz', () => {
     const resultado = validateXml('<?xml version="1.0" encoding="UTF-8"?><a>1</a>', LIMITES);
     expect(resultado.nodeCount).toBe(1);
   });
 });
 
-describe('validateXml — comportamiento REAL de fast-xml-parser 5.10.1 sin XMLValidator (hallazgo empírico)', () => {
+describe('validateXml — buena formación (hallazgo ALTO corregido)', () => {
   /**
-   * Verificado empíricamente contra la librería instalada: con
-   * `XMLParser.parse(xmlText)` de un solo argumento (Decisión 4 — nunca
-   * `XMLValidator`, nunca la sobrecarga deprecated, nunca
-   * `fast-xml-validator`), estos cuatro casos NO lanzan ninguna excepción.
-   * La librería tolera la malformación en silencio, en algunos casos
-   * descartando contenido sin dejar rastro. Esta suite documenta el
-   * comportamiento real observado — no fabrica un rechazo que no ocurre.
-   * Es una limitación conocida y declarada del diseño aprobado, reportada
-   * explícitamente al responsable de la tarea, no una omisión oculta.
+   * Los cuatro primeros casos son exactamente los que la auditoría `FAILED`
+   * de 2026-08-01 marcó como hallazgo `ALTO`: `XMLParser.parse()` de un solo
+   * argumento los aceptaba en silencio, permitiendo que un CFDI truncado o
+   * con contenido descartado avanzara al extractor (violación de
+   * BR-XML-001). La barrera sintáctica previa (`XMLValidator.validate()`,
+   * fase 1) los rechaza ahora. Verificado empíricamente antes de escribir
+   * estas pruebas — no se asumió el comportamiento.
    */
-  it('NO lanza ante un tag sin cerrar — se tolera en silencio', () => {
-    expect(() => validateXml('<a><b>texto', LIMITES)).not.toThrow();
+  it.each([
+    ['tag sin cerrar', '<a><b>texto'],
+    ['tags mal anidados', '<a><b></a></b>'],
+    ['XML truncado (falta el cierre de la raíz)', '<a><b>texto</b>'],
+    ['texto significativo antes de la raíz', 'hola<a></a>'],
+    ['texto significativo después de la raíz', '<a></a>hola'],
+    ['atributo sin cerrar', '<a x="1></a>'],
+    ['múltiples raíces', '<a></a><b></b>'],
+    ['texto vacío', ''],
+    ['solo whitespace', '   \n\t  '],
+    ['texto plano sin ningún tag', 'contenido plano, no es xml en absoluto'],
+  ])('rechaza %s con XML_SYNTAX_INVALID', (_caso, xmlText) => {
+    esperarRechazo(xmlText, LIMITES, 'XML_SYNTAX_INVALID');
   });
 
-  it('NO lanza ante un tag mal anidado — se tolera en silencio', () => {
-    expect(() => validateXml('<a><b></a></b>', LIMITES)).not.toThrow();
-  });
-
-  it('NO lanza ante XML truncado (falta el cierre de la raíz) — se tolera en silencio', () => {
-    expect(() => validateXml('<a><b>texto</b>', LIMITES)).not.toThrow();
-  });
-
-  it('NO lanza ante texto significativo fuera de la raíz — se descarta sin rastro', () => {
-    const resultado = validateXml('hola<a></a>', LIMITES);
-    // "hola" desaparece por completo del árbol: ni error, ni #text, ni raíz adicional.
-    expect(JSON.stringify(resultado.parsedXml)).not.toContain('hola');
-  });
-});
-
-describe('validateXml — sintaxis inválida que SÍ detecta la librería nativamente', () => {
-  it('rechaza un atributo sin cerrar con XML_SYNTAX_INVALID', () => {
-    esperarRechazo('<a x="1></a>', LIMITES, 'XML_SYNTAX_INVALID');
+  it('no descarta contenido en silencio: el texto fuera de la raíz ya no se pierde, se rechaza', () => {
+    // Antes de la corrección, "hola" desaparecía del árbol sin error alguno.
+    const error = capturar(() => validateXml('hola<a></a>', LIMITES));
+    expect(error.code).toBe('XML_SYNTAX_INVALID');
+    expect(error.message).not.toContain('hola');
   });
 });
 
@@ -384,14 +368,27 @@ describe('validateXml — propiedades peligrosas (prototype pollution)', () => {
 });
 
 describe('validateXml — sanitización de mensajes con contenido controlado', () => {
-  it('el mensaje nativo con fragmentos del XML no aparece en el error final', () => {
-    // El error nativo de fast-xml-parser para este caso es literalmente
-    // `readTagExp returned undefined at position 0. Context: "<a x="1></a>"`
-    // — incluye el propio fragmento del documento. El error sanitizado debe
-    // omitirlo por completo.
+  it('el mensaje del validador, que incluye el nombre del tag, no llega al error final', () => {
+    // Verificado empíricamente: para un tag sin cerrar, `XMLValidator` produce
+    // `msg: "Invalid '[ \"SECRETO...\", \"b\"]' found."` — es decir, interpola
+    // el nombre literal del tag, que es contenido controlado por quien sube el
+    // archivo. El error sanitizado debe omitirlo por completo.
+    const error = esperarRechazo(
+      `<SECRETO_${RFC_FICTICIO}><b>texto`,
+      LIMITES,
+      'XML_SYNTAX_INVALID',
+    );
+    expect(error.message).not.toContain('SECRETO');
+    expect(error.message).not.toContain(RFC_FICTICIO);
+    expect(error.message).not.toContain('Invalid');
+    expect(error.message).not.toContain('found');
+  });
+
+  it('el error final no expone línea ni columna del validador', () => {
     const error = esperarRechazo('<a x="1></a>', LIMITES, 'XML_SYNTAX_INVALID');
-    expect(error.message).not.toContain('Context');
-    expect(error.message).not.toContain('readTagExp');
+    expect(error.message).not.toMatch(/line|col|\d+:\d+/i);
+    expect(error).not.toHaveProperty('line');
+    expect(error).not.toHaveProperty('col');
   });
 });
 
@@ -409,12 +406,6 @@ describe('validateXml — DOCTYPE/ENTITY pasado directamente (defensa en profund
     const raiz = (resultado.parsedXml as Array<Record<string, unknown>>)[0]!;
     const hijos = raiz['a'] as Array<Record<string, unknown>>;
     expect(hijos[0]!['#text']).toBe('&x;');
-  });
-});
-
-describe('validateXml — entrada no XML pasada directamente (bypass hipotético)', () => {
-  it('rechaza texto plano sin ningún tag con XML_STRUCTURE_INVALID (cero raíces)', () => {
-    esperarRechazo('contenido plano, no es xml en absoluto', LIMITES, 'XML_STRUCTURE_INVALID');
   });
 });
 
@@ -474,24 +465,97 @@ describe('validateXml — guardas de tipos no reproducibles con fast-xml-parser 
     expect(resultado.nodeCount).toBe(1);
     expect(resultado.attributeCount).toBe(0);
   });
-});
 
-describe('validateXml — parseo único (sin doble parseo, sin XMLValidator)', () => {
-  it('invoca XMLParser.parse exactamente una vez por validación', () => {
-    const espia = jest.spyOn(XMLParser.prototype, 'parse');
-    try {
-      validateXml(CFDI_LIKE, LIMITES);
-      expect(espia).toHaveBeenCalledTimes(1);
-    } finally {
-      espia.mockRestore();
-    }
+  /**
+   * Defensa en profundidad tras la corrección del hallazgo `ALTO`: la barrera
+   * sintáctica ya rechaza cero y múltiples raíces antes de llegar aquí, de
+   * modo que esta comprobación posterior al parseo dejó de ser alcanzable con
+   * entrada real. Se conserva —y se prueba mockeada— para que la invariante
+   * de raíz única siga garantizada aunque la fase 1 cambiara o fallara.
+   */
+  it('mantiene la invariante de raíz única aunque la fase 1 dejara pasar múltiples raíces', () => {
+    jest.spyOn(XMLParser.prototype, 'parse').mockReturnValueOnce([{ a: [] }, { b: [] }]);
+    esperarRechazo('<a/>', LIMITES, 'XML_STRUCTURE_INVALID');
   });
 
-  it('importa únicamente XMLParser de "fast-xml-parser" — nunca XMLValidator ni XMLBuilder', () => {
+  /**
+   * Igual que arriba: con la barrera sintáctica delante, los errores de
+   * sintaxis ya no llegan al `catch` del parseo, así que el caso por defecto
+   * de `clasificarErrorNativo` dejó de ser alcanzable con entrada real. Se
+   * conserva porque un error nativo no anticipado nunca debe propagarse crudo.
+   */
+  it('clasifica como XML_SYNTAX_INVALID cualquier error nativo no reconocido del parseo', () => {
+    jest.spyOn(XMLParser.prototype, 'parse').mockImplementationOnce(() => {
+      throw new Error('fallo interno inesperado con <fragmento controlado>');
+    });
+
+    const error = esperarRechazo('<a/>', LIMITES, 'XML_SYNTAX_INVALID');
+    expect(error.message).not.toContain('fragmento controlado');
+    expect(error.message).not.toContain('fallo interno');
+  });
+});
+
+describe('validateXml — orden de las dos fases y número de invocaciones', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('la validación sintáctica ocurre ANTES del parseo', () => {
+    const orden: string[] = [];
+    jest.spyOn(XMLValidator, 'validate').mockImplementation(() => {
+      orden.push('validate');
+      return true;
+    });
+    jest.spyOn(XMLParser.prototype, 'parse').mockImplementation(() => {
+      orden.push('parse');
+      return [{ a: [] }];
+    });
+
+    validateXml('<a/>', LIMITES);
+
+    expect(orden).toEqual(['validate', 'parse']);
+  });
+
+  it('XMLParser.parse NO se ejecuta si la validación sintáctica falla', () => {
+    const espiaParse = jest.spyOn(XMLParser.prototype, 'parse');
+
+    esperarRechazo('<a><b>texto', LIMITES, 'XML_SYNTAX_INVALID');
+
+    expect(espiaParse).not.toHaveBeenCalled();
+  });
+
+  it('en un documento válido, validate y parse se invocan exactamente una vez cada uno', () => {
+    const espiaValidate = jest.spyOn(XMLValidator, 'validate');
+    const espiaParse = jest.spyOn(XMLParser.prototype, 'parse');
+
+    validateXml(CFDI_LIKE, LIMITES);
+
+    expect(espiaValidate).toHaveBeenCalledTimes(1);
+    expect(espiaParse).toHaveBeenCalledTimes(1);
+  });
+
+  it('no se usa la sobrecarga deprecated parse(xml, validationOptions) — parse recibe un solo argumento', () => {
+    const espiaParse = jest.spyOn(XMLParser.prototype, 'parse');
+
+    validateXml(CFDI_LIKE, LIMITES);
+
+    expect(espiaParse.mock.calls[0]).toHaveLength(1);
+  });
+
+  it('importa solo XMLParser y XMLValidator; nunca XMLBuilder ni fast-xml-validator', () => {
     const fuente = readFileSync(join(__dirname, 'xml-validation.ts'), 'utf8');
+
     const lineaImport = fuente
       .split('\n')
-      .find((linea) => linea.includes(`from 'fast-xml-parser'`));
-    expect(lineaImport).toBe(`import { XMLParser } from 'fast-xml-parser';`);
+      .find((linea) => linea.startsWith('import') && linea.includes(`'fast-xml-parser'`));
+    expect(lineaImport).toBe(`import { XMLParser, XMLValidator } from 'fast-xml-parser';`);
+
+    // `fast-xml-validator` solo puede aparecer en prosa (la deuda declarada),
+    // nunca como import ni como dependencia instalada.
+    expect(fuente).not.toMatch(/^import[^\n]*fast-xml-validator/m);
+    expect(fuente).not.toContain('XMLBuilder');
+
+    const packageJson = readFileSync(join(__dirname, '../../../package.json'), 'utf8');
+    expect(packageJson).not.toContain('fast-xml-validator');
   });
 });
