@@ -102,6 +102,14 @@ type NodoPreserveOrder = Record<string, unknown>;
  * `E5-S3-T05` solo construye y resuelve el ámbito de la raíz. Se expone para
  * que `E5-S3-T06`–`T09` extiendan el ámbito al descender por `children`, sin
  * reimplementar esta resolución.
+ *
+ * **`bindings` sin prototipo (hallazgo `MEDIO` corregido).** `extendNamespaceScope`
+ * construye `bindings` con `Object.create(null)` y `resolveNamespacePrefix`
+ * consulta únicamente propiedades propias (`Object.hasOwn`) — nunca `in`, que
+ * también encuentra propiedades heredadas de `Object.prototype`. Sin esto, una
+ * contaminación global del prototipo (`Object.prototype.cfdi = <uri oficial>`)
+ * haría que un prefijo nunca declarado en el XML resolviera igual que uno
+ * legítimo.
  */
 export interface NamespaceScope {
   readonly bindings: Readonly<Record<string, string>>;
@@ -182,7 +190,7 @@ export function extendNamespaceScope(
   rawAttributes: unknown,
 ): NamespaceScope {
   const atributos = comoRegistro(rawAttributes);
-  const bindings: Record<string, string> = {};
+  const bindings: Record<string, string> = Object.create(null) as Record<string, string>;
 
   for (const [clave, valor] of Object.entries(atributos)) {
     if (typeof valor !== 'string') {
@@ -209,7 +217,7 @@ export function resolveNamespacePrefix(scope: NamespaceScope, prefix: string): s
   let actual: NamespaceScope | null = scope;
 
   while (actual !== null) {
-    if (prefix in actual.bindings) {
+    if (Object.hasOwn(actual.bindings, prefix)) {
       return actual.bindings[prefix];
     }
     actual = actual.parent;

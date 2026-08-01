@@ -382,6 +382,53 @@ describe('extendNamespaceScope / resolveNamespacePrefix — utilidad de ámbito'
   });
 });
 
+describe('detectCfdiVersion — resistencia a contaminación de Object.prototype (hallazgo MEDIO corregido)', () => {
+  const PROPIEDAD_CONTAMINADA = 'cfdi';
+
+  afterEach(() => {
+    // Garantizado incluso si una aserción anterior falla dentro del `it` —
+    // ningún otro test debe heredar esta contaminación.
+    delete (Object.prototype as Record<string, unknown>)[PROPIEDAD_CONTAMINADA];
+  });
+
+  it('rechaza cfdi:Comprobante sin xmlns:cfdi declarado aunque Object.prototype.cfdi apunte al namespace oficial', () => {
+    (Object.prototype as Record<string, unknown>)[PROPIEDAD_CONTAMINADA] =
+      'http://www.sat.gob.mx/cfd/4';
+
+    const error = capturar(() => detectCfdiVersion(analizar('<cfdi:Comprobante Version="4.0"/>')));
+
+    expect(error.code).toBe('CFDI_STRUCTURE_INVALID');
+  });
+
+  it('resolveNamespacePrefix nunca encuentra un binding heredado de Object.prototype', () => {
+    (Object.prototype as Record<string, unknown>)[PROPIEDAD_CONTAMINADA] =
+      'http://www.sat.gob.mx/cfd/4';
+
+    const scope = extendNamespaceScope(null, {});
+
+    expect(resolveNamespacePrefix(scope, PROPIEDAD_CONTAMINADA)).toBeUndefined();
+  });
+});
+
+describe('resolveNamespacePrefix — propiedad propia vs. heredada', () => {
+  it('una propiedad heredada por prototipo nunca cuenta como binding', () => {
+    const prototipoContaminado = { a: 'urn:heredado-nunca-declarado' };
+    const bindings = Object.create(prototipoContaminado) as Record<string, string>;
+    const scope: NamespaceScope = { bindings, parent: null };
+
+    expect(resolveNamespacePrefix(scope, 'a')).toBeUndefined();
+  });
+
+  it('una propiedad propia sí cuenta, aunque el prototipo declare la misma clave', () => {
+    const prototipoContaminado = { a: 'urn:heredado-nunca-declarado' };
+    const bindings = Object.create(prototipoContaminado) as Record<string, string>;
+    bindings['a'] = 'urn:propio-declarado-en-el-xml';
+    const scope: NamespaceScope = { bindings, parent: null };
+
+    expect(resolveNamespacePrefix(scope, 'a')).toBe('urn:propio-declarado-en-el-xml');
+  });
+});
+
 describe('detectCfdiVersion — no vuelve a parsear ni a validar', () => {
   /**
    * Se comprueba la línea de import real (no una búsqueda de substring sobre
