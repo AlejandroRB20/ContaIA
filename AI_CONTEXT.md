@@ -12,11 +12,11 @@
 | Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                              |
 | Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                    |
 | Sprint / Bloque activo                                            | Sprint 2 de Bloque E — **`COMPLETADO`** · Sprint 1 ya `COMPLETADO` · Sprint 3 `IN_PROGRESS`                                                 |
-| Última tarea cerrada (`PASSED`)                                   | `E5-S3-T02` — Instalación de `fast-xml-parser` `5.10.1` — cierre administrativo 2026-07-31                                                  |
-| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S3-T03` — prevalidaciones de seguridad sobre el Buffer XML (implementado 2026-07-31)                                                    |
-| Siguiente paso inmediato                                          | Auditoría `READ ONLY` con Codex de `E5-S3-T03`                                                                                              |
-| Tarea siguiente en la secuencia                                   | `E5-S3-T04` — no iniciada. Sprint 3 `IN_PROGRESS`; `E5-S3-T04`–`T12` conservan su estado vigente (`BLOCKED`)                                |
-| Última auditoría cerrada                                          | [`E5-S3-T02_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T02_FINAL_AUDIT.md) — `PASSED`                                                   |
+| Última tarea cerrada (`PASSED`)                                   | `E5-S3-T03` — Prevalidaciones de seguridad sobre el Buffer XML — cierre administrativo 2026-08-01                                           |
+| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | Ninguna                                                                                                                                     |
+| Siguiente paso inmediato                                          | Análisis técnico previo de `E5-S3-T04` con Claude Code antes de implementar `XmlValidationService`                                          |
+| Tarea siguiente en la secuencia                                   | `E5-S3-T04` — habilitada, no iniciada. Sprint 3 `IN_PROGRESS`; `E5-S3-T05`–`T12` conservan su estado vigente (`BLOCKED`)                    |
+| Última auditoría cerrada                                          | [`E5-S3-T03_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T03_FINAL_AUDIT.md) — `PASSED`                                                   |
 | Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea |
 
 ## Decisiones activas más relevantes

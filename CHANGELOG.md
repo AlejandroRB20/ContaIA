@@ -117,6 +117,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **`H-T02-01` y `H-T02-02` (`MEDIO`) → `RESOLVED`**: eliminación del CVE `GHSA-gh4j-gqv2-49f6` (`XMLBuilder`, corregido desde `5.7.0`) y sincronización de `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §5.2 con el estado real de la dependencia.
 - **`E5-S3-T02` → `PASSED`.** `E5-S3-T03` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
 
+## 2026-08-01 — Cierre administrativo de E5-S3-T03 (prevalidaciones de seguridad del Buffer XML, Sprint 3)
+
+**Solo documentación.** Sin cambios de código durante el cierre.
+
+- **Auditoría final independiente `READ ONLY` (Codex) sobre HEAD `79ce98489ae9300193d1380480278840f3563a1f`: veredicto `PASSED`, sin hallazgos nuevos.** Evidencia: [`E5-S3-T03_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T03_FINAL_AUDIT.md). Confirmó la prevalidación segura del Buffer XML: validación de tamaño, BOM y encoding, decodificación UTF-8 estricta, rechazo fail-closed de `DOCTYPE`/`ENTITY`, preservación del Buffer original y errores sanitizados.
+- **`H-T03` (`MEDIO`) → `RESOLVED`**: corrección documental del criterio de aceptación de la tarjeta y de Addendum §5.3, que exigían efectos (Transacción C, `UnrecoverableError`) fuera del alcance de una función pura y pertenecientes al worker de Sprint 4.
+- **`E5-S3-T03` → `PASSED`.** `E5-S3-T04` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
