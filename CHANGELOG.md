@@ -26,6 +26,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - Confirma la detección estructural de CFDI 4.0 por namespace URI efectivo (nunca por prefijo textual), resolución segura de ámbitos mediante propiedades propias, rechazo de prefijos no declarados y comparación exacta de `Version`. El hallazgo `MEDIO` previo (`H-T05-01`, resolución de namespaces mediante propiedades heredadas de `Object.prototype`) queda **`RESOLVED`**.
 - `E5-S3-T05` pasa a `PASSED`; `E5-S3-T06` queda habilitada, no iniciada; Sprint 3 continúa `IN_PROGRESS`.
 
+## 2026-08-03 — Cierre administrativo de D-009 (corrección arquitectónica `issuedAtLocal`, Sprint 3)
+
+**Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
+
+- Auditoría independiente `READ ONLY` de Codex sobre HEAD `6934b26f6f568c27d697f8c3f31cebaddb0261a0`: **`PASSED`**. Evidencia: [`D-009_FINAL_AUDIT.md`](docs/engineering/audits/D-009_FINAL_AUDIT.md).
+- Confirma el contrato `issuedAtLocal: string` aprobado, la persistencia `VARCHAR(19)` y la migración correctiva `20260804013104_preserve_cfdi_local_issue_datetime` sobre tabla vacía. `I-14` e `I-15` quedan **`RESOLVED`**.
+- `D-009` pasa a `PASSED`; `E5-S3-T06` queda desbloqueada, no iniciada; Sprint 3 continúa `IN_PROGRESS`. Sin cambios de código durante este cierre.
+
 ## 2026-07-25 — Decisión arquitectónica D-007 (EWO-005 Bloque E)
 
 **Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
