@@ -193,7 +193,7 @@ El modelo `Cfdi` del Bloque E extrae los campos necesarios para la funcionalidad
 | `UUID` (del TFD)     | `folioFiscal`     |
 | `RfcEmisor`          | `rfcEmisor`       |
 | `RfcReceptor`        | `rfcReceptor`     |
-| `Fecha` (de emisión) | `issuedAt`        |
+| `Fecha` (de emisión) | `issuedAtLocal`   |
 | `SubTotal`           | `subtotal`        |
 | `Total`              | `total`           |
 | `Moneda`             | `currency`        |
@@ -224,7 +224,7 @@ El extractor `Cfdi40Extractor` **no debe fallar** por la presencia de los campos
 
 | Tipo de campo                                                     | Definición                                                                                                                                                                                    | Comportamiento si falta o es inválido                                                                                                                                                                                                                                                                    |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Campo obligatorio del agregado                                    | Los 8 campos `NOT NULL` del modelo `Cfdi` (tabla "incluidos" arriba): `folioFiscal`, `rfcEmisor`, `rfcReceptor`, `issuedAt`, `subtotal`, `total`, `currency`, `tipoComprobante`               | El `Cfdi` **no se persiste**. Transacción C: `Document = REJECTED (CFDI_STRUCTURE_INVALID)`, `Job = FAILED` → `UnrecoverableError`. Nunca se registra como `ambiguousFields` — es un rechazo estructural, no una ambigüedad                                                                              |
+| Campo obligatorio del agregado                                    | Los 8 campos `NOT NULL` del modelo `Cfdi` (tabla "incluidos" arriba): `folioFiscal`, `rfcEmisor`, `rfcReceptor`, `issuedAtLocal`, `subtotal`, `total`, `currency`, `tipoComprobante`          | El `Cfdi` **no se persiste**. Transacción C: `Document = REJECTED (CFDI_STRUCTURE_INVALID)`, `Job = FAILED` → `UnrecoverableError`. Nunca se registra como `ambiguousFields` — es un rechazo estructural, no una ambigüedad                                                                              |
 | Campo deliberadamente fuera del MVP                               | Los 14 campos de la tabla "excluidos" arriba                                                                                                                                                  | Se ignora silenciosamente — ni se persiste ni se registra en `ambiguousFields`, porque no forma parte del contrato de extracción de este bloque                                                                                                                                                          |
 | Campo opcional del agregado (presente en el schema pero nullable) | P. ej. `noIdentificacion`, `unidad`, `descuento` en `CfdiConcept`; `tasaOCuota`, `base`, `importe` en `CfdiTax` cuando `tipoFactor = 'Exento'`                                                | Se persiste como `null` — comportamiento normal, no error, no ambigüedad                                                                                                                                                                                                                                 |
 | Campo ambiguo                                                     | Un campo del agregado (obligatorio u opcional) presente en el schema, cuyo valor en el XML no puede determinarse con certeza (formato inesperado, valor fuera de catálogo SAT conocido, etc.) | Se registra en `Cfdi.ambiguousFields[]`. **Excepción:** si el campo ambiguo es uno de los 8 obligatorios, el resultado es el mismo que "campo obligatorio ausente" — un campo obligatorio con valor incierto no puede persistirse, el rechazo estructural tiene prioridad sobre el registro como ambiguo |
@@ -1283,6 +1283,63 @@ Antes de pasar el Buffer a `fast-xml-parser`:
 
 **Nombre de archivo (resuelve `I-11`).** `cfdi-40-extractor.ts`, sin sufijo `.service` — mismo patrón sin NestJS que `xml-pre-validation.ts`/`xml-validation.ts`, coherente con que ningún consumidor la inyecta todavía (Sprint 4 la invocará).
 
+### 5.3quater Insumos normativos del encabezado CFDI 4.0 (`E5-S3-T06`)
+
+Registro de las dos fuentes oficiales del SAT aprobadas por el responsable de producto el 2026-08-02, que resuelven los bloqueantes `I-14` e `I-15` del análisis técnico previo de `E5-S3-T06`. Ninguna de las dos puede sustituirse por un _fixture_ de pruebas ni por conocimiento asumido (`CLAUDE.md` regla 6).
+
+#### Namespace oficial del Timbre Fiscal Digital 1.1 (resuelve `I-15`)
+
+```text
+TFD_11_NAMESPACE_URI = 'http://www.sat.gob.mx/TimbreFiscalDigital'
+```
+
+Hasta esta corrección, ese URI solo existía en el repositorio dentro de _fixtures_ de pruebas (`cfdi-40-extractor.spec.ts`, `xml-pre-validation.spec.ts`), nunca como constante normativa — a diferencia de los URIs de CFDI 4.0/3.3, ya registrados en §5.3ter. Queda registrado aquí como constante arquitectónica vinculante.
+
+Reglas de uso obligatorias para `E5-S3-T06`, idénticas en espíritu a las de §5.3ter:
+
+- El Timbre se identifica por **URI efectivo resuelto**, nunca por el prefijo textual `tfd`. Verificado empíricamente que un documento puede declarar `xmlns:tfd` apuntando a un URI falso y que el parser lo entrega igual — el prefijo no es identidad.
+- Un prefijo alternativo correctamente declarado contra el URI oficial es igual de válido.
+- Un `tfd` declarado contra un URI falso se rechaza.
+- El `TimbreFiscalDigital` se localiza **únicamente dentro de `Complemento`**, como hijo directo, nunca por búsqueda libre de descendientes.
+- El atributo `UUID` es requerido, de tipo `string` y de **longitud exacta 36** (patrón RFC 4122), coherente con `Cfdi.folioFiscal @db.VarChar(36)`.
+- El `UUID` **nunca** se registra en logs ni en mensajes de error (§5.3ter, misma política de sanitización).
+
+#### Semántica del atributo `Fecha` y prohibición de conversión dependiente del host (diagnóstico de `I-14`)
+
+Evidencia normativa del SAT: el atributo `Fecha` de un CFDI 4.0 tiene formato `AAAA-MM-DDThh:mm:ss`, corresponde a la **hora local del lugar de expedición** del comprobante y **no incorpora offset** en el valor XML.
+
+Consecuencia vinculante: **el parser tiene prohibido derivar un instante** a partir de ese valor. Concretamente, quedan prohibidos en la capa de extracción:
+
+- `new Date(fechaCfdi)` y `Date.parse(fechaCfdi)`;
+- agregar `Z` o cualquier offset al valor recibido;
+- interpretar el valor como UTC;
+- fijar `America/Mexico_City` ni ninguna otra zona;
+- usar la zona horaria del servidor;
+- cualquier conversión silenciosa de hora local a instante.
+
+**Razón medida, no teórica.** Verificado empíricamente sobre un host en `America/Mexico_City`: `new Date('2026-07-15T10:30:00')` produce el instante `2026-07-15T16:30:00.000Z`, mientras que el mismo valor con `Z` explícito produce `2026-07-15T10:30:00.000Z`. El instante persistido dependería, por tanto, de la zona horaria del proceso que ejecuta el worker — lo que contradice la extracción determinista exigida por AD-10.1, y además exigiría asumir una zona horaria implícita, algo que `docs/08_API_DESIGN.md` §"Convenciones" ya prohíbe de forma general para toda la API.
+
+`E5-S3-T06` debe **preservar el valor exacto como `string`**, sin convertir. El nombre conceptual del campo debe expresar esa semántica (`issuedAtLocal`) y ser coherente en todos los contratos; mientras conserve hora local sin offset, **no puede llamarse `issuedAt: Date`**.
+
+#### Contrato aprobado e implementado (D-009 parte 3)
+
+El responsable de producto aprobó la corrección el 2026-08-02 (alternativa C de D-009) y quedó **implementada** el 2026-08-04. Contrato definitivo:
+
+| Artefacto                            | Estado anterior               | Contrato vigente                                         | Tarea que lo cerró         |
+| ------------------------------------ | ----------------------------- | -------------------------------------------------------- | -------------------------- |
+| `ExtractedCfdiAggregate.issuedAt`    | `Date`                        | `issuedAtLocal: string`                                  | `E5-S2-T01` `PASSED`       |
+| `CfdiRepository.create`              | propaga `aggregate.issuedAt`  | propaga `issuedAtLocal` sin transformar                  | `E5-S2-T02` `PASSED`       |
+| `Cfdi.issuedAt` (`schema.prisma`)    | `DateTime @db.Timestamptz(6)` | `issuedAtLocal String @map("issued_at") @db.VarChar(19)` | `E5-S1-T05` `PASSED`       |
+| Migración que materializa la columna | `20260723214446`              | correctiva nueva `20260804013104`                        | `E5-S1-T07`/`T09` `PASSED` |
+
+La columna física conserva el nombre `issued_at` y el índice conserva el nombre `cfdis_company_id_issued_at_idx`.
+
+**Seguridad de la migración.** Se verificó por consulta directa que `SELECT COUNT(*) FROM cfdis` = **0** inmediatamente antes de generar la migración y de nuevo antes de aplicarla — nunca por suposición. Al no existir filas, la cláusula `USING` no evalúa ningún valor: **no se convirtió ningún instante**, no se usó `AT TIME ZONE`, no se usó `issued_at::text` y no se asumió UTC. La migración usa `ALTER COLUMN ... TYPE` en lugar del `DROP` + `ADD COLUMN` que Prisma genera por defecto, para conservar la posición ordinal de la columna física; PostgreSQL reconstruye el índice dependiente conservando su nombre y preserva `NOT NULL` sin necesidad de redeclararlo. Verificado tras aplicarla: `character varying(19)`, `NOT NULL`, índice presente, 0 filas, sin migraciones pendientes y sin drift de schema.
+
+Esta corrección modificó artefactos ya auditados de Sprint 1 y Sprint 2, por lo que queda **`READY_FOR_AUDIT`** y **exige reauditoría independiente** antes de considerarse cerrada. `E5-S3-T06` permanece **habilitada y no iniciada** hasta ese cierre.
+
+**Validación del formato: frontera de responsabilidad.** Esta corrección define el contrato; **no** implementa la extracción. La validación de que el valor cumple `AAAA-MM-DDThh:mm:ss` pertenece a `E5-S3-T06`, que deberá comprobar al menos: tipo `string`, no vacío, forma estructural aprobada, y ausencia de conversión a `Date`. El repositorio **no** valida formato — persiste el string exacto que recibe. Los _fixtures_ y contratos aceptan únicamente strings con esa forma.
+
 ### 5.4 Pruebas negativas de seguridad requeridas
 
 **Ubicación de cada prueba según la capa que decide.** Las pruebas de esta tabla se reparten entre dos suites distintas, conforme a la frontera de §5.3:
@@ -2068,7 +2125,7 @@ El proyecto devuelve deliberadamente `404` en los tres casos para no filtrar la 
   "folioFiscal": "string",
   "rfcEmisor": "string",
   "rfcReceptor": "string",
-  "issuedAt": "ISO 8601",
+  "issuedAtLocal": "string (AAAA-MM-DDThh:mm:ss, hora local sin offset — D-009)",
   "subtotal": "string (Decimal serializado para preservar precisión)",
   "total": "string (Decimal serializado)",
   "currency": "string",

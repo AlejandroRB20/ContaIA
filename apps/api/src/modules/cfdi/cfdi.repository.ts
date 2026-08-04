@@ -55,7 +55,7 @@ export class CfdiRepository {
         folioFiscal: aggregate.folioFiscal,
         rfcEmisor: aggregate.rfcEmisor,
         rfcReceptor: aggregate.rfcReceptor,
-        issuedAt: aggregate.issuedAt,
+        issuedAtLocal: aggregate.issuedAtLocal,
         subtotal: aggregate.subtotal,
         total: aggregate.total,
         currency: aggregate.currency,

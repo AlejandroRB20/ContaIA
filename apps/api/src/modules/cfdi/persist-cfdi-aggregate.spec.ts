@@ -41,7 +41,7 @@ const AGGREGATE: ExtractedCfdiAggregate = {
   folioFiscal: 'FOLIO-1',
   rfcEmisor: 'AAA010101AAA',
   rfcReceptor: 'BBB020202BBB',
-  issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+  issuedAtLocal: '2026-01-01T00:00:00',
   subtotal: '100.00',
   total: '116.00',
   currency: 'MXN',

@@ -107,7 +107,26 @@ export interface ExtractedCfdiAggregate {
   readonly folioFiscal: string;
   readonly rfcEmisor: string;
   readonly rfcReceptor: string;
-  readonly issuedAt: Date;
+  /**
+   * Fecha y hora **local** de expedición del CFDI (atributo `Fecha`), tal
+   * como viene en el XML: formato `AAAA-MM-DDThh:mm:ss`, **sin offset** —
+   * el SAT define ese atributo como la hora local del lugar de expedición y
+   * no incorpora zona horaria en el valor (D-009, Addendum §5.3ter).
+   *
+   * Se conserva como **string exacto**, nunca como `Date`. Convertirlo
+   * produciría un instante dependiente de la zona horaria del proceso que
+   * ejecuta el worker —verificado: `new Date('2026-07-15T10:30:00')` da
+   * `16:30:00Z` en `America/Mexico_City` y `10:30:00Z` en UTC—, lo que
+   * rompería la extracción determinista de AD-10.1 y obligaría a asumir una
+   * zona implícita que `docs/08_API_DESIGN.md` prohíbe. Por eso quedan
+   * prohibidos `new Date()`, `Date.parse()`, añadir `Z`, interpretar como
+   * UTC, fijar una zona concreta o normalizar el valor de cualquier forma.
+   *
+   * La validación de la forma estructural es responsabilidad de
+   * `E5-S3-T06` (extracción del encabezado): esta corrección define
+   * únicamente el contrato y **no** implementa la extracción.
+   */
+  readonly issuedAtLocal: string;
   /** Cadena decimal exacta (BR-GLB-004). */
   readonly subtotal: string;
   /** Cadena decimal exacta (BR-GLB-004). */

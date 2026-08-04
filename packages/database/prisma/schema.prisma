@@ -626,7 +626,12 @@ model Cfdi {
   folioFiscal     String   @map("folio_fiscal") @db.VarChar(36)
   rfcEmisor       String   @map("rfc_emisor") @db.VarChar(13)
   rfcReceptor     String   @map("rfc_receptor") @db.VarChar(13)
-  issuedAt        DateTime @map("issued_at") @db.Timestamptz(6)
+  /// Fecha y hora local de expedicion del CFDI (atributo Fecha), formato
+  /// AAAA-MM-DDThh:mm:ss, sin offset. Se conserva como texto exacto: el SAT
+  /// define ese atributo como hora local del lugar de expedicion, por lo que
+  /// convertirlo a timestamptz obligaria a asumir una zona horaria implicita
+  /// (D-009). La columna fisica conserva el nombre issued_at.
+  issuedAtLocal   String   @map("issued_at") @db.VarChar(19)
   subtotal        Decimal  @db.Decimal(18, 6)
   total           Decimal  @db.Decimal(18, 6)
   /// Moneda ISO 4217 (ej. MXN, USD) tal como la declara el comprobante.
@@ -659,7 +664,7 @@ model Cfdi {
   /// Documento.
   @@unique([documentId, companyId])
   @@unique([companyId, folioFiscal])
-  @@index([companyId, issuedAt])
+  @@index([companyId, issuedAtLocal])
   @@map("cfdis")
 }
 

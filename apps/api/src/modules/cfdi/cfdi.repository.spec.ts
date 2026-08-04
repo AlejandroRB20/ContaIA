@@ -12,7 +12,7 @@ function buildAggregate(overrides: Partial<ExtractedCfdiAggregate> = {}): Extrac
     folioFiscal: 'a3f1e2b4-1111-1111-1111-111111111111',
     rfcEmisor: 'AAA010101AAA',
     rfcReceptor: 'BBB020202BBB',
-    issuedAt: new Date('2026-07-01T12:00:00.000Z'),
+    issuedAtLocal: '2026-07-01T12:00:00',
     subtotal: '1000.000000',
     total: '1160.000000',
     currency: 'MXN',
@@ -32,7 +32,7 @@ function buildCfdiRow(overrides: Partial<Cfdi> = {}): Cfdi {
     folioFiscal: 'a3f1e2b4-1111-1111-1111-111111111111',
     rfcEmisor: 'AAA010101AAA',
     rfcReceptor: 'BBB020202BBB',
-    issuedAt: new Date('2026-07-01T12:00:00.000Z'),
+    issuedAtLocal: '2026-07-01T12:00:00',
     subtotal: new Prisma.Decimal('1000.000000'),
     total: new Prisma.Decimal('1160.000000'),
     currency: 'MXN',
@@ -85,7 +85,7 @@ describe('CfdiRepository', () => {
           folioFiscal: aggregate.folioFiscal,
           rfcEmisor: aggregate.rfcEmisor,
           rfcReceptor: aggregate.rfcReceptor,
-          issuedAt: aggregate.issuedAt,
+          issuedAtLocal: aggregate.issuedAtLocal,
           subtotal: aggregate.subtotal,
           total: aggregate.total,
           currency: aggregate.currency,
@@ -121,6 +121,76 @@ describe('CfdiRepository', () => {
       };
       expect(callArgs.data.ambiguousFields).toEqual(['rfcReceptor']);
       expect(callArgs.data.ambiguousFields).not.toBe(aggregate.ambiguousFields);
+    });
+  });
+
+  /**
+   * `E5-S3-T06`/D-009: el atributo `Fecha` del CFDI es hora local del lugar de
+   * expedicion, sin offset. El repositorio debe entregarlo a Prisma como el
+   * mismo string que recibio, sin convertirlo a `Date` ni normalizarlo — de lo
+   * contrario el instante persistido dependeria de la zona horaria del proceso.
+   */
+  describe('create — issuedAtLocal se persiste como texto exacto (D-009)', () => {
+    async function capturarDataPersistida(
+      aggregate: ExtractedCfdiAggregate,
+    ): Promise<Record<string, unknown>> {
+      const { mock, tx } = buildTx();
+      mock.cfdi.findUnique.mockResolvedValue(null);
+      mock.cfdi.create.mockResolvedValue(buildCfdiRow());
+      await new CfdiRepository().create(tx, DOCUMENT_ID, COMPANY_ID, aggregate);
+      return (mock.cfdi.create.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    }
+
+    it('entrega a Prisma exactamente el mismo string recibido, sin conversion a Date', async () => {
+      const aggregate = buildAggregate({ issuedAtLocal: '2026-07-15T10:30:00' });
+
+      const data = await capturarDataPersistida(aggregate);
+
+      expect(data['issuedAtLocal']).toBe('2026-07-15T10:30:00');
+      expect(typeof data['issuedAtLocal']).toBe('string');
+      expect(data['issuedAtLocal']).not.toBeInstanceOf(Date);
+    });
+
+    it('no agrega sufijo Z ni ningun offset de zona horaria', async () => {
+      const data = await capturarDataPersistida(
+        buildAggregate({ issuedAtLocal: '2026-07-15T10:30:00' }),
+      );
+
+      expect(data['issuedAtLocal']).not.toMatch(/Z$/);
+      expect(data['issuedAtLocal']).not.toMatch(/[+-]\d{2}:\d{2}$/);
+    });
+
+    it.each([
+      ['medianoche', '2026-01-01T00:00:00'],
+      ['fin de anio', '2026-12-31T23:59:59'],
+      ['horario de verano ambiguo', '2026-10-25T01:30:00'],
+      ['salto de horario inexistente', '2026-04-05T02:30:00'],
+    ])(
+      'conserva el valor intacto para %s, sin depender de la zona horaria del proceso',
+      async (_caso, valor) => {
+        const data = await capturarDataPersistida(buildAggregate({ issuedAtLocal: valor }));
+
+        // Igualdad exacta de string: si el repositorio interpretara el valor
+        // como instante, estos casos (ambiguos o inexistentes en zonas con
+        // horario de verano) cambiarian segun el TZ del proceso. Se comprueba
+        // por igualdad textual, sin manipular process.env.TZ.
+        expect(data['issuedAtLocal']).toBe(valor);
+      },
+    );
+
+    it('no aplica trim ni normaliza el valor recibido', async () => {
+      const data = await capturarDataPersistida(
+        buildAggregate({ issuedAtLocal: ' 2026-07-15T10:30:00 ' }),
+      );
+
+      expect(data['issuedAtLocal']).toBe(' 2026-07-15T10:30:00 ');
+    });
+
+    it('no persiste ningun campo llamado issuedAt (el contrato ya no lo define)', async () => {
+      const data = await capturarDataPersistida(buildAggregate());
+
+      expect(Object.keys(data)).not.toContain('issuedAt');
+      expect(Object.keys(data)).toContain('issuedAtLocal');
     });
   });
 
