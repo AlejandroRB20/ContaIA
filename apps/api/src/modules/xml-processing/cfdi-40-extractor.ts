@@ -1,3 +1,5 @@
+import type { ExtractedConcept } from '../cfdi/cfdi-aggregate.types';
+
 import { CfdiExtractionError } from './cfdi-extraction.errors';
 
 /**
@@ -97,6 +99,10 @@ const LOCAL_NAME_EMISOR = 'Emisor';
 const LOCAL_NAME_RECEPTOR = 'Receptor';
 const LOCAL_NAME_COMPLEMENTO = 'Complemento';
 const LOCAL_NAME_TIMBRE_FISCAL_DIGITAL = 'TimbreFiscalDigital';
+
+/** Nombres locales exactos que `E5-S3-T07` localiza (`<cfdi:Conceptos>` → `<cfdi:Concepto>`*). */
+const LOCAL_NAME_CONCEPTOS = 'Conceptos';
+const LOCAL_NAME_CONCEPTO = 'Concepto';
 
 /**
  * Forma estructural obligatoria de `Fecha` (D-009 parte 2, Addendum
@@ -345,6 +351,66 @@ function buscarHijoDirecto(
 }
 
 /**
+ * Busca, entre los hijos directos de un elemento ya resuelto, **todos** los
+ * que coincidan por nombre local y namespace efectivo — mismo criterio de
+ * identidad por URI que {@link buscarHijoDirecto} (nunca por prefijo
+ * textual), pero sin detenerse en la primera coincidencia. Preserva el orden
+ * de aparición en el árbol `preserveOrder`, nunca reordena ni deduplica.
+ *
+ * `E5-S3-T07` la introduce para `<cfdi:Concepto>*` (0 o más hijos válidos de
+ * `<cfdi:Conceptos>`), a diferencia de `E5-S3-T06`, donde `Emisor`,
+ * `Receptor` y `Complemento` son siempre a lo sumo uno. No reemplaza ni
+ * reescribe `buscarHijoDirecto` — es una función nueva, independiente,
+ * deliberadamente sin compartir cuerpo con la de `E5-S3-T05`/`T06` para no
+ * tocar lógica ya estable.
+ */
+function buscarHijosDirectos(
+  hijos: readonly unknown[],
+  scopePadre: NamespaceScope,
+  localNameEsperado: string,
+  namespaceUriEsperado: string,
+): HijoDirectoResuelto[] {
+  const resultado: HijoDirectoResuelto[] = [];
+
+  for (const entrada of hijos) {
+    if (!esEntradaDeElemento(entrada)) {
+      continue;
+    }
+
+    const clavesTag = Object.keys(entrada).filter((clave) => clave !== CLAVE_ATRIBUTOS);
+    const nombreCalificado = clavesTag[0];
+    if (clavesTag.length !== 1 || nombreCalificado === undefined) {
+      continue;
+    }
+
+    const hijosDelHijo = entrada[nombreCalificado];
+    if (!Array.isArray(hijosDelHijo)) {
+      continue;
+    }
+
+    const { prefix, localName } = splitQualifiedName(nombreCalificado);
+    if (localName !== localNameEsperado) {
+      continue;
+    }
+
+    const atributosCrudos = entrada[CLAVE_ATRIBUTOS];
+    const scope = extendNamespaceScope(scopePadre, atributosCrudos);
+    const namespaceUri = resolveNamespacePrefix(scope, prefix);
+    if (namespaceUri !== namespaceUriEsperado) {
+      continue;
+    }
+
+    resultado.push({
+      attributes: extraerAtributosPropios(atributosCrudos),
+      children: hijosDelHijo,
+      namespaceScope: scope,
+    });
+  }
+
+  return resultado;
+}
+
+/**
  * Exige que `valor` sea un `string` no vacío — criterio compartido de los 8
  * campos obligatorios del encabezado (Addendum §3.3): ausente, de tipo
  * incorrecto o vacío se trata igual, `CFDI_STRUCTURE_INVALID`, nunca
@@ -536,4 +602,106 @@ export function extractCfdiHeader(root: CfdiRootElement): CfdiHeaderFields {
     currency,
     tipoComprobante,
   };
+}
+
+/**
+ * Convierte `valor` a `string | null`: `null` si está ausente, no es
+ * `string`, o es una cadena vacía. Mismo criterio de "campo no
+ * proporcionado" que {@link exigirCadenaObligatoria}, pero sin lanzar — un
+ * campo opcional ausente es válido, nunca un rechazo.
+ */
+function leerCadenaOpcional(valor: unknown): string | null {
+  if (typeof valor !== 'string' || valor.length === 0) {
+    return null;
+  }
+  return valor;
+}
+
+/**
+ * `E5-S3-T07` — Extracción de conceptos del CFDI 4.0 (`<cfdi:Conceptos>` →
+ * `<cfdi:Concepto>`*), Addendum AD-5 §4.5.1. Puebla `ExtractedConcept[]`
+ * (`cfdi-aggregate.types.ts`), el campo `concepts` de
+ * `ExtractedCfdiAggregate`.
+ *
+ * **Frontera con `E5-S3-T06`.** Recibe `root` ya confirmado por
+ * {@link detectCfdiVersion} — no vuelve a resolver la raíz ni a validar
+ * `Version`, y no toca ningún campo de encabezado (`extractCfdiHeader`).
+ *
+ * **Frontera con `E5-S3-T08` (impuestos, alcance estrecho, decisión
+ * vinculante).** Cada concepto se devuelve con `taxes: []` — ningún
+ * `<cfdi:Concepto><cfdi:Impuestos>` se lee aquí. Poblar `taxes[]` con los
+ * impuestos reales de cada concepto, y derivar `conceptSlot` a partir de
+ * `position`, es responsabilidad exclusiva de `E5-S3-T08` (Addendum AD-5
+ * §4.5.2) — nunca se adelanta en esta función.
+ *
+ * **Frontera con `E5-S3-T09` (ambiguos).** Un campo obligatorio del
+ * concepto ausente rechaza el documento completo (`CFDI_STRUCTURE_INVALID`),
+ * igual que `extractCfdiHeader` — nunca se registra en `ambiguousFields[]`,
+ * exclusiva de `E5-S3-T09` sobre un conjunto de campos distinto (Addendum
+ * §3.3).
+ *
+ * **`position` contigua sin huecos (criterio de aceptación de `E5-S3-T07`).**
+ * Se asigna en el orden de aparición en el árbol, `{1, 2, ..., n}`, nunca a
+ * partir de un atributo del XML. Un concepto con un campo obligatorio
+ * ausente aborta la extracción completa lanzando de inmediato — nunca se
+ * omite en silencio dejando un hueco en `position`.
+ *
+ * **Importes como cadena decimal exacta, nunca `number`** (BR-GLB-004,
+ * mismo contrato que `extractCfdiHeader`): `cantidad`, `valorUnitario`,
+ * `importe` y `descuento` se preservan tal como llegan del XML, sin
+ * `parseFloat`/`Number()` ni aritmética alguna.
+ *
+ * @throws {CfdiExtractionError} con `code: 'CFDI_STRUCTURE_INVALID'` si:
+ *   `Conceptos` no existe como hijo directo de la raíz con el namespace CFDI
+ *   4.0 efectivo; `Conceptos` existe pero no contiene ningún `Concepto`
+ *   válido (namespace correcto); o cualquier concepto tiene un campo
+ *   obligatorio (`ClaveProdServ`, `Cantidad`, `ClaveUnidad`, `Descripcion`,
+ *   `ValorUnitario`, `Importe`, `ObjetoImp`) ausente, de tipo incorrecto o
+ *   vacío.
+ */
+export function extractCfdiConcepts(root: CfdiRootElement): readonly ExtractedConcept[] {
+  const conceptos = buscarHijoDirecto(
+    root.children,
+    root.namespaceScope,
+    LOCAL_NAME_CONCEPTOS,
+    root.namespaceUri,
+  );
+  if (conceptos === undefined) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  const nodosConcepto = buscarHijosDirectos(
+    conceptos.children,
+    conceptos.namespaceScope,
+    LOCAL_NAME_CONCEPTO,
+    root.namespaceUri,
+  );
+  if (nodosConcepto.length === 0) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  return nodosConcepto.map((nodo, indice) => {
+    const claveProdServ = exigirCadenaObligatoria(nodo.attributes['ClaveProdServ']);
+    const cantidad = exigirCadenaObligatoria(nodo.attributes['Cantidad']);
+    const claveUnidad = exigirCadenaObligatoria(nodo.attributes['ClaveUnidad']);
+    const descripcion = exigirCadenaObligatoria(nodo.attributes['Descripcion']);
+    const valorUnitario = exigirCadenaObligatoria(nodo.attributes['ValorUnitario']);
+    const importe = exigirCadenaObligatoria(nodo.attributes['Importe']);
+    const objetoImp = exigirCadenaObligatoria(nodo.attributes['ObjetoImp']);
+
+    return {
+      position: indice + 1,
+      claveProdServ,
+      noIdentificacion: leerCadenaOpcional(nodo.attributes['NoIdentificacion']),
+      cantidad,
+      claveUnidad,
+      unidad: leerCadenaOpcional(nodo.attributes['Unidad']),
+      descripcion,
+      valorUnitario,
+      importe,
+      descuento: leerCadenaOpcional(nodo.attributes['Descuento']),
+      objetoImp,
+      taxes: [],
+    };
+  });
 }

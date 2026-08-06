@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser';
 import {
   detectCfdiVersion,
   extractCfdiHeader,
+  extractCfdiConcepts,
   splitQualifiedName,
   extendNamespaceScope,
   resolveNamespacePrefix,
@@ -644,5 +645,220 @@ describe('extractCfdiHeader', () => {
   it('nunca reporta el UUID en el mensaje de un error de estructura', () => {
     const error = esperarRechazoHeader(construirCfdi({ complemento: null }));
     expect(error.message).not.toContain(UUID_TIMBRE);
+  });
+});
+
+describe('extractCfdiConcepts', () => {
+  const RFC_EMISOR = 'AAA010101AA1';
+  const RFC_RECEPTOR = 'BBB020202BB2';
+  const UUID_TIMBRE = '99999999-8888-7777-6666-555555555555';
+  const TFD_11_NAMESPACE_URI = 'http://www.sat.gob.mx/TimbreFiscalDigital';
+  const NAMESPACE_CFDI_40 = 'http://www.sat.gob.mx/cfd/4';
+
+  const CAMPOS_CONCEPTO_VALIDO: Readonly<Record<string, string>> = {
+    ClaveProdServ: '01010101',
+    Cantidad: '1.000000',
+    ClaveUnidad: 'H87',
+    Descripcion: 'Servicio de prueba',
+    ValorUnitario: '100.00',
+    Importe: '100.00',
+    ObjetoImp: '02',
+  };
+
+  /** Un `<cfdi:Concepto>` mínimo válido (7 campos obligatorios), con overrides/omisiones. */
+  function conceptoValido(overrides?: Record<string, string>, omitir?: string): string {
+    const atributos: Record<string, string> = { ...CAMPOS_CONCEPTO_VALIDO, ...overrides };
+    if (omitir !== undefined) {
+      delete atributos[omitir];
+    }
+    const attrs = Object.entries(atributos)
+      .map(([clave, valor]) => `${clave}="${valor}"`)
+      .join(' ');
+    return `<cfdi:Concepto ${attrs}/>`;
+  }
+
+  /**
+   * CFDI 4.0 completo y válido (encabezado ya correcto, `extractCfdiHeader`
+   * no es el objeto de esta suite), con `conceptosInnerXml` incrustado
+   * literalmente como contenido de `<cfdi:Conceptos>`. `null` omite el nodo
+   * `Conceptos` por completo — ausencia real, no un nodo vacío.
+   */
+  function construirCfdiConConceptos(conceptosInnerXml: string | null): string {
+    const conceptos =
+      conceptosInnerXml !== null ? `<cfdi:Conceptos>${conceptosInnerXml}</cfdi:Conceptos>` : '';
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<cfdi:Comprobante xmlns:cfdi="${NAMESPACE_CFDI_40}" Version="4.0" Fecha="2026-07-15T10:30:00" SubTotal="100.00" Total="116.00" Moneda="MXN" TipoDeComprobante="I">` +
+      `<cfdi:Emisor Rfc="${RFC_EMISOR}"/>` +
+      `<cfdi:Receptor Rfc="${RFC_RECEPTOR}"/>` +
+      conceptos +
+      `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}" UUID="${UUID_TIMBRE}"/></cfdi:Complemento>` +
+      `</cfdi:Comprobante>`
+    );
+  }
+
+  function extraerConceptos(xml: string) {
+    return extractCfdiConcepts(detectCfdiVersion(analizar(xml)));
+  }
+
+  function esperarRechazoConceptos(xml: string): CfdiExtractionError {
+    const error = capturar(() => extraerConceptos(xml));
+    expect(error.code).toBe('CFDI_STRUCTURE_INVALID');
+    return error;
+  }
+
+  it('1. extrae un único concepto válido con position = 1 y taxes: []', () => {
+    const resultado = extraerConceptos(construirCfdiConConceptos(conceptoValido()));
+
+    expect(resultado).toEqual([
+      {
+        position: 1,
+        claveProdServ: '01010101',
+        noIdentificacion: null,
+        cantidad: '1.000000',
+        claveUnidad: 'H87',
+        unidad: null,
+        descripcion: 'Servicio de prueba',
+        valorUnitario: '100.00',
+        importe: '100.00',
+        descuento: null,
+        objetoImp: '02',
+        taxes: [],
+      },
+    ]);
+  });
+
+  it('2-3. extrae múltiples conceptos preservando el orden de aparición como position contigua', () => {
+    const xml = construirCfdiConConceptos(
+      conceptoValido({ ClaveProdServ: '10101001', Descripcion: 'Primero' }) +
+        conceptoValido({ ClaveProdServ: '10101002', Descripcion: 'Segundo' }) +
+        conceptoValido({ ClaveProdServ: '10101003', Descripcion: 'Tercero' }),
+    );
+
+    const resultado = extraerConceptos(xml);
+
+    expect(resultado.map((concepto) => concepto.position)).toEqual([1, 2, 3]);
+    expect(resultado.map((concepto) => concepto.descripcion)).toEqual([
+      'Primero',
+      'Segundo',
+      'Tercero',
+    ]);
+  });
+
+  it('4. acepta un prefijo alternativo para Conceptos/Concepto que resuelve al namespace oficial', () => {
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<c:Comprobante xmlns:c="${NAMESPACE_CFDI_40}" Version="4.0" Fecha="2026-07-15T10:30:00" SubTotal="100.00" Total="116.00" Moneda="MXN" TipoDeComprobante="I">` +
+      `<c:Emisor Rfc="${RFC_EMISOR}"/>` +
+      `<c:Receptor Rfc="${RFC_RECEPTOR}"/>` +
+      `<c:Conceptos><c:Concepto ClaveProdServ="01010101" Cantidad="1.000000" ClaveUnidad="H87" Descripcion="Servicio" ValorUnitario="100.00" Importe="100.00" ObjetoImp="02"/></c:Conceptos>` +
+      `<c:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}" UUID="${UUID_TIMBRE}"/></c:Complemento>` +
+      `</c:Comprobante>`;
+
+    const resultado = extraerConceptos(xml);
+
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]?.claveProdServ).toBe('01010101');
+  });
+
+  it('5. rechaza cuando Conceptos resuelve a un namespace falso, aunque el localName sea correcto', () => {
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<cfdi:Comprobante xmlns:cfdi="${NAMESPACE_CFDI_40}" Version="4.0" Fecha="2026-07-15T10:30:00" SubTotal="100.00" Total="116.00" Moneda="MXN" TipoDeComprobante="I">` +
+      `<cfdi:Emisor Rfc="${RFC_EMISOR}"/>` +
+      `<cfdi:Receptor Rfc="${RFC_RECEPTOR}"/>` +
+      `<cfdi:Conceptos xmlns:cfdi="http://ejemplo.com/falso">${conceptoValido()}</cfdi:Conceptos>` +
+      `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}" UUID="${UUID_TIMBRE}"/></cfdi:Complemento>` +
+      `</cfdi:Comprobante>`;
+
+    esperarRechazoConceptos(xml);
+  });
+
+  it('6a. rechaza cuando Conceptos está ausente por completo', () => {
+    esperarRechazoConceptos(construirCfdiConConceptos(null));
+  });
+
+  it('6b. rechaza cuando Conceptos está presente pero vacío (cero Concepto)', () => {
+    esperarRechazoConceptos(construirCfdiConConceptos(''));
+  });
+
+  it.each(Object.keys(CAMPOS_CONCEPTO_VALIDO))(
+    '7. rechaza un concepto incompleto: falta el campo obligatorio %s',
+    (campo) => {
+      esperarRechazoConceptos(construirCfdiConConceptos(conceptoValido(undefined, campo)));
+    },
+  );
+
+  it('8a. campos opcionales ausentes (NoIdentificacion, Unidad, Descuento) se leen como null', () => {
+    const resultado = extraerConceptos(construirCfdiConConceptos(conceptoValido()));
+
+    expect(resultado[0]?.noIdentificacion).toBeNull();
+    expect(resultado[0]?.unidad).toBeNull();
+    expect(resultado[0]?.descuento).toBeNull();
+  });
+
+  it('8b. campos opcionales presentes se conservan tal cual', () => {
+    const resultado = extraerConceptos(
+      construirCfdiConConceptos(
+        conceptoValido({ NoIdentificacion: 'SKU-1', Unidad: 'Hora', Descuento: '10.00' }),
+      ),
+    );
+
+    expect(resultado[0]?.noIdentificacion).toBe('SKU-1');
+    expect(resultado[0]?.unidad).toBe('Hora');
+    expect(resultado[0]?.descuento).toBe('10.00');
+  });
+
+  it('9. cantidad, valorUnitario, importe y descuento son siempre string, nunca number', () => {
+    const resultado = extraerConceptos(
+      construirCfdiConConceptos(conceptoValido({ Descuento: '5.50' })),
+    );
+
+    expect(typeof resultado[0]?.cantidad).toBe('string');
+    expect(typeof resultado[0]?.valorUnitario).toBe('string');
+    expect(typeof resultado[0]?.importe).toBe('string');
+    expect(typeof resultado[0]?.descuento).toBe('string');
+  });
+
+  it('10. un <cfdi:Impuestos> presente dentro del Concepto se ignora — taxes siempre [] (E5-S3-T08 no adelantado)', () => {
+    const xmlConImpuestos = construirCfdiConConceptos(
+      `<cfdi:Concepto ${Object.entries(CAMPOS_CONCEPTO_VALIDO)
+        .map(([clave, valor]) => `${clave}="${valor}"`)
+        .join(' ')}>` +
+        `<cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="100.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="16.00"/></cfdi:Traslados></cfdi:Impuestos>` +
+        `</cfdi:Concepto>`,
+    );
+
+    const resultado = extraerConceptos(xmlConImpuestos);
+
+    expect(resultado[0]?.taxes).toEqual([]);
+  });
+
+  it('12a. un concepto inválido en medio de varios aborta toda la extracción — nunca deja un hueco en position', () => {
+    const xml = construirCfdiConConceptos(
+      conceptoValido({ ClaveProdServ: '10101001' }) +
+        conceptoValido(undefined, 'ClaveProdServ') +
+        conceptoValido({ ClaveProdServ: '10101003' }),
+    );
+
+    esperarRechazoConceptos(xml);
+  });
+
+  it('12b. el mensaje de rechazo por Conceptos ausente nunca contiene marcado ni datos del comprobante', () => {
+    const error = esperarRechazoConceptos(construirCfdiConConceptos(null));
+    expect(error.message).not.toContain('<');
+    expect(error.message).not.toContain(RFC_EMISOR);
+  });
+
+  it('12c. compone con extractCfdiHeader sobre la misma raíz ya resuelta, sin interferencia entre ambas', () => {
+    const root = detectCfdiVersion(analizar(construirCfdiConConceptos(conceptoValido())));
+
+    const header = extractCfdiHeader(root);
+    const conceptos = extractCfdiConcepts(root);
+
+    expect(header.rfcEmisor).toBe(RFC_EMISOR);
+    expect(header.rfcReceptor).toBe(RFC_RECEPTOR);
+    expect(conceptos).toHaveLength(1);
+    expect(conceptos[0]?.claveProdServ).toBe('01010101');
   });
 });
