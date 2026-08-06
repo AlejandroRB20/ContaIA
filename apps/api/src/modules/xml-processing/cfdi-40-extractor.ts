@@ -83,6 +83,35 @@ const VERSION_SOPORTADA = '4.0';
 /** Nombre local exacto (case-sensitive) del elemento raíz de un CFDI. */
 const LOCAL_NAME_COMPROBANTE = 'Comprobante';
 
+/**
+ * Namespace URI oficial del Timbre Fiscal Digital 1.1 (`E5-S3-T06`, D-009
+ * parte 1, Addendum §5.3quater). Constante arquitectónica vinculante —
+ * idéntico criterio de identidad que `NAMESPACE_CFDI_40`: el Timbre se
+ * localiza por este URI efectivo resuelto, nunca por el prefijo textual
+ * `tfd` (un documento puede declarar `xmlns:tfd` apuntando a un URI falso).
+ */
+const TFD_11_NAMESPACE_URI = 'http://www.sat.gob.mx/TimbreFiscalDigital';
+
+/** Nombres locales exactos de los elementos descendientes que T06 localiza. */
+const LOCAL_NAME_EMISOR = 'Emisor';
+const LOCAL_NAME_RECEPTOR = 'Receptor';
+const LOCAL_NAME_COMPLEMENTO = 'Complemento';
+const LOCAL_NAME_TIMBRE_FISCAL_DIGITAL = 'TimbreFiscalDigital';
+
+/**
+ * Forma estructural obligatoria de `Fecha` (D-009 parte 2, Addendum
+ * §5.3quater): `AAAA-MM-DDThh:mm:ss`, hora local sin offset. Solo valida
+ * forma — nunca se usa para convertir el valor a `Date`.
+ */
+const PATRON_FECHA_LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+
+/**
+ * Patrón RFC 4122 del `UUID` del Timbre (Addendum §5.3quater): longitud
+ * exacta 36, cinco grupos hexadecimales separados por guion.
+ */
+const PATRON_UUID_RFC4122 =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /** Clave de agrupación de atributos en el árbol `preserveOrder` (mismo formato que T04). */
 const CLAVE_ATRIBUTOS = ':@';
 
@@ -251,6 +280,84 @@ function extraerAtributosPropios(rawAttributes: unknown): Record<string, string>
   return resultado;
 }
 
+/** Elemento hijo directo ya resuelto: atributos propios, hijos e ámbito de namespaces propio. */
+interface HijoDirectoResuelto {
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly children: readonly unknown[];
+  readonly namespaceScope: NamespaceScope;
+}
+
+/**
+ * Busca, entre los hijos directos de un elemento ya resuelto (nunca en
+ * descendientes más profundos), el primero cuyo nombre local coincida
+ * exactamente y cuyo namespace efectivo resuelto coincida exactamente con
+ * `namespaceUriEsperado` — identidad por URI, nunca por prefijo textual,
+ * mismo criterio que {@link detectCfdiVersion} aplica a la raíz (D-009,
+ * Addendum §5.3quater). Reutiliza `extendNamespaceScope`/
+ * `resolveNamespacePrefix` de `E5-S3-T05`; no reimplementa resolución de
+ * namespaces.
+ *
+ * Devuelve `undefined` si ningún hijo directo coincide — el llamador decide
+ * si eso es un campo obligatorio ausente.
+ */
+function buscarHijoDirecto(
+  hijos: readonly unknown[],
+  scopePadre: NamespaceScope,
+  localNameEsperado: string,
+  namespaceUriEsperado: string,
+): HijoDirectoResuelto | undefined {
+  for (const entrada of hijos) {
+    if (!esEntradaDeElemento(entrada)) {
+      continue;
+    }
+
+    const clavesTag = Object.keys(entrada).filter((clave) => clave !== CLAVE_ATRIBUTOS);
+    const nombreCalificado = clavesTag[0];
+    if (clavesTag.length !== 1 || nombreCalificado === undefined) {
+      continue;
+    }
+
+    const hijosDelHijo = entrada[nombreCalificado];
+    if (!Array.isArray(hijosDelHijo)) {
+      continue;
+    }
+
+    const { prefix, localName } = splitQualifiedName(nombreCalificado);
+    if (localName !== localNameEsperado) {
+      continue;
+    }
+
+    const atributosCrudos = entrada[CLAVE_ATRIBUTOS];
+    const scope = extendNamespaceScope(scopePadre, atributosCrudos);
+    const namespaceUri = resolveNamespacePrefix(scope, prefix);
+    if (namespaceUri !== namespaceUriEsperado) {
+      continue;
+    }
+
+    return {
+      attributes: extraerAtributosPropios(atributosCrudos),
+      children: hijosDelHijo,
+      namespaceScope: scope,
+    };
+  }
+
+  return undefined;
+}
+
+/**
+ * Exige que `valor` sea un `string` no vacío — criterio compartido de los 8
+ * campos obligatorios del encabezado (Addendum §3.3): ausente, de tipo
+ * incorrecto o vacío se trata igual, `CFDI_STRUCTURE_INVALID`, nunca
+ * `ambiguousFields` (esa lista es exclusiva de `E5-S3-T09`, campos fuera del
+ * conjunto obligatorio).
+ */
+function exigirCadenaObligatoria(valor: unknown): string {
+  if (typeof valor !== 'string' || valor.length === 0) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+  return valor;
+}
+
 /**
  * Detecta si el árbol `preserveOrder` ya validado por `E5-S3-T04` representa
  * un CFDI 4.0 y devuelve su elemento raíz estructural.
@@ -317,4 +424,116 @@ export function detectCfdiVersion(parsedXml: unknown): CfdiRootElement {
   }
 
   return { localName, namespaceUri, version, attributes, children: hijos, namespaceScope };
+}
+
+/**
+ * `E5-S3-T06` — Extracción del encabezado del CFDI 4.0 (Addendum §3.3,
+ * §5.3quater; D-009). Los 8 campos son los "campos obligatorios del
+ * agregado" de `ExtractedCfdiAggregate` (`cfdi-aggregate.types.ts`): un
+ * `Cfdi.folioFiscal`/`rfcEmisor`/`rfcReceptor`/`issuedAtLocal`/`subtotal`/
+ * `total`/`currency`/`tipoComprobante` ausente o ambiguo rechaza el
+ * documento completo — nunca se registra en `ambiguousFields[]` (eso es
+ * exclusivo de `E5-S3-T09`, sobre el conjunto de campos distinto).
+ *
+ * **Frontera de alcance (idéntica a `detectCfdiVersion`).** Solo puebla
+ * estos 8 campos de encabezado. No construye `ExtractedCfdiAggregate`
+ * completo — `concepts`, `cfdiTaxes` y `ambiguousFields` son responsabilidad
+ * de `E5-S3-T07`–`T09`, que no se adelantan aquí.
+ */
+export interface CfdiHeaderFields {
+  /** `UUID` del Timbre Fiscal Digital 1.1, longitud exacta 36 (RFC 4122). Nunca se registra en logs ni errores. */
+  readonly folioFiscal: string;
+  /** `Rfc` del elemento `Emisor`, hijo directo de la raíz. */
+  readonly rfcEmisor: string;
+  /** `Rfc` del elemento `Receptor`, hijo directo de la raíz. */
+  readonly rfcReceptor: string;
+  /**
+   * Valor exacto del atributo `Fecha` de la raíz, hora local sin offset,
+   * preservado tal cual — nunca convertido a `Date` (D-009).
+   */
+  readonly issuedAtLocal: string;
+  /** `SubTotal` de la raíz, cadena decimal exacta, nunca `number` (BR-GLB-004). */
+  readonly subtotal: string;
+  /** `Total` de la raíz, cadena decimal exacta, nunca `number` (BR-GLB-004). */
+  readonly total: string;
+  /** `Moneda` de la raíz. */
+  readonly currency: string;
+  /** `TipoDeComprobante` de la raíz. */
+  readonly tipoComprobante: string;
+}
+
+/**
+ * Puebla los 8 campos obligatorios de encabezado a partir de la raíz CFDI 4.0
+ * ya confirmada por {@link detectCfdiVersion}. No vuelve a resolver la raíz
+ * ni a validar `Version` — recibe `root` ya resuelto.
+ *
+ * @throws {CfdiExtractionError} con `code: 'CFDI_STRUCTURE_INVALID'` si
+ *   cualquiera de los 8 campos está ausente, no es del tipo esperado, o es
+ *   ambiguo: `Fecha` que no cumple `AAAA-MM-DDThh:mm:ss`, o `UUID` de
+ *   longitud distinta de 36 / que no cumple el patrón RFC 4122. Ningún caso
+ *   se registra como ambiguo — el rechazo estructural tiene prioridad
+ *   (Addendum §3.3).
+ */
+export function extractCfdiHeader(root: CfdiRootElement): CfdiHeaderFields {
+  const issuedAtLocal = exigirCadenaObligatoria(root.attributes['Fecha']);
+  if (!PATRON_FECHA_LOCAL.test(issuedAtLocal)) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  const subtotal = exigirCadenaObligatoria(root.attributes['SubTotal']);
+  const total = exigirCadenaObligatoria(root.attributes['Total']);
+  const currency = exigirCadenaObligatoria(root.attributes['Moneda']);
+  const tipoComprobante = exigirCadenaObligatoria(root.attributes['TipoDeComprobante']);
+
+  const emisor = buscarHijoDirecto(
+    root.children,
+    root.namespaceScope,
+    LOCAL_NAME_EMISOR,
+    root.namespaceUri,
+  );
+  const rfcEmisor = exigirCadenaObligatoria(emisor?.attributes['Rfc']);
+
+  const receptor = buscarHijoDirecto(
+    root.children,
+    root.namespaceScope,
+    LOCAL_NAME_RECEPTOR,
+    root.namespaceUri,
+  );
+  const rfcReceptor = exigirCadenaObligatoria(receptor?.attributes['Rfc']);
+
+  const complemento = buscarHijoDirecto(
+    root.children,
+    root.namespaceScope,
+    LOCAL_NAME_COMPLEMENTO,
+    root.namespaceUri,
+  );
+  if (complemento === undefined) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  const timbre = buscarHijoDirecto(
+    complemento.children,
+    complemento.namespaceScope,
+    LOCAL_NAME_TIMBRE_FISCAL_DIGITAL,
+    TFD_11_NAMESPACE_URI,
+  );
+  if (timbre === undefined) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  const folioFiscal = exigirCadenaObligatoria(timbre.attributes['UUID']);
+  if (folioFiscal.length !== 36 || !PATRON_UUID_RFC4122.test(folioFiscal)) {
+    throw new CfdiExtractionError('CFDI_STRUCTURE_INVALID');
+  }
+
+  return {
+    folioFiscal,
+    rfcEmisor,
+    rfcReceptor,
+    issuedAtLocal,
+    subtotal,
+    total,
+    currency,
+    tipoComprobante,
+  };
 }

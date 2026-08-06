@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 
 import {
   detectCfdiVersion,
+  extractCfdiHeader,
   splitQualifiedName,
   extendNamespaceScope,
   resolveNamespacePrefix,
@@ -456,5 +457,192 @@ describe('detectCfdiVersion — no vuelve a parsear ni a validar', () => {
     expect(fuente).not.toMatch(/\bconsole\s*\./);
     expect(fuente).not.toMatch(/\bnew Logger\s*\(/);
     expect(fuente).not.toMatch(/from ['"]@nestjs\/common['"]/);
+  });
+});
+
+/**
+ * `E5-S3-T06` — extracción de encabezado. RFC y UUID ficticios distintos de
+ * los de `detectCfdiVersion` arriba, para no confundir ambas suites.
+ */
+describe('extractCfdiHeader', () => {
+  const RFC_EMISOR = 'AAA010101AA1';
+  const RFC_RECEPTOR = 'BBB020202BB2';
+  const UUID_TIMBRE = '11111111-2222-3333-4444-555555555555';
+  const TFD_11_NAMESPACE_URI = 'http://www.sat.gob.mx/TimbreFiscalDigital';
+
+  /**
+   * Constructor de fixture con overrides — cada override en `null` elimina
+   * ese elemento/atributo por completo, en vez de dejarlo vacío, para
+   * simular ausencia real (no un valor vacío).
+   */
+  function construirCfdi(overrides?: {
+    fecha?: string | null;
+    subTotal?: string | null;
+    total?: string | null;
+    moneda?: string | null;
+    tipoDeComprobante?: string | null;
+    emisor?: string | null;
+    receptor?: string | null;
+    complemento?: string | null;
+  }): string {
+    const atributosEncabezado = [
+      overrides?.fecha !== null ? `Fecha="${overrides?.fecha ?? '2026-07-15T10:30:00'}"` : '',
+      overrides?.subTotal !== null ? `SubTotal="${overrides?.subTotal ?? '1000.00'}"` : '',
+      overrides?.total !== null ? `Total="${overrides?.total ?? '1160.00'}"` : '',
+      overrides?.moneda !== null ? `Moneda="${overrides?.moneda ?? 'MXN'}"` : '',
+      overrides?.tipoDeComprobante !== null
+        ? `TipoDeComprobante="${overrides?.tipoDeComprobante ?? 'I'}"`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const emisor =
+      overrides?.emisor !== null
+        ? (overrides?.emisor ?? `<cfdi:Emisor Rfc="${RFC_EMISOR}" NombreEmisor="Fuera del MVP"/>`)
+        : '';
+    const receptor =
+      overrides?.receptor !== null
+        ? (overrides?.receptor ?? `<cfdi:Receptor Rfc="${RFC_RECEPTOR}" UsoCFDI="G03"/>`)
+        : '';
+    const complemento =
+      overrides?.complemento !== null
+        ? (overrides?.complemento ??
+          `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}" UUID="${UUID_TIMBRE}"/></cfdi:Complemento>`)
+        : '';
+
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" Version="4.0" ${atributosEncabezado}>` +
+      `${emisor}${receptor}${complemento}` +
+      `</cfdi:Comprobante>`
+    );
+  }
+
+  function extraerHeader(xml: string) {
+    return extractCfdiHeader(detectCfdiVersion(analizar(xml)));
+  }
+
+  function esperarRechazoHeader(xml: string): CfdiExtractionError {
+    const error = capturar(() => extraerHeader(xml));
+    expect(error.code).toBe('CFDI_STRUCTURE_INVALID');
+    return error;
+  }
+
+  it('extrae los 8 campos obligatorios de un CFDI 4.0 completo y válido', () => {
+    const resultado = extraerHeader(construirCfdi());
+
+    expect(resultado).toEqual({
+      folioFiscal: UUID_TIMBRE,
+      rfcEmisor: RFC_EMISOR,
+      rfcReceptor: RFC_RECEPTOR,
+      issuedAtLocal: '2026-07-15T10:30:00',
+      subtotal: '1000.00',
+      total: '1160.00',
+      currency: 'MXN',
+      tipoComprobante: 'I',
+    });
+  });
+
+  it('subtotal y total nunca son number, siempre string', () => {
+    const resultado = extraerHeader(construirCfdi());
+    expect(typeof resultado.subtotal).toBe('string');
+    expect(typeof resultado.total).toBe('string');
+  });
+
+  it('un campo fuera del MVP presente (NombreEmisor, UsoCFDI) no provoca fallo', () => {
+    // Ya incrustados por defecto en construirCfdi(); si esto lanzara, la
+    // extracción estaría fallando por un campo que debe ignorarse en silencio.
+    expect(() => extraerHeader(construirCfdi())).not.toThrow();
+  });
+
+  it.each([
+    ['Fecha', { fecha: null }],
+    ['SubTotal', { subTotal: null }],
+    ['Total', { total: null }],
+    ['Moneda', { moneda: null }],
+    ['TipoDeComprobante', { tipoDeComprobante: null }],
+    ['Emisor completo', { emisor: null }],
+    ['Receptor completo', { receptor: null }],
+    ['Complemento completo (con el Timbre dentro)', { complemento: null }],
+  ])('rechaza cuando %s está ausente → CFDI_STRUCTURE_INVALID', (_nombre, overrides) => {
+    esperarRechazoHeader(construirCfdi(overrides));
+  });
+
+  it('rechaza cuando Emisor no tiene Rfc', () => {
+    esperarRechazoHeader(construirCfdi({ emisor: '<cfdi:Emisor NombreEmisor="Sin RFC"/>' }));
+  });
+
+  it('rechaza cuando Receptor no tiene Rfc', () => {
+    esperarRechazoHeader(construirCfdi({ receptor: '<cfdi:Receptor UsoCFDI="G03"/>' }));
+  });
+
+  it('rechaza cuando Complemento no contiene TimbreFiscalDigital', () => {
+    esperarRechazoHeader(construirCfdi({ complemento: '<cfdi:Complemento></cfdi:Complemento>' }));
+  });
+
+  it('rechaza cuando el Timbre no tiene UUID', () => {
+    esperarRechazoHeader(
+      construirCfdi({
+        complemento: `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}"/></cfdi:Complemento>`,
+      }),
+    );
+  });
+
+  it.each([
+    ['4', '2026-07-15'],
+    ['4b', '2026-07-15 10:30:00'],
+    ['4c', '2026-07-15T10:30'],
+    ['4d', '15-07-2026T10:30:00'],
+    ['4e', '2026-07-15T10:30:00Z'],
+    ['4f', ''],
+  ])('rechaza Fecha con forma inválida (caso %s) sin convertir a Date', (_caso, fechaInvalida) => {
+    const error = esperarRechazoHeader(construirCfdi({ fecha: fechaInvalida }));
+    // La prohibición D-009 se verifica indirectamente: el único efecto
+    // observable posible de una conversión sería `error.message` conteniendo
+    // un ISO-8601 con offset o un objeto Date serializado — nunca ocurre,
+    // porque `exigirCadenaObligatoria`/el patrón de forma rechazan antes de
+    // cualquier intento de `new Date(...)`.
+    expect(error.message).not.toMatch(/GMT|UTC|Invalid Date/);
+  });
+
+  it('acepta Fecha con forma AAAA-MM-DDThh:mm:ss exacta, preservada sin modificar', () => {
+    const resultado = extraerHeader(construirCfdi({ fecha: '2026-01-05T00:00:00' }));
+    expect(resultado.issuedAtLocal).toBe('2026-01-05T00:00:00');
+    expect(typeof resultado.issuedAtLocal).toBe('string');
+  });
+
+  it.each([
+    ['demasiado corto', '11111111-2222-3333-4444-55555555555'],
+    ['demasiado largo', '11111111-2222-3333-4444-5555555555555'],
+    ['sin guiones (36 chars pero forma incorrecta)', '111111112222333344445555555555555x'],
+  ])('rechaza un UUID con forma inválida (%s)', (_caso, uuidInvalido) => {
+    esperarRechazoHeader(
+      construirCfdi({
+        complemento: `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="${TFD_11_NAMESPACE_URI}" UUID="${uuidInvalido}"/></cfdi:Complemento>`,
+      }),
+    );
+  });
+
+  it('resuelve el Timbre por URI aunque el prefijo declarado sea distinto de "tfd"', () => {
+    const resultado = extraerHeader(
+      construirCfdi({
+        complemento: `<cfdi:Complemento><x:TimbreFiscalDigital xmlns:x="${TFD_11_NAMESPACE_URI}" UUID="${UUID_TIMBRE}"/></cfdi:Complemento>`,
+      }),
+    );
+    expect(resultado.folioFiscal).toBe(UUID_TIMBRE);
+  });
+
+  it('rechaza un Timbre cuyo prefijo "tfd" apunta a un namespace falso', () => {
+    esperarRechazoHeader(
+      construirCfdi({
+        complemento: `<cfdi:Complemento><tfd:TimbreFiscalDigital xmlns:tfd="http://ejemplo.com/falso" UUID="${UUID_TIMBRE}"/></cfdi:Complemento>`,
+      }),
+    );
+  });
+
+  it('nunca reporta el UUID en el mensaje de un error de estructura', () => {
+    const error = esperarRechazoHeader(construirCfdi({ complemento: null }));
+    expect(error.message).not.toContain(UUID_TIMBRE);
   });
 });
