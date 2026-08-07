@@ -52,6 +52,66 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - Confirma el contrato `issuedAtLocal: string` aprobado, la persistencia `VARCHAR(19)` y la migración correctiva `20260804013104_preserve_cfdi_local_issue_datetime` sobre tabla vacía. `I-14` e `I-15` quedan **`RESOLVED`**.
 - `D-009` pasa a `PASSED`; `E5-S3-T06` queda desbloqueada, no iniciada; Sprint 3 continúa `IN_PROGRESS`. Sin cambios de código durante este cierre.
 
+## 2026-08-04 — Implementación parcial de T03 (EWO-SEC-NAV-001): `cfdi.read` para Auditor y Supervisor
+
+**Catálogo de permisos y documentación exclusivamente.** Sin cambios de frontend, navegación, rutas, guards de `D-010`, código de `T01`/`T02`, `schema.prisma` ni migraciones. No se inicia `T04`–`T06`. **`T03` queda `PARCIALMENTE IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**, porque `document.download` no quedó resuelta (bloqueada por falta de aprobación explícita de producto).
+
+- Implementa el contrato vinculante de `D-011`: `cfdi.read` concedido a Auditor y Supervisor, estrictamente de lectura; Contador y Auxiliar lo conservan; Estudiante sigue sin él.
+- `packages/database/prisma/permissions-catalog.ts` (nuevo) extrae el catálogo de `Permission`/`RolePermission` de `seed.ts` para hacerlo importable en pruebas sin conectar a PostgreSQL; `seed.ts` ahora importa de ese módulo. Sin cambios de `schema.prisma`, sin migración.
+- `document.download` **no se creó** — D-011 solo ordena evaluarla, no la aprueba; ninguna fuente canónica la aprueba explícitamente. Registrado como hallazgo `ALTO` pendiente de decisión de producto.
+- Sincronización documental: `docs/04_BUSINESS_RULES.md` (nueva `BR-PERM-004`, matriz canónica), `docs/08_API_DESIGN.md` (`API-0027`/`API-0028`), `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0019`/`PAGE-0020`), `docs/15_UX_FLOWS.md` (`UXF-0011` — eliminada la frase que excluía a Supervisor/Auditor, contradecía a D-011 directamente), `docs/16_WIREFRAMES_SPECIFICATION.md` (`WF-0015`/`WF-0016`).
+- Nueva prueba unitaria `packages/database/src/permissions-catalog.test.ts` (8 pruebas, `vitest`) sobre el catálogo real.
+- **Validación:** `vitest run src/permissions-catalog.test.ts` (paquete `@contaia/database`) 8/8 verdes · `tsc --noEmit` sin errores · `eslint` sin errores ni advertencias sobre los archivos modificados.
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §19.
+
+## 2026-08-05 — Resolución de `document.download` y cierre de implementación de T03 (EWO-SEC-NAV-001)
+
+**Catálogo de permisos, corrección de `API-0028` y documentación exclusivamente.** Sin cambios de frontend, navegación, rutas, guards de `D-010`, código de `T01`/`T02`, `schema.prisma` ni migraciones. No se inicia `T04`–`T06`. **`T03` queda `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**, la certificación requiere auditoría independiente `READ ONLY` de Codex.
+
+- El responsable de producto aprueba `document.download` como clave independiente de descarga de binario, resolviendo el hallazgo `ALTO` que §19 había dejado pendiente: concedida a Administrador, Contador, Auxiliar, Supervisor y Auditor; Estudiante no la recibe; `isPlatformAdmin` no la recibe de forma implícita.
+- `packages/database/prisma/permissions-catalog.ts`: nueva entrada `document.download` (módulo `document`) agregada a `ROLE_PERMISSIONS.CONTADOR`/`.AUXILIAR`/`.SUPERVISOR`/`.AUDITOR`; Administrador la recibe vía el mapeo completo del catálogo. `seed.ts` sin cambios adicionales — ya la consumía desde §19.
+- `docs/08_API_DESIGN.md`: `API-0028` corregida para incluir a Administrador (hallazgo `BAJO` de §19, `RESOLVED`).
+- `docs/04_BUSINESS_RULES.md` `BR-PERM-004`: las dos filas de `document.download` pasan de "sin aprobar" a los cinco roles autorizados.
+- `packages/database/src/permissions-catalog.test.ts`: se retira la prueba que documentaba la ausencia de la clave y se agregan 5 pruebas nuevas (13 en total).
+- **Validación:** `vitest run src/permissions-catalog.test.ts` (paquete `@contaia/database`) 13/13 verdes · `tsc --noEmit` sin errores · `eslint` sin errores ni advertencias sobre los archivos modificados · `schema.prisma` sin cambios (confirmado por `git status`).
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §20.
+
+## 2026-08-06 — Ratificación arquitectónica de `document.download` y cierre documental de T03 (EWO-SEC-NAV-001)
+
+**Documentación y pruebas exclusivamente.** Sin cambios de catálogo de permisos, `seed.ts`, `schema.prisma`, migraciones, frontend, rutas ni guards. `T03` sigue **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**.
+
+- **Decisión técnica:** se ratifica la clave independiente `document.download` frente a las alternativas de no crearla nunca o integrarla en `document.read`. Es la única compatible con BR-PERM-001 (denegar por defecto), con el punto 10 del contrato vinculante de `D-011` y con la auditabilidad exigida por BR-SEC-004/BR-AUD-002; además evita una partición rompiente de permisos ya concedidos si en el futuro un rol debe consultar sin poder extraer. Sin cambios al catálogo: la implementación del 2026-08-05 se conserva íntegra.
+- **Ocho contradicciones residuales corregidas** — dos `ALTO`: `docs/15_UX_FLOWS.md` `UXF-0011` todavía afirmaba que la clave "sigue sin aprobar", y `docs/08_API_DESIGN.md` `API-0026` no exigía ninguna clave ("Cualquier Rol con Membresía"), justo la descarga sin permiso propio que `D-011` prohíbe. Cuatro `MEDIO`: columna **Permiso** ausente en `API-0023`/`0024`/`0025`, celda obsoleta en `BR-PERM-004`, roles incompletos en `PAGE-0021`/`0022`/`0023` y **Administrador omitido** de `PAGE-0019`/`0020` y `WF-0013`/`0015`/`0016` — la contradicción que la propia sección _Problema_ de `D-011` había nombrado y que `T03` corrigió en `docs/08` pero no en las pantallas. Dos `BAJO`: acciones de descarga sin clave en `WF-0012`/`WF-0016` y el vacío de granularidad de la matriz de `docs/11` §9.
+- `docs/04_BUSINESS_RULES.md` `BR-PERM-004`: la `Regla` prohíbe ahora de forma explícita derivar una capacidad de otra — ni `document.read` ni `cfdi.read` autorizan el binario.
+- `packages/database/src/permissions-catalog.test.ts`: de 13 a **22 pruebas**. Nueva prueba de sincronización que lee `BR-PERM-004` desde `docs/04` y la compara fila por fila contra el catálogo sembrado, más el invariante "quien descarga puede consultar". Divergir entre documentación y catálogo ahora rompe la suite.
+- **Validación:** `vitest run src/permissions-catalog.test.ts` 22/22 verdes · verificación **por mutación** de la prueba de sincronización (divergencia introducida a propósito ⇒ falla esperada; revertida ⇒ verde) · `tsc --noEmit` sin errores · `eslint` sin errores ni advertencias. Sin `seed` contra base real, sin `commit` ni `push`.
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §21.
+
+## 2026-08-06 — Corrección de contradicciones documentales residuales de T03/D-011 (EWO-SEC-NAV-001)
+
+**Documentación exclusivamente.** Sin cambios de catálogo de permisos, `seed.ts`, `schema.prisma`, migraciones, código, frontend productivo, rutas de `T04` ni implementación de `API-0026`/`API-0027`/`API-0028`. `T03` sigue **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**.
+
+- **Origen:** auditoría final independiente `READ ONLY` de `T03` ejecutada por otro agente (Antigravity-01) — [`EWO-SEC-NAV-001-T03_FINAL_AUDIT.md`](docs/engineering/audits/EWO-SEC-NAV-001-T03_FINAL_AUDIT.md). Confirmó el catálogo real, `seed.ts` y las 22 pruebas correctos, sin hallazgos `CRÍTICO`/`ALTO`; encontró un `MEDIO` (`T03-OBS-01`): el catálogo índice de `docs/16_WIREFRAMES_SPECIFICATION.md` §54 contradecía su propia prosa normativa (ya corregida en §21) para `WF-0012`/`0013`/`0015`/`0016` — reaparición del patrón "Administrador/Supervisor/Auditor omitidos" que `D-011` fue creada para eliminar. Veredicto: `REQUIERE CAMBIOS`, mecánico por ese único `MEDIO`.
+- **`docs/16_WIREFRAMES_SPECIFICATION.md` §54:** las cuatro filas corregidas para reflejar la prosa ya vigente y `BR-PERM-004`.
+- **`docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`:** matriz RBAC de §12 (2026-07-24, anterior a `D-011`) sincronizada — Supervisor y Auditor pasan a "Sí (D-011)" en `cfdi.read`, estrictamente lectura; nota de vigencia con referencia cruzada a `D-011`/`BR-PERM-004`. Búsqueda dirigida en el mismo archivo encontró y corrigió tres referencias adicionales a la matriz obsoleta (§3.1 línea 162, §15 criterios 28 y 34 — sección explícitamente "actualizada", no histórica) y un ítem del DoD de cierre que atribuía la protección de `API-0026` a `document.read` en vez de `document.download`. Arquitectura de concurrencia del worker (`D-007`, AD-1 a AD-12) sin cambio.
+- **`docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md`:** regla invariante #9 de §5 y la tarjeta `E5-S7-T02` corregidas al mismo criterio; `E5-S7-T02` conserva `Estado inicial: BLOCKED`, no se marca implementada. La tarjeta `E5-S1-T08` (ya `PASSED` el 2026-07-25) **no se reescribió** — se conserva íntegra como registro histórico de lo que se certificó en esa fecha bajo el criterio entonces vigente, con una nota de vigencia añadida que remite a `D-011` sin reabrir la tarjeta. La sección 4 "Estado real del repositorio" (fechada 2026-07-25) tampoco se tocó — es un snapshot histórico correcto para esa fecha.
+- **`AI_CONTEXT.md`:** corregida la afirmación de que el cierre de `T03` en §21 quedó "sin bloqueos abiertos", inexacta tras `T03-OBS-01`.
+- **Hallazgo no corregido, reportado:** `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` (líneas 140, 198–207) sigue afirmando que Supervisor y Auditor no deben acceder a `API-0027`/`API-0028` — misma clase de defecto, pero ese archivo no está en el `ALLOWED_WRITE` de esta corrección; requiere una Work Order separada.
+- **Validación:** `vitest run src/permissions-catalog.test.ts` 22/22 verdes (sin cambios de catálogo) · `tsc --noEmit` sin errores · `git diff --check` sin advertencias de contenido. Sin `commit` ni `push`.
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §22.
+
+## 2026-08-06 — Corrección del último residuo normativo de T03/D-011 en EWO-005 (EWO-SEC-NAV-001)
+
+**Documentación exclusivamente, un solo archivo.** Sin cambios de catálogo, `seed.ts`, `schema.prisma`, migraciones, código, frontend, rutas de `T04`, `E5-S3-T06`, `D-010`, `D-012` ni del contrato vinculante de `D-011`. `Addendum` y `Checklist` no tocados — ya corregidos por §22. `T03` sigue **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**.
+
+- **Origen:** hallazgo abierto y reportado por §22 — `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` seguía afirmando en secciones vigentes que Supervisor y Auditor no deben acceder a `API-0027`/`API-0028`, misma clase de defecto ya resuelta en `Addendum`/`Checklist`, pero ese archivo no estaba en el `ALLOWED_WRITE` de esa misión.
+- **§4.4 "Impacto sobre la guarda de RBAC" reescrita:** tabla de permisos ampliada a cuatro claves (se separa `document.download` de `document.read`, que antes incluía la descarga en su propia descripción — la misma equivalencia incorrecta que `D-011` punto 10 prohíbe); nota de vigencia con referencia cruzada a `D-011`/`BR-PERM-004`; los tres bullets de "Distinción crítica" corregidos, con `document.download`/`API-0026` como bullet propio.
+- Diagrama de flujo y fila 10 de la tabla de criterios de aceptación de EWO-005 (norma vigente, a diferencia de la fila 6, que sí lleva su propia marca de sustitución) corregidos al mismo criterio.
+- **Preservado sin alterar:** la nota histórica sobre la omisión original de Administrador (línea ~22), y la ruta de listado de `T04` (`/{companyId}/fiscal/cfdi`).
+- **Búsqueda global:** sin contradicciones vigentes nuevas en el resto del repositorio. Encontrado un residuo fuera de alcance: `.claude/worktrees/agent-a4b02bb46c9bc7841/` contiene copias divergentes de `Addendum`/`Checklist`/este plan/`CHANGELOG` con el razonamiento contrario (excluye a Supervisor/Auditor) — worktree aislado de otro agente, no tocado, reportado para decisión humana.
+- **Validación:** `vitest run src/permissions-catalog.test.ts` 22/22 verdes (sin cambio de catálogo) · `git diff --check` sin advertencias. Sin `commit` ni `push`.
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §23.
+
 ## 2026-08-06 — Integración de E5-S3-T06 (extracción de encabezado CFDI 4.0, Sprint 3)
 
 **Código + documentación.** Sin cambios de `schema.prisma`, migraciones, frontend, worker ni módulos ajenos al extractor.

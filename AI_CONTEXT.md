@@ -22,11 +22,12 @@
 
 ## Decisiones activas más relevantes
 
-| ID    | Decisión                                                              | Por qué importa ahora                                                                   |
-| ----- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| D-007 | Estrategia de concurrencia y persistencia atómica del agregado CFDI   | Rige todo el Bloque E — cualquier cambio en `persist-cfdi-aggregate.ts` debe respetarla |
-| D-008 | Recuperación de `E5-S1-T07` vía migración correctiva versionada       | Precedente para futuras correcciones de migración                                       |
-| D-009 | `Fecha` CFDI 4.0 → `issuedAtLocal: string`; namespace oficial del TFD | **APROBADA · IMPLEMENTADA · PASSED** — `E5-S3-T06` desbloqueada                         |
+| ID    | Decisión                                                              | Por qué importa ahora                                                                                                                                                                                                                                                                                                 |
+| ----- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-007 | Estrategia de concurrencia y persistencia atómica del agregado CFDI   | Rige todo el Bloque E — cualquier cambio en `persist-cfdi-aggregate.ts` debe respetarla                                                                                                                                                                                                                               |
+| D-008 | Recuperación de `E5-S1-T07` vía migración correctiva versionada       | Precedente para futuras correcciones de migración                                                                                                                                                                                                                                                                     |
+| D-009 | `Fecha` CFDI 4.0 → `issuedAtLocal: string`; namespace oficial del TFD | **APROBADA · IMPLEMENTADA · PASSED** — `E5-S3-T06` desbloqueada                                                                                                                                                                                                                                                       |
+| D-011 | `cfdi.read` para Auditor y Supervisor; `document.download` separado   | **IMPLEMENTADA · PENDIENTE DE AUDITORÍA** (ratificada 2026-08-06) — `cfdi.read` concedido a Auditor/Supervisor; `document.download` como clave independiente para Administrador/Contador/Auxiliar/Supervisor/Auditor. `API-0026` debe exigirla: `document.read` y `cfdi.read` nunca autorizan la descarga del binario |
 
 Registro completo: [`brain/DECISIONS.md`](brain/DECISIONS.md) · índice rápido: [`brain/DECISION_INDEX.md`](brain/DECISION_INDEX.md).
 

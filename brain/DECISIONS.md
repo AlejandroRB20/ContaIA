@@ -441,3 +441,114 @@ Verificación independiente `READ ONLY` por Codex, conforme a `AI_PLAYBOOK.md`. 
 - **Estatus:** **IMPLEMENTADA · PASSED** (cierre administrativo 2026-08-04). `T01` de [`EWO-SEC-NAV-001`](../docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) implementada el 2026-08-04; auditoría final independiente `READ ONLY` de Codex: `PASSED CON OBSERVACIONES` — [`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](../docs/engineering/audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md). Una observación `BAJO` (T01-OBS-01), no bloqueante, registrada como seguimiento. No modifica `D-001`–`D-009` salvo la restricción de alcance sobre `D-002` documentada arriba.
 
 ---
+
+## D-011 — Permisos de lectura de CFDI para Auditor y Supervisor; separación de `document.download`
+
+- **Fecha:** 2026-08-04
+- **Origen:** bloqueador 3 (`ALTO`) de la auditoría independiente de navegación, confirmado contra el catálogo de permisos y la documentación.
+
+### Contexto
+
+`docs/04_BUSINESS_RULES.md` §5.1 fija la matriz de acceso base por rol y otorga al **Auditor** «Acceso a evidencia/auditoría: Sí, solo lectura» y al **Supervisor** «Sí». El catálogo implementado en `packages/database/prisma/seed.ts` concede al Auditor `['company.read', 'journal.read', 'sat.download', 'document.read']` y al Supervisor `['company.read', 'journal.read', 'journal.approve', 'sat.download', 'document.read']` — **ninguno de los dos recibe `cfdi.read`**.
+
+La clave `cfdi.read` existe únicamente en el árbol de trabajo sin commitear, concedida a Contador y Auxiliar. Ningún endpoint la exige todavía: el módulo `apps/api/src/modules/cfdi/` contiene repositorios y persistencia, **sin controlador**. `API-0027` no está implementada.
+
+### Problema
+
+Las fuentes documentales se contradicen entre sí, y una se contradice **consigo misma**:
+
+| Fuente                                                 | Afirmación sobre el Auditor                                                       |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `docs/04_BUSINESS_RULES.md` §5.1                       | «Solo lectura», con acceso a evidencia/auditoría. No menciona CFDI explícitamente |
+| `docs/31_MASTER_SCREEN_MAP.md` línea 78                | Consulta «contabilidad, **fiscal** y auditoría» → incluye fiscal                  |
+| `docs/31_MASTER_SCREEN_MAP.md` línea 120 (`PAGE-0020`) | Roles: «Auxiliar, Contador» → **excluye** al Auditor **y al Administrador**       |
+| `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md` línea 246  | Consulta «Contabilidad, **Fiscal** y auditoría» → incluye fiscal                  |
+| `docs/08_API_DESIGN.md` línea 188 (`API-0027`)         | «Administrador, Contador, Auxiliar» → excluye al Auditor y al Supervisor          |
+| `seed.ts` línea 136                                    | Sin `cfdi.read`                                                                   |
+
+`docs/31` línea 78 contradice a `docs/31` línea 120. `docs/31` línea 120 contradice a `API-0027` al omitir al Administrador. La matriz de permisos **no es derivable** del conjunto documental.
+
+Existe además una imprecisión independiente: `API-0026` (descarga del archivo original) **no tiene clave de permiso propia** en el catálogo. Quedaría cubierta por `document.read`, descrita como «Consultar documentos y su estado». Obtener el binario original es una capacidad materialmente distinta de consultar metadatos, y unificarlas impide conceder consulta sin conceder descarga — contrario al principio de mínimo privilegio.
+
+### Alternativas
+
+- **(A) Sincronización documental sin cambio de permisos.** Corregir `docs/31` y `docs/32` para alinearlos con `seed.ts` y `API-0027`, dejando al Auditor sin `cfdi.read`. Mínimo cambio; deja al rol auditor sin acceso al soporte fiscal de los asientos que sí puede leer.
+- **(B) Conceder `cfdi.read` a Auditor y Supervisor**, corrigiendo `docs/31` línea 120 y `API-0027`.
+- **(C) Conceder acceso fiscal amplio al Auditor**, incluyendo descarga de XML y exportación. Rechazada: excede «solo lectura» de `docs/04` §5.1 y crea capacidades no soportadas por ninguna fuente.
+
+### Análisis
+
+Se adopta **(B)**.
+
+`docs/04_BUSINESS_RULES.md` §5.1 es la autoridad aplicable de mayor rango: ninguna decisión previa cubre esta materia, y `docs/31`/`docs/32` son **Draft v0.1 sin versionar**, expresamente subordinados a `docs/14` y `docs/08` por su propio encabezado de control.
+
+El argumento sustantivo es de coherencia interna: al Auditor ya se le concede `journal.read`. En el marco fiscal mexicano el CFDI es el soporte legal de los asientos contables. Conceder lectura del asiento y negar lectura del comprobante que lo sustenta deja al rol incapaz de ejercer la función que lo define, mientras que `docs/04` §5.1 le otorga expresamente acceso a evidencia. La misma lógica aplica al Supervisor, que aprueba casos sensibles y a quien `docs/04` §5.1 concede acceso a evidencia — la auditoría independiente no lo señaló; se resuelve aquí para no dejar la matriz a medias.
+
+`(C)` se rechaza porque descargar el XML original es acceso al binario, gobernado por la clave separada que esta misma decisión ordena evaluar, no por `cfdi.read`.
+
+### Decisión
+
+Se concede `cfdi.read` a Auditor y Supervisor, estrictamente como capacidad de lectura, y se ordena resolver `document.download` como clave separada.
+
+### Contrato vinculante
+
+1. **Auditor** recibe `cfdi.read`.
+2. **Supervisor** recibe `cfdi.read`.
+3. **Contador** conserva `cfdi.read`.
+4. **Auxiliar** conserva `cfdi.read` conforme al catálogo vigente.
+5. **Estudiante** no recibe `cfdi.read` (opera en sandbox, sin permisos reales).
+6. `cfdi.read` permite **únicamente lectura**: listar, ver resumen y ver datos fiscales estructurados.
+7. `cfdi.read` **no permite** generar, cancelar, modificar ni eliminar.
+8. Los CFDI extraídos son **inmutables**: `BR-CFDI-001`/`BR-CFDI-002` y el propio `schema.prisma` establecen que EWO-005 no expone ninguna operación de borrado (`BR-INT-002`). **No deben crearse permisos de modificación o eliminación de CFDI** — son operaciones inexistentes por diseño, no capacidades pendientes.
+9. Debe evaluarse y, si procede, aprobarse la clave separada **`document.download`**.
+10. **`document.read` no debe asumirse equivalente a descargar el binario original.**
+
+### Distinción normativa de recursos
+
+Cinco recursos distintos, que la documentación venía tratando como uno:
+
+| Recurso                             | Naturaleza                                         | Clave que lo gobierna                                |
+| ----------------------------------- | -------------------------------------------------- | ---------------------------------------------------- |
+| Documento — metadatos               | Nombre, tipo, estado, fecha, uploader              | `document.read`                                      |
+| Documento — archivo original        | Binario en almacenamiento de objetos               | **`document.download`** (a resolver en `T03`)        |
+| CFDI — datos fiscales estructurados | Emisor, receptor, conceptos, importes, impuestos   | `cfdi.read`                                          |
+| CFDI — XML original                 | El binario del comprobante; es el Documento origen | **`document.download`** (a resolver en `T03`)        |
+| Evidencia de auditoría              | Registro de Trazabilidad                           | `API-0049`/`API-0050`, módulo Audit, no implementado |
+
+El XML original de un CFDI **no** se gobierna por `cfdi.read`: es el archivo del Documento y se rige por la clave de descarga.
+
+### Impacto
+
+- **Base de datos:** ninguno estructural. Reseed del catálogo `Permission`/`RolePermission`.
+- **Backend:** ninguno inmediato — `API-0027` no está implementada. La clave se exigirá cuando el controlador exista.
+- **API:** corrección de la lista de roles de `API-0027` en `docs/08_API_DESIGN.md`.
+- **Documentación:** `docs/04` §5.1 como matriz canónica; corrección de `docs/31` líneas 78 y 120, `docs/32` línea 246 y `API-0027`.
+- **Frontend:** el filtrado cosmético de navegación deberá reflejar la clave; la autorización real permanece server-side.
+- **Seguridad:** amplía lectura de datos fiscales a dos roles adicionales. Sin capacidad de escritura nueva.
+
+### Riesgos
+
+- **Ampliación de superficie de lectura de datos fiscales.** Mitigación: estrictamente lectura; sin descarga de binario, que queda gobernada por clave separada.
+- **`document.download` podría no aprobarse en `T03`**, dejando la descarga cubierta por `document.read`. Debe reportarse como pendiente explícito, no resolverse por omisión.
+- **Ejecución fuera de orden.** La concesión debe aplicarse junto con el endpoint que la exige; conceder una clave que ningún guard verifica genera falsa señal de protección.
+
+### Validación
+
+1. Existe una matriz única por acción, sin contradicción entre `docs/04`, `docs/08`, `docs/31`, `docs/32` y `seed.ts`.
+2. Auditor y Supervisor reciben únicamente lectura de CFDI.
+3. No aparecen permisos de escritura sobre CFDI.
+4. La descarga de archivos queda resuelta explícitamente — concedida o denegada, nunca implícita.
+
+### Estado
+
+- **Responsable:** Claude Code (Principal Software Architect), por encargo del responsable de producto de ContaIA.
+- **Estatus:** **IMPLEMENTADA · PENDIENTE DE AUDITORÍA.** `cfdi.read` concedido a Auditor y Supervisor en `packages/database/prisma/permissions-catalog.ts` (catálogo importado por `seed.ts`); Contador y Auxiliar lo conservan; Estudiante sigue sin él. `document.download` **aprobado por decisión explícita del responsable de producto (2026-08-05)** y creado como clave independiente en el catálogo, concedida a Administrador, Contador, Auxiliar, Supervisor y Auditor; Estudiante no la recibe. **Ratificado técnicamente el 2026-08-06** (`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §21): la clave separada es la única de las tres opciones evaluadas (crearla / no crearla nunca / integrarla en `document.read`) compatible con BR-PERM-001 y con el punto 10 de este contrato; se corrigió además el residuo documental que §20 dio por cerrado sin estarlo (`docs/15` afirmaba que la clave seguía sin aprobar; `docs/08` `API-0026` no exigía ninguna clave). Sin cambio de contrato vinculante ni de catálogo. No marcado `PASSED` — la certificación requiere auditoría independiente `READ ONLY` de Codex.
+
+### Historial
+
+- **2026-08-04** — se registra `D-011` (bloqueador 3, `ALTO`, de la auditoría independiente de navegación). `seed.ts` no modificado. Estatus inicial: `APROBADA · PENDIENTE DE IMPLEMENTACIÓN`.
+- **2026-08-04** — implementación de `T03` (parcial): se concede `cfdi.read` a Auditor y Supervisor en el catálogo sembrado; se sincroniza la documentación de `docs/04`, `docs/08`, `docs/31`, `docs/15` y `docs/16` a la misma matriz. `document.download` queda explícitamente **sin resolver** — no está aprobada en ninguna fuente canónica, por lo que no se crea la clave; ver hallazgo en `EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §19. `D-011` pasa a `PARCIALMENTE IMPLEMENTADA · PENDIENTE DE AUDITORÍA`.
+- **2026-08-05** — resolución de `document.download`: el responsable de producto aprueba la clave independiente para Administrador, Contador, Auxiliar, Supervisor y Auditor (Estudiante excluida); se crea en `packages/database/prisma/permissions-catalog.ts`, `seed.ts` la consume sin cambio adicional (ya importaba el catálogo canónico); se corrige `API-0028` en `docs/08_API_DESIGN.md` (omitía a Administrador pese a poseer todos los permisos, hallazgo `BAJO` de `EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §19); se actualiza `docs/04_BUSINESS_RULES.md` BR-PERM-004. `D-011` pasa a `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`; ver `EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §20.
+- **2026-08-06** — ratificación arquitectónica y cierre documental de `T03` (§21 del plan). Se verifica que la clave separada respeta mínimo privilegio, escalabilidad, consistencia, `BR-SEC` y `BR-PERM`, y se descartan las alternativas de no crearla o integrarla en `document.read`. Se corrigen ocho contradicciones residuales (`docs/15` `UXF-0011`, `docs/08` `API-0023`–`API-0026`, `docs/04` `BR-PERM-004`, `docs/31` `PAGE-0019`–`PAGE-0023`, `docs/16` `WF-0012`/`WF-0013`/`WF-0015`/`WF-0016` —incluida la omisión de Administrador que la sección _Problema_ de esta misma decisión ya había señalado—, `docs/11` §9) y se añade una prueba automatizada que compara `BR-PERM-004` contra el catálogo sembrado, verificada por mutación. Catálogo, `seed.ts`, `schema.prisma` y el contrato vinculante de esta decisión **sin cambios**. `D-011` continúa `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`.
+
+---

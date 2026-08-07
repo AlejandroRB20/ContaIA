@@ -201,6 +201,8 @@ Basado en BR-AUTH-001 a 004 (`docs/04_BUSINESS_RULES.md`) y la sección 6 de `do
 
 `*` Creación de CFDI = carga del Documento origen, no timbrado. `**` Auxiliar solo crea/edita Pólizas en estado `DRAFT`, nunca aprueba (BR-ROL-001).
 
+`L` sobre Documentos y CFDI cubre **metadatos y datos extraídos**, nunca la descarga del binario: obtener el archivo original o el XML es una capacidad separada, gobernada por `document.download` (D-011). Esta matriz es intencionalmente gruesa; la matriz canónica por acción, con su clave de permiso y sus roles, es **BR-PERM-004** en `docs/04_BUSINESS_RULES.md` — ante cualquier diferencia de granularidad, prevalece esa tabla.
+
 **Ningún Rol puede aumentarse privilegios a sí mismo** (BR-PERM-002): solo un Administrador modifica Membresías de otros, y nunca la propia hacia un Rol superior sin intervención de otro Administrador.
 
 ## 10. Separación de funciones

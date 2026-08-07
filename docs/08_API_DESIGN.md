@@ -177,16 +177,20 @@ _Nota de grupo:_ ninguno de estos endpoints requiere `companyId`; operan antes o
 
 ### 9.5 Documents y CFDI
 
-_Nota de grupo:_ la carga de archivos sigue el patrón de URL prefirmada (decisión obligatoria 9 y sección 14): `API-0023` no recibe el archivo binario, solo inicia la intención de carga.
+_Nota de grupo:_ la carga de archivos sigue el patrón de URL prefirmada (decisión obligatoria 9 y sección 14): `API-0023` no recibe el archivo binario, solo inicia la intención de carga. La columna **Permiso** de este grupo enuncia la clave del catálogo `Permission`/`RolePermission` que el endpoint DEBE exigir; la matriz canónica por acción y sus roles autorizados viven en `docs/04_BUSINESS_RULES.md` **BR-PERM-004** (D-011). Toda ruta sigue exigiendo además Membresía vigente y aislamiento por Empresa: la clave se suma a esa condición, nunca la sustituye.
 
-| ID       | Método y ruta                           | Propósito                                              | Actor                                     | Permiso                    | Idemp.                 | Auditoría | BR                      | Workflow |
-| -------- | --------------------------------------- | ------------------------------------------------------ | ----------------------------------------- | -------------------------- | ---------------------- | --------- | ----------------------- | -------- |
-| API-0023 | `POST /companies/{companyId}/documents` | Iniciar carga (devuelve URL prefirmada + `documentId`) | Auxiliar, Contador                        | Rol con permiso de captura | Sí (`Idempotency-Key`) | Sí        | BR-DOC-001, BR-DOC-002  | 6        |
-| API-0024 | `GET /companies/{companyId}/documents`  | Listar Documentos                                      | Cualquier Rol con Membresía               | Membresía vigente          | No aplica              | No        | BR-DOC-001              | 6        |
-| API-0025 | `GET /documents/{documentId}`           | Consultar Documento y su estado                        | Cualquier Rol con Membresía en su Empresa | Pertenencia a la Empresa   | No aplica              | No        | BR-DOC-001, BR-XML-001  | 6, 7     |
-| API-0026 | `GET /documents/{documentId}/download`  | Obtener URL de descarga segura y temporal              | Cualquier Rol con Membresía               | Pertenencia a la Empresa   | No aplica              | Sí        | BR-DOC-001              | 6        |
-| API-0027 | `GET /documents/{documentId}/cfdi`      | Consultar datos extraídos del CFDI                     | Auxiliar, Contador                        | Pertenencia a la Empresa   | No aplica              | No        | BR-CFDI-002, BR-XML-002 | 7        |
-| API-0028 | `GET /companies/{companyId}/cfdi`       | Listar CFDI de la Empresa                              | Auxiliar, Contador                        | Membresía vigente          | No aplica              | No        | BR-CFDI-001 a 003       | 7        |
+| ID       | Método y ruta                           | Propósito                                              | Actor                                                   | Permiso              | Idemp.                 | Auditoría | BR                                   | Workflow |
+| -------- | --------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------- | -------------------- | ---------------------- | --------- | ------------------------------------ | -------- |
+| API-0023 | `POST /companies/{companyId}/documents` | Iniciar carga (devuelve URL prefirmada + `documentId`) | Administrador, Contador, Auxiliar                       | `document.upload`    | Sí (`Idempotency-Key`) | Sí        | BR-DOC-001, BR-DOC-002, BR-PERM-004  | 6        |
+| API-0024 | `GET /companies/{companyId}/documents`  | Listar Documentos                                      | Administrador, Contador, Auxiliar, Supervisor, Auditor  | `document.read`      | No aplica              | No        | BR-DOC-001, BR-PERM-004              | 6        |
+| API-0025 | `GET /documents/{documentId}`           | Consultar Documento y su estado                        | Administrador, Contador, Auxiliar, Supervisor, Auditor  | `document.read`      | No aplica              | No        | BR-DOC-001, BR-XML-001, BR-PERM-004  | 6, 7     |
+| API-0026 | `GET /documents/{documentId}/download`  | Obtener URL de descarga segura y temporal              | Administrador, Contador, Auxiliar, Supervisor, Auditor  | `document.download`† | No aplica              | Sí        | BR-DOC-001, BR-PERM-004              | 6        |
+| API-0027 | `GET /documents/{documentId}/cfdi`      | Consultar datos extraídos del CFDI                     | Administrador, Contador, Auxiliar, Supervisor, Auditor* | `cfdi.read`          | No aplica              | No        | BR-CFDI-002, BR-XML-002, BR-PERM-004 | 7        |
+| API-0028 | `GET /companies/{companyId}/cfdi`       | Listar CFDI de la Empresa                              | Administrador, Contador, Auxiliar, Supervisor, Auditor* | `cfdi.read`          | No aplica              | No        | BR-CFDI-001 a 003, BR-PERM-004       | 7        |
+
+`*` Supervisor y Auditor acceden vía `cfdi.read`, estrictamente de lectura (D-011, `brain/DECISIONS.md`).
+
+`†` `API-0026` DEBE exigir `document.download`. **`document.read` no autoriza la descarga del binario** (D-011, contrato vinculante punto 10): consultar metadatos y obtener el archivo almacenado son dos capacidades distintas y se conceden por separado. La misma clave gobierna la descarga del **XML original de un CFDI** — es el archivo del Documento origen, no un recurso del módulo `cfdi`: **`cfdi.read` tampoco autoriza descargarlo**. El Estudiante no recibe ninguna de estas claves (opera en sandbox, `docs/11_SECURITY_ARCHITECTURE.md` sección 9).
 
 ### 9.6 Chart of Accounts
 

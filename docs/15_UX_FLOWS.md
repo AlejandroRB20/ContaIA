@@ -186,7 +186,7 @@ Métricas (sección 47) se definen como marco general reutilizable, no repetidas
 
 ### UXF-0011 — Revisión de CFDI
 
-- **Objetivo:** que el Usuario entienda exactamente qué se extrajo y qué no se validó. **Actor:** Auxiliar, Contador, Auditor (lectura).
+- **Objetivo:** que el Usuario entienda exactamente qué se extrajo y qué no se validó. **Actor:** Administrador, Contador, Auxiliar, Supervisor, Auditor (lectura de datos CFDI vía `cfdi.read`, API-0027 — D-011, `brain/DECISIONS.md`). Supervisor y Auditor solo tienen lectura: no pueden vincular a Póliza ni ejecutar ninguna acción de escritura. **Descarga del archivo original:** clave independiente `document.download`, aprobada el 2026-08-05 para Administrador, Contador, Auxiliar, Supervisor y Auditor (D-011, `EWO-SEC-NAV-001` T03; matriz canónica en `docs/04_BUSINESS_RULES.md` BR-PERM-004). `document.read` (metadatos) y `cfdi.read` (datos fiscales) **no** autorizan obtener el binario: la acción "descargar" de esta pantalla se habilita solo con `document.download` y se sirve por `API-0026` (URL firmada y temporal).
 - **Flujo principal:** 1) Entrada desde PAGE-0019 (listado) o navegación contextual (desde una Póliza vinculada). 2) PAGE-0020 muestra resumen (emisor, receptor, total), datos fiscales completos, conceptos, impuestos, relaciones (CFDI relacionados si el propio XML los declara), evidencia (Documento origen), observaciones (campos ambiguos, BR-XML-002), y acciones permitidas según Rol (vincular a Póliza, descargar).
 - **Distinción explícita en la interfaz (workflow 7, `docs/06_SYSTEM_WORKFLOWS.md`; `docs/11_SECURITY_ARCHITECTURE.md` sección 17):** **lectura estructural** (siempre realizada) se presenta como "datos extraídos del archivo"; **validación criptográfica** y **validación fiscal** (no realizadas en el MVP) nunca aparecen como si hubieran ocurrido — ningún texto afirma "válido ante el SAT"; **validación de negocio** (deduplicación, coherencia con la Empresa) se presenta como "verificaciones internas de ContaIA", distinguible de las anteriores.
 - **Resultado:** Usuario informado con precisión de qué nivel de confianza tiene cada dato mostrado.
@@ -590,49 +590,49 @@ sequenceDiagram
 
 ## 50. Catálogo de flujos
 
-| ID       | Nombre                          | Actor                            | Módulo         | Empresa requerida | Riesgo        | Aprobación  | Workflow | Fase           |
-| -------- | ------------------------------- | -------------------------------- | -------------- | ----------------- | ------------- | ----------- | -------- | -------------- |
-| UXF-0001 | Registro                        | Usuario nuevo                    | Identity       | No                | Bajo          | No          | 3        | MVP            |
-| UXF-0002 | Inicio de sesión                | Usuario                          | Identity       | No                | Medio         | No          | 3        | MVP            |
-| UXF-0003 | Recuperación de acceso          | Usuario                          | Identity       | No                | Medio         | No          | 3        | MVP            |
-| UXF-0004 | Invitación a Empresa            | Administrador                    | Organizations  | Sí                | Bajo          | No          | 5        | MVP            |
-| UXF-0005 | Creación de Empresa             | Usuario                          | Organizations  | No                | Bajo          | No          | 4        | MVP            |
-| UXF-0006 | Cambio de Empresa               | Usuario                          | Organizations  | Sí                | Alto si falla | No          | 4        | MVP            |
-| UXF-0007 | Onboarding                      | Administrador                    | Organizations  | Sí                | Bajo          | No          | 4, 5     | MVP            |
-| UXF-0008 | Carga de XML                    | Auxiliar, Contador               | Fiscal         | Sí                | Medio         | No          | 6, 7     | MVP            |
-| UXF-0009 | Carga múltiple                  | Auxiliar, Contador               | Fiscal         | Sí                | Medio         | No          | 6        | MVP            |
-| UXF-0010 | Procesamiento documental        | Auxiliar, Contador               | Documents      | Sí                | Bajo          | No          | 6, 7     | MVP            |
-| UXF-0011 | Revisión de CFDI                | Auxiliar, Contador, Auditor      | Fiscal         | Sí                | Medio         | No          | 7        | MVP            |
-| UXF-0012 | Detección de duplicados         | Auxiliar, Contador               | Fiscal         | Sí                | Medio         | No          | 7        | MVP            |
-| UXF-0013 | Clasificación documental        | Auxiliar, Contador               | Documents, AI  | Sí                | Bajo          | No          | 6        | MVP            |
-| UXF-0014 | Catálogo de cuentas             | Contador                         | Accounting     | Sí                | Medio         | No          | —        | MVP            |
-| UXF-0015 | Creación de Póliza manual       | Auxiliar, Contador               | Accounting     | Sí                | Alto          | Sí          | 8        | MVP            |
-| UXF-0016 | Sugerencia de Póliza por IA     | Contador, Auxiliar               | AI, Accounting | Sí                | Alto          | Sí          | 8, 9     | MVP            |
-| UXF-0017 | Revisión y aprobación de Póliza | Contador, Supervisor             | Accounting     | Sí                | Alto          | Sí          | 8        | MVP            |
-| UXF-0018 | Corrección solicitada           | Contador, Supervisor             | Accounting, AI | Sí                | Medio         | Sí          | 8, 9     | Propuesta      |
-| UXF-0019 | Asistente fiscal                | Contador                         | AI             | Sí                | Alto          | No          | 9        | MVP            |
-| UXF-0020 | Asistente contable              | Contador, Auxiliar               | AI             | Sí                | Medio         | No          | 9        | MVP            |
-| UXF-0021 | Conversación IA contextual      | Todos                            | AI             | Sí                | Medio         | No          | 9        | MVP            |
-| UXF-0022 | Fuentes y fundamentos           | Todos                            | AI             | Sí                | Bajo          | No          | 9        | MVP            |
-| UXF-0023 | Retroalimentación de IA         | Todos                            | AI             | Sí                | Bajo          | No          | 9        | MVP            |
-| UXF-0024 | Tareas y aprobaciones           | Contador, Supervisor             | Notifications  | Sí                | Alto          | Sí          | 9        | MVP            |
-| UXF-0025 | Centro de trabajo               | Contador, Supervisor             | Notifications  | Sí                | Medio         | No          | 9, 12    | MVP            |
-| UXF-0026 | Notificaciones                  | Todos                            | Notifications  | Sí                | Bajo          | No          | 12       | MVP            |
-| UXF-0027 | Búsqueda global                 | Todos                            | (transversal)  | Sí                | Medio         | No          | —        | MVP            |
-| UXF-0028 | Filtros y vistas guardadas      | Todos                            | (transversal)  | Sí                | Bajo          | No          | —        | MVP/intermedia |
-| UXF-0029 | Generación de reporte           | Contador, Administrador          | Accounting     | Sí                | Bajo          | No          | 10       | MVP            |
-| UXF-0030 | Exportación                     | Contador, Administrador, Auditor | (transversal)  | Sí                | Medio         | Parcial     | —        | MVP            |
-| UXF-0031 | Conciliación                    | Contador                         | Accounting     | Sí                | —             | Sí (futuro) | —        | Fuera de MVP   |
-| UXF-0032 | Cierre de periodo               | Administrador                    | Organizations  | Sí                | Alto          | Sí          | 14       | MVP            |
-| UXF-0033 | Administración de usuarios      | Administrador                    | Organizations  | Sí                | Alto          | No          | 5, 15    | MVP            |
-| UXF-0034 | Cambio de Rol                   | Administrador                    | Organizations  | Sí                | Alto          | No          | 15       | MVP            |
-| UXF-0035 | Acceso denegado                 | Todos                            | (transversal)  | Variable          | Bajo          | No          | —        | MVP            |
-| UXF-0036 | Sesión expirada                 | Todos                            | Identity       | Variable          | Medio         | No          | 3        | MVP            |
-| UXF-0037 | Guardado de borradores          | Auxiliar, Contador               | Accounting     | Sí                | Bajo          | No          | 8        | MVP            |
-| UXF-0038 | Concurrencia                    | Todos                            | (transversal)  | Sí                | Alto si falla | No          | 8, 9     | MVP            |
-| UXF-0039 | Errores de red                  | Todos                            | (transversal)  | Variable          | Medio         | No          | 13       | MVP            |
-| UXF-0040 | Procesamiento fallido           | Quien inició                     | (transversal)  | Sí                | Medio         | No          | 13       | MVP            |
-| UXF-0041 | Flujo móvil                     | Todos                            | (transversal)  | Sí                | Medio         | No          | —        | MVP            |
+| ID       | Nombre                          | Actor                                                  | Módulo         | Empresa requerida | Riesgo        | Aprobación  | Workflow | Fase           |
+| -------- | ------------------------------- | ------------------------------------------------------ | -------------- | ----------------- | ------------- | ----------- | -------- | -------------- |
+| UXF-0001 | Registro                        | Usuario nuevo                                          | Identity       | No                | Bajo          | No          | 3        | MVP            |
+| UXF-0002 | Inicio de sesión                | Usuario                                                | Identity       | No                | Medio         | No          | 3        | MVP            |
+| UXF-0003 | Recuperación de acceso          | Usuario                                                | Identity       | No                | Medio         | No          | 3        | MVP            |
+| UXF-0004 | Invitación a Empresa            | Administrador                                          | Organizations  | Sí                | Bajo          | No          | 5        | MVP            |
+| UXF-0005 | Creación de Empresa             | Usuario                                                | Organizations  | No                | Bajo          | No          | 4        | MVP            |
+| UXF-0006 | Cambio de Empresa               | Usuario                                                | Organizations  | Sí                | Alto si falla | No          | 4        | MVP            |
+| UXF-0007 | Onboarding                      | Administrador                                          | Organizations  | Sí                | Bajo          | No          | 4, 5     | MVP            |
+| UXF-0008 | Carga de XML                    | Auxiliar, Contador                                     | Fiscal         | Sí                | Medio         | No          | 6, 7     | MVP            |
+| UXF-0009 | Carga múltiple                  | Auxiliar, Contador                                     | Fiscal         | Sí                | Medio         | No          | 6        | MVP            |
+| UXF-0010 | Procesamiento documental        | Auxiliar, Contador                                     | Documents      | Sí                | Bajo          | No          | 6, 7     | MVP            |
+| UXF-0011 | Revisión de CFDI                | Administrador, Contador, Auxiliar, Supervisor, Auditor | Fiscal         | Sí                | Medio         | No          | 7        | MVP            |
+| UXF-0012 | Detección de duplicados         | Auxiliar, Contador                                     | Fiscal         | Sí                | Medio         | No          | 7        | MVP            |
+| UXF-0013 | Clasificación documental        | Auxiliar, Contador                                     | Documents, AI  | Sí                | Bajo          | No          | 6        | MVP            |
+| UXF-0014 | Catálogo de cuentas             | Contador                                               | Accounting     | Sí                | Medio         | No          | —        | MVP            |
+| UXF-0015 | Creación de Póliza manual       | Auxiliar, Contador                                     | Accounting     | Sí                | Alto          | Sí          | 8        | MVP            |
+| UXF-0016 | Sugerencia de Póliza por IA     | Contador, Auxiliar                                     | AI, Accounting | Sí                | Alto          | Sí          | 8, 9     | MVP            |
+| UXF-0017 | Revisión y aprobación de Póliza | Contador, Supervisor                                   | Accounting     | Sí                | Alto          | Sí          | 8        | MVP            |
+| UXF-0018 | Corrección solicitada           | Contador, Supervisor                                   | Accounting, AI | Sí                | Medio         | Sí          | 8, 9     | Propuesta      |
+| UXF-0019 | Asistente fiscal                | Contador                                               | AI             | Sí                | Alto          | No          | 9        | MVP            |
+| UXF-0020 | Asistente contable              | Contador, Auxiliar                                     | AI             | Sí                | Medio         | No          | 9        | MVP            |
+| UXF-0021 | Conversación IA contextual      | Todos                                                  | AI             | Sí                | Medio         | No          | 9        | MVP            |
+| UXF-0022 | Fuentes y fundamentos           | Todos                                                  | AI             | Sí                | Bajo          | No          | 9        | MVP            |
+| UXF-0023 | Retroalimentación de IA         | Todos                                                  | AI             | Sí                | Bajo          | No          | 9        | MVP            |
+| UXF-0024 | Tareas y aprobaciones           | Contador, Supervisor                                   | Notifications  | Sí                | Alto          | Sí          | 9        | MVP            |
+| UXF-0025 | Centro de trabajo               | Contador, Supervisor                                   | Notifications  | Sí                | Medio         | No          | 9, 12    | MVP            |
+| UXF-0026 | Notificaciones                  | Todos                                                  | Notifications  | Sí                | Bajo          | No          | 12       | MVP            |
+| UXF-0027 | Búsqueda global                 | Todos                                                  | (transversal)  | Sí                | Medio         | No          | —        | MVP            |
+| UXF-0028 | Filtros y vistas guardadas      | Todos                                                  | (transversal)  | Sí                | Bajo          | No          | —        | MVP/intermedia |
+| UXF-0029 | Generación de reporte           | Contador, Administrador                                | Accounting     | Sí                | Bajo          | No          | 10       | MVP            |
+| UXF-0030 | Exportación                     | Contador, Administrador, Auditor                       | (transversal)  | Sí                | Medio         | Parcial     | —        | MVP            |
+| UXF-0031 | Conciliación                    | Contador                                               | Accounting     | Sí                | —             | Sí (futuro) | —        | Fuera de MVP   |
+| UXF-0032 | Cierre de periodo               | Administrador                                          | Organizations  | Sí                | Alto          | Sí          | 14       | MVP            |
+| UXF-0033 | Administración de usuarios      | Administrador                                          | Organizations  | Sí                | Alto          | No          | 5, 15    | MVP            |
+| UXF-0034 | Cambio de Rol                   | Administrador                                          | Organizations  | Sí                | Alto          | No          | 15       | MVP            |
+| UXF-0035 | Acceso denegado                 | Todos                                                  | (transversal)  | Variable          | Bajo          | No          | —        | MVP            |
+| UXF-0036 | Sesión expirada                 | Todos                                                  | Identity       | Variable          | Medio         | No          | 3        | MVP            |
+| UXF-0037 | Guardado de borradores          | Auxiliar, Contador                                     | Accounting     | Sí                | Bajo          | No          | 8        | MVP            |
+| UXF-0038 | Concurrencia                    | Todos                                                  | (transversal)  | Sí                | Alto si falla | No          | 8, 9     | MVP            |
+| UXF-0039 | Errores de red                  | Todos                                                  | (transversal)  | Variable          | Medio         | No          | 13       | MVP            |
+| UXF-0040 | Procesamiento fallido           | Quien inició                                           | (transversal)  | Sí                | Medio         | No          | 13       | MVP            |
+| UXF-0041 | Flujo móvil                     | Todos                                                  | (transversal)  | Sí                | Medio         | No          | —        | MVP            |
 
 ## 51. Matriz de decisiones
 

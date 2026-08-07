@@ -221,15 +221,15 @@ Este esqueleto es la base de **todos** los wireframes de las secciones 8-45; cad
 
 ## 18. Listado de documentos
 
-**WF-0012 — Biblioteca de Documentos** · PAGE-0021 / ROUTE-0020 · Documents · Auxiliar, Contador · Sí
+**WF-0012 — Biblioteca de Documentos** · PAGE-0021 / ROUTE-0020 · Documents · Administrador, Contador, Auxiliar, Supervisor, Auditor (consulta vía `document.read`, D-011) · Sí
 
-- **Estructura:** acción primaria "Cargar" (WF-0013) → búsqueda + filtros (tipo, estado, fecha) → tabla: nombre, tipo, estado (badge), fecha, relación con CFDI si aplica → selección múltiple con acciones de lote (descarga) → paginación.
+- **Estructura:** acción primaria "Cargar" (WF-0013, solo con `document.upload`: Administrador, Contador, Auxiliar) → búsqueda + filtros (tipo, estado, fecha) → tabla: nombre, tipo, estado (badge), fecha, relación con CFDI si aplica → selección múltiple con acciones de lote (descarga, solo con `document.download` — clave independiente de `document.read`, BR-PERM-004) → paginación.
 - **Estados:** default, vacío, procesando (indicador por fila), error, móvil (tarjetas).
 - **Dependencias:** UXF-0009 (carga múltiple), UXF-0010. **Fase:** MVP.
 
 ## 19. Zona de carga documental
 
-**WF-0013 — Carga de Documentos** · PAGE-0022 / ROUTE-0021 · Documents · Auxiliar, Contador · Sí
+**WF-0013 — Carga de Documentos** · PAGE-0022 / ROUTE-0021 · Documents · Administrador, Contador, Auxiliar (`document.upload`) · Sí
 
 - **Estructura:** zona de arrastrar y soltar + selector estándar → formatos aceptados y límite de tamaño indicados explícitamente → lista de archivos seleccionados antes de confirmar → progreso por archivo tras iniciar (UXF-0008/0009) → cancelación individual → resumen final (procesados/observados/rechazados) con enlaces a cada Documento.
 - **Estados:** default, arrastrando (resaltado de la zona), subiendo (progreso), error por archivo (sin bloquear el resto — principio de UXF-0009), completado.
@@ -245,7 +245,7 @@ Este esqueleto es la base de **todos** los wireframes de las secciones 8-45; cad
 
 ## 21. Listado de CFDI
 
-**WF-0015 — Listado de CFDI** · PAGE-0019 / ROUTE-0018 · Fiscal · Auxiliar, Contador, Auditor (lectura) · Sí
+**WF-0015 — Listado de CFDI** · PAGE-0019 / ROUTE-0018 · Fiscal · Administrador, Contador, Auxiliar, Supervisor, Auditor (`cfdi.read`; Supervisor y Auditor solo lectura) · Sí
 
 - **Estructura:** búsqueda + filtros (RFC, tipo, fecha, estado, monto, presencia de observaciones/riesgo) → tabla: folio, emisor/receptor, monto, estado, fecha → vista compacta opcional (densidad, `docs/13_DESIGN_SYSTEM.md` sección 36) → selección para exportación (UXF-0030).
 - **Estados:** default, vacío, error, móvil (tarjetas).
@@ -253,9 +253,9 @@ Este esqueleto es la base de **todos** los wireframes de las secciones 8-45; cad
 
 ## 22. Detalle de CFDI
 
-**WF-0016 — Detalle de CFDI** · PAGE-0020 / ROUTE-0019 · Fiscal · Auxiliar, Contador, Auditor (lectura) · Sí
+**WF-0016 — Detalle de CFDI** · PAGE-0020 / ROUTE-0019 · Fiscal · Administrador, Contador, Auxiliar, Supervisor, Auditor (`cfdi.read`; Supervisor y Auditor solo lectura) · Sí
 
-- **Estructura:** resumen (folio, emisor, receptor, total) → datos fiscales completos (conceptos, impuestos, relaciones declaradas en el propio XML) → panel de validaciones (**distingue explícitamente:** "dato extraído del archivo" / "verificación interna de ContaIA" — nunca "validado por el SAT", `docs/11_SECURITY_ARCHITECTURE.md` sección 17) → evidencia (Documento origen, descarga) → observaciones (campos ambiguos resaltados) → sugerencias relacionadas (si existe una Póliza propuesta) → IA contextual (WF-0027) → acciones (vincular a Póliza).
+- **Estructura:** resumen (folio, emisor, receptor, total) → datos fiscales completos (conceptos, impuestos, relaciones declaradas en el propio XML) → panel de validaciones (**distingue explícitamente:** "dato extraído del archivo" / "verificación interna de ContaIA" — nunca "validado por el SAT", `docs/11_SECURITY_ARCHITECTURE.md` sección 17) → evidencia (Documento origen, descarga — requiere `document.download`; `cfdi.read` no la autoriza, BR-PERM-004) → observaciones (campos ambiguos resaltados) → sugerencias relacionadas (si existe una Póliza propuesta) → IA contextual (WF-0027) → acciones (vincular a Póliza).
 - **Estados:** default, con observaciones, vinculado a Póliza, error.
 - **Dependencias:** UXF-0011. **Fase:** MVP.
 
@@ -610,51 +610,51 @@ flowchart LR
 
 ## 54. Catálogo de wireframes
 
-| ID      | Nombre                             | Página          | Módulo           | Actor                              | Empresa    | Patrón               | Prioridad | Fase |
-| ------- | ---------------------------------- | --------------- | ---------------- | ---------------------------------- | ---------- | -------------------- | --------- | ---- |
-| WF-0001 | Navegación global                  | (transversal)   | (transversal)    | Todos                              | Sí         | —                    | Crítica   | MVP  |
-| WF-0002 | Inicio de sesión                   | PAGE-0001       | Identity         | Todos                              | No         | Formulario           | Crítica   | MVP  |
-| WF-0003 | Recuperación                       | PAGE-0003       | Identity         | Todos                              | No         | Formulario           | Alta      | MVP  |
-| WF-0004 | Invitación                         | PAGE-0004       | Organizations    | Invitado                           | Sí         | Formulario           | Alta      | MVP  |
-| WF-0005 | Selección de Empresa               | PAGE-0005       | Organizations    | Todos                              | No         | Listado              | Crítica   | MVP  |
-| WF-0006 | Creación de Empresa                | PAGE-0008       | Organizations    | Usuario                            | No         | Formulario por pasos | Alta      | MVP  |
-| WF-0007 | Onboarding                         | PAGE-0006       | Organizations    | Administrador                      | Sí         | Asistente guiado     | Media     | MVP  |
-| WF-0008 | Dashboard                          | PAGE-0006       | (transversal)    | Todos                              | Sí         | Dashboard            | Crítica   | MVP  |
-| WF-0009 | Centro de trabajo                  | PAGE-0029       | Notifications/AI | Contador, Supervisor               | Sí         | Listado              | Crítica   | MVP  |
-| WF-0010 | Listado de Empresas                | PAGE-0007       | Organizations    | Administrador                      | No         | Listado              | Media     | MVP  |
-| WF-0011 | Detalle de Empresa                 | PAGE-0009       | Organizations    | Administrador                      | Sí         | Detalle              | Alta      | MVP  |
-| WF-0012 | Biblioteca de Documentos           | PAGE-0021       | Documents        | Auxiliar, Contador                 | Sí         | Listado              | Crítica   | MVP  |
-| WF-0013 | Carga de Documentos                | PAGE-0022       | Documents        | Auxiliar, Contador                 | Sí         | Formulario           | Crítica   | MVP  |
-| WF-0014 | Monitor de procesamiento           | (panel)         | Documents/Fiscal | Quien inició                       | Sí         | Proceso asíncrono    | Alta      | MVP  |
-| WF-0015 | Listado de CFDI                    | PAGE-0019       | Fiscal           | Auxiliar, Contador, Auditor        | Sí         | Listado              | Crítica   | MVP  |
-| WF-0016 | Detalle de CFDI                    | PAGE-0020       | Fiscal           | Auxiliar, Contador, Auditor        | Sí         | Detalle              | Crítica   | MVP  |
-| WF-0017 | Comparación de duplicados          | (modal)         | Fiscal           | Auxiliar, Contador                 | Sí         | Revisión             | Media     | MVP  |
-| WF-0018 | Clasificación documental           | (panel)         | Documents/AI     | Auxiliar, Contador                 | Sí         | Revisión             | Media     | MVP  |
-| WF-0019 | Catálogo de Cuentas                | PAGE-0010       | Accounting       | Contador                           | Sí         | Listado              | Alta      | MVP  |
-| WF-0020 | Formulario de Cuenta               | PAGE-0011       | Accounting       | Contador                           | Sí         | Formulario           | Alta      | MVP  |
-| WF-0021 | Listado de Pólizas                 | PAGE-0012       | Accounting       | Contador, Auxiliar, Supervisor     | Sí         | Listado              | Crítica   | MVP  |
-| WF-0022 | Captura de Póliza                  | PAGE-0014       | Accounting       | Auxiliar, Contador                 | Sí         | Formulario           | Crítica   | MVP  |
-| WF-0023 | Sugerencia de Póliza (IA)          | (panel)         | AI/Accounting    | Contador, Auxiliar                 | Sí         | Revisión             | Crítica   | MVP  |
-| WF-0024 | Revisión y aprobación de Póliza    | PAGE-0030       | Accounting       | Contador, Supervisor               | Sí         | Aprobación           | Crítica   | MVP  |
-| WF-0025 | Bandeja de aprobaciones            | PAGE-0029       | Notifications/AI | Contador, Supervisor               | Sí         | Listado              | Alta      | MVP  |
-| WF-0026 | Asistente IA                       | PAGE-0027       | AI               | Todos                              | Sí/sandbox | Asistente            | Crítica   | MVP  |
-| WF-0027 | Panel IA contextual                | (panel)         | AI               | Todos                              | Sí         | Asistente            | Alta      | MVP  |
-| WF-0028 | Fuentes y fundamentos              | (panel)         | AI               | Todos                              | N/A        | Revisión             | Media     | MVP  |
-| WF-0029 | Tareas                             | PAGE-0029       | Notifications    | Todos                              | Sí         | Listado              | Alta      | MVP  |
-| WF-0030 | Detalle de Tarea                   | PAGE-0030       | Notifications    | Contador, Supervisor               | Sí         | Detalle              | Alta      | MVP  |
-| WF-0031 | Centro de notificaciones           | PAGE-0031       | Notifications    | Todos                              | Sí         | Listado              | Alta      | MVP  |
-| WF-0032 | Catálogo de Reportes               | PAGE-0024       | Reports          | Contador, Administrador            | Sí         | Reporte              | Media     | MVP  |
-| WF-0033 | Generar Reporte                    | PAGE-0024       | Reports          | Contador, Administrador            | Sí         | Formulario           | Media     | MVP  |
-| WF-0034 | Visor de Reporte                   | PAGE-0025       | Reports          | Contador, Administrador            | Sí         | Reporte              | Media     | MVP  |
-| WF-0035 | Membresías de la Empresa           | PAGE-0009       | Organizations    | Administrador                      | Sí         | Listado              | Alta      | MVP  |
-| WF-0036 | Cambiar Rol                        | (modal)         | Organizations    | Administrador                      | Sí         | Confirmación         | Alta      | MVP  |
-| WF-0037 | Auditoría de la Empresa            | PAGE-0040       | Audit            | Auditor, Supervisor, Administrador | Sí         | Historial            | Media     | MVP  |
-| WF-0038 | Configuración personal             | PAGE-0036/37/38 | Configuración    | Todos                              | No         | Configuración        | Media     | MVP  |
-| WF-0039 | Configuración de Empresa           | PAGE-0039       | Organizations    | Administrador                      | Sí         | Configuración        | Media     | MVP  |
-| WF-0040 | Estados vacíos (conjunto)          | (transversal)   | (transversal)    | Todos                              | Variable   | Estado vacío         | Alta      | MVP  |
-| WF-0041 | Estados de error (conjunto)        | (transversal)   | (transversal)    | Todos                              | Variable   | Estado de error      | Crítica   | MVP  |
-| WF-0042 | Estados de carga (conjunto)        | (transversal)   | (transversal)    | Todos                              | Variable   | —                    | Crítica   | MVP  |
-| WF-0043 | Confirmaciones críticas (conjunto) | (transversal)   | (transversal)    | Variable                           | Sí         | Confirmación         | Crítica   | MVP  |
+| ID      | Nombre                             | Página          | Módulo           | Actor                                                  | Empresa    | Patrón               | Prioridad | Fase |
+| ------- | ---------------------------------- | --------------- | ---------------- | ------------------------------------------------------ | ---------- | -------------------- | --------- | ---- |
+| WF-0001 | Navegación global                  | (transversal)   | (transversal)    | Todos                                                  | Sí         | —                    | Crítica   | MVP  |
+| WF-0002 | Inicio de sesión                   | PAGE-0001       | Identity         | Todos                                                  | No         | Formulario           | Crítica   | MVP  |
+| WF-0003 | Recuperación                       | PAGE-0003       | Identity         | Todos                                                  | No         | Formulario           | Alta      | MVP  |
+| WF-0004 | Invitación                         | PAGE-0004       | Organizations    | Invitado                                               | Sí         | Formulario           | Alta      | MVP  |
+| WF-0005 | Selección de Empresa               | PAGE-0005       | Organizations    | Todos                                                  | No         | Listado              | Crítica   | MVP  |
+| WF-0006 | Creación de Empresa                | PAGE-0008       | Organizations    | Usuario                                                | No         | Formulario por pasos | Alta      | MVP  |
+| WF-0007 | Onboarding                         | PAGE-0006       | Organizations    | Administrador                                          | Sí         | Asistente guiado     | Media     | MVP  |
+| WF-0008 | Dashboard                          | PAGE-0006       | (transversal)    | Todos                                                  | Sí         | Dashboard            | Crítica   | MVP  |
+| WF-0009 | Centro de trabajo                  | PAGE-0029       | Notifications/AI | Contador, Supervisor                                   | Sí         | Listado              | Crítica   | MVP  |
+| WF-0010 | Listado de Empresas                | PAGE-0007       | Organizations    | Administrador                                          | No         | Listado              | Media     | MVP  |
+| WF-0011 | Detalle de Empresa                 | PAGE-0009       | Organizations    | Administrador                                          | Sí         | Detalle              | Alta      | MVP  |
+| WF-0012 | Biblioteca de Documentos           | PAGE-0021       | Documents        | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sí         | Listado              | Crítica   | MVP  |
+| WF-0013 | Carga de Documentos                | PAGE-0022       | Documents        | Administrador, Contador, Auxiliar                      | Sí         | Formulario           | Crítica   | MVP  |
+| WF-0014 | Monitor de procesamiento           | (panel)         | Documents/Fiscal | Quien inició                                           | Sí         | Proceso asíncrono    | Alta      | MVP  |
+| WF-0015 | Listado de CFDI                    | PAGE-0019       | Fiscal           | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sí         | Listado              | Crítica   | MVP  |
+| WF-0016 | Detalle de CFDI                    | PAGE-0020       | Fiscal           | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sí         | Detalle              | Crítica   | MVP  |
+| WF-0017 | Comparación de duplicados          | (modal)         | Fiscal           | Auxiliar, Contador                                     | Sí         | Revisión             | Media     | MVP  |
+| WF-0018 | Clasificación documental           | (panel)         | Documents/AI     | Auxiliar, Contador                                     | Sí         | Revisión             | Media     | MVP  |
+| WF-0019 | Catálogo de Cuentas                | PAGE-0010       | Accounting       | Contador                                               | Sí         | Listado              | Alta      | MVP  |
+| WF-0020 | Formulario de Cuenta               | PAGE-0011       | Accounting       | Contador                                               | Sí         | Formulario           | Alta      | MVP  |
+| WF-0021 | Listado de Pólizas                 | PAGE-0012       | Accounting       | Contador, Auxiliar, Supervisor                         | Sí         | Listado              | Crítica   | MVP  |
+| WF-0022 | Captura de Póliza                  | PAGE-0014       | Accounting       | Auxiliar, Contador                                     | Sí         | Formulario           | Crítica   | MVP  |
+| WF-0023 | Sugerencia de Póliza (IA)          | (panel)         | AI/Accounting    | Contador, Auxiliar                                     | Sí         | Revisión             | Crítica   | MVP  |
+| WF-0024 | Revisión y aprobación de Póliza    | PAGE-0030       | Accounting       | Contador, Supervisor                                   | Sí         | Aprobación           | Crítica   | MVP  |
+| WF-0025 | Bandeja de aprobaciones            | PAGE-0029       | Notifications/AI | Contador, Supervisor                                   | Sí         | Listado              | Alta      | MVP  |
+| WF-0026 | Asistente IA                       | PAGE-0027       | AI               | Todos                                                  | Sí/sandbox | Asistente            | Crítica   | MVP  |
+| WF-0027 | Panel IA contextual                | (panel)         | AI               | Todos                                                  | Sí         | Asistente            | Alta      | MVP  |
+| WF-0028 | Fuentes y fundamentos              | (panel)         | AI               | Todos                                                  | N/A        | Revisión             | Media     | MVP  |
+| WF-0029 | Tareas                             | PAGE-0029       | Notifications    | Todos                                                  | Sí         | Listado              | Alta      | MVP  |
+| WF-0030 | Detalle de Tarea                   | PAGE-0030       | Notifications    | Contador, Supervisor                                   | Sí         | Detalle              | Alta      | MVP  |
+| WF-0031 | Centro de notificaciones           | PAGE-0031       | Notifications    | Todos                                                  | Sí         | Listado              | Alta      | MVP  |
+| WF-0032 | Catálogo de Reportes               | PAGE-0024       | Reports          | Contador, Administrador                                | Sí         | Reporte              | Media     | MVP  |
+| WF-0033 | Generar Reporte                    | PAGE-0024       | Reports          | Contador, Administrador                                | Sí         | Formulario           | Media     | MVP  |
+| WF-0034 | Visor de Reporte                   | PAGE-0025       | Reports          | Contador, Administrador                                | Sí         | Reporte              | Media     | MVP  |
+| WF-0035 | Membresías de la Empresa           | PAGE-0009       | Organizations    | Administrador                                          | Sí         | Listado              | Alta      | MVP  |
+| WF-0036 | Cambiar Rol                        | (modal)         | Organizations    | Administrador                                          | Sí         | Confirmación         | Alta      | MVP  |
+| WF-0037 | Auditoría de la Empresa            | PAGE-0040       | Audit            | Auditor, Supervisor, Administrador                     | Sí         | Historial            | Media     | MVP  |
+| WF-0038 | Configuración personal             | PAGE-0036/37/38 | Configuración    | Todos                                                  | No         | Configuración        | Media     | MVP  |
+| WF-0039 | Configuración de Empresa           | PAGE-0039       | Organizations    | Administrador                                          | Sí         | Configuración        | Media     | MVP  |
+| WF-0040 | Estados vacíos (conjunto)          | (transversal)   | (transversal)    | Todos                                                  | Variable   | Estado vacío         | Alta      | MVP  |
+| WF-0041 | Estados de error (conjunto)        | (transversal)   | (transversal)    | Todos                                                  | Variable   | Estado de error      | Crítica   | MVP  |
+| WF-0042 | Estados de carga (conjunto)        | (transversal)   | (transversal)    | Todos                                                  | Variable   | —                    | Crítica   | MVP  |
+| WF-0043 | Confirmaciones críticas (conjunto) | (transversal)   | (transversal)    | Variable                                               | Sí         | Confirmación         | Crítica   | MVP  |
 
 ## 55. Matriz de estados
 
