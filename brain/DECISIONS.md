@@ -552,3 +552,120 @@ El XML original de un CFDI **no** se gobierna por `cfdi.read`: es el archivo del
 - **2026-08-06** — ratificación arquitectónica y cierre documental de `T03` (§21 del plan). Se verifica que la clave separada respeta mínimo privilegio, escalabilidad, consistencia, `BR-SEC` y `BR-PERM`, y se descartan las alternativas de no crearla o integrarla en `document.read`. Se corrigen ocho contradicciones residuales (`docs/15` `UXF-0011`, `docs/08` `API-0023`–`API-0026`, `docs/04` `BR-PERM-004`, `docs/31` `PAGE-0019`–`PAGE-0023`, `docs/16` `WF-0012`/`WF-0013`/`WF-0015`/`WF-0016` —incluida la omisión de Administrador que la sección _Problema_ de esta misma decisión ya había señalado—, `docs/11` §9) y se añade una prueba automatizada que compara `BR-PERM-004` contra el catálogo sembrado, verificada por mutación. Catálogo, `seed.ts`, `schema.prisma` y el contrato vinculante de esta decisión **sin cambios**. `D-011` continúa `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`.
 
 ---
+
+## D-012 — Identidad canónica de navegación de CFDI mediante `documentId`
+
+- **Fecha:** 2026-08-04
+- **Origen:** bloqueador 4 (`ALTO`) de la auditoría independiente de navegación.
+
+### Contexto
+
+El modelo de datos distingue cuatro identificadores, verificados en `packages/database/prisma/schema.prisma`:
+
+| Identificador      | Qué es                                                                     | Cuándo existe             |
+| ------------------ | -------------------------------------------------------------------------- | ------------------------- |
+| `Document.id`      | PK UUID opaca del Documento                                                | Desde `PENDING_UPLOAD`    |
+| `Cfdi.id`          | PK UUID opaca del CFDI. `docs/09` §151 la llama `cfdiId`                   | **Solo tras `PROCESSED`** |
+| `Cfdi.documentId`  | FK 1:1 → `Document`, con `@@unique([documentId, companyId])`               | Con el CFDI               |
+| `Cfdi.folioFiscal` | UUID del Timbre Fiscal Digital (SAT), `@@unique([companyId, folioFiscal])` | Con el CFDI               |
+
+`cfdiId` y `documentId` son UUID **distintos** en relación 1:1. Ninguno deriva del otro.
+
+### Problema
+
+Existen **tres** formas de ruta incompatibles, no dos:
+
+| Fuente                                                                                          | Ruta                                |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `docs/14_INFORMATION_ARCHITECTURE.md` `ROUTE-0019` · `docs/31` `PAGE-0020` · `docs/32` línea 78 | `/{companyId}/fiscal/cfdi/{cfdiId}` |
+| `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` línea 81                                    | `/{companyId}/fiscal/{documentId}`  |
+| `docs/08_API_DESIGN.md` `API-0027`                                                              | `GET /documents/{documentId}/cfdi`  |
+
+No existe traducción canónica documentada entre `cfdiId` y `documentId` para deep links.
+
+### Alternativas
+
+- **(A) Ruta por `documentId`.**
+- **(B) Ruta por `cfdiId`.**
+- **(C) Ruta por UUID fiscal (`folioFiscal`).**
+- **(D) Ruta compuesta o mecanismo de resolución.**
+
+### Análisis
+
+Se adopta **(A)**.
+
+El criterio determinante es la **estabilidad temporal del identificador**. Un Documento en `PENDING_UPLOAD` o `PROCESSING` **no tiene fila `Cfdi`**: `Cfdi.id` no existe todavía. Una ruta parametrizada por `cfdiId` es por tanto irresoluble durante todo el ciclo de procesamiento — precisamente el intervalo en que el usuario quiere seguir el avance de su carga. `documentId` existe desde la creación del registro y no cambia nunca.
+
+**(C)** se rechaza por privacidad: el folio fiscal es un dato fiscal identificable y no debe viajar en URLs, historiales de navegador, logs de servidor ni cabeceras `Referer`. Además su unicidad es solo por Empresa (`@@unique([companyId, folioFiscal])`), no global.
+
+**(B)** y **(D)** introducen una resolución que **(A)** no necesita, y crean una segunda identidad pública para una entidad que ya tiene una.
+
+**(A)** coincide exactamente con `API-0027` (`GET /documents/{documentId}/cfdi`), que ya usa `documentId`: no requiere cambio de contrato de API, solo alineación de la documentación de rutas.
+
+La ruta adoptada es `/{companyId}/documentos/{documentId}/cfdi`, que expresa en la jerarquía de la URL la relación real del modelo — el CFDI es dependiente del Documento, no su par.
+
+### Decisión
+
+`documentId` es la identidad pública de navegación del recurso documental y de su CFDI asociado. La ruta canónica es:
+
+```text
+/{companyId}/documentos/{documentId}/cfdi
+```
+
+### Contrato vinculante
+
+1. Los deep links de CFDI usan **`documentId`**.
+2. `documentId` es la **identidad pública de navegación** del recurso documental.
+3. `cfdiId` permanece como **identificador interno de persistencia** — nunca aparece en una URL.
+4. `folioFiscal` es **criterio de búsqueda, nunca parámetro de ruta**.
+5. La ruta debe funcionar durante `PENDING_UPLOAD`, `PROCESSING`, `PROCESSED` y los estados de fallo permitidos, **incluso cuando todavía no exista una fila `Cfdi`** — en cuyo caso la vista informa el estado, no un error de recurso inexistente.
+6. `GET /documents/{documentId}/cfdi` (`API-0027`) es el **contrato de detalle**; no se modifica.
+7. **No debe existir traducción implícita** entre `cfdiId` y `documentId` en ninguna capa.
+8. **`D-009` y el contrato `issuedAtLocal` permanecen sin cambios.** Esta decisión no los alcanza.
+
+### Clasificación: por qué es una decisión y no una convención de arquitectura de información
+
+Se evaluó registrarla como convención en `docs/14_INFORMATION_ARCHITECTURE.md` en lugar de como decisión numerada. Se descarta por tres razones:
+
+1. **Contradice un documento aprobado.** `docs/14` es fuente de verdad vigente sobre rutas y ya fija `ROUTE-0019` como `/{companyId}/fiscal/cfdi/{cfdiId}`. Cambiar una ruta ya aprobada no es documentar una convención nueva: es revertir una definición existente, y `D-001` sentó el precedente de que una política que altera una convención aprobada del repositorio se registra como decisión.
+2. **Resuelve un conflicto entre fuentes de distinta autoridad**, no una ausencia de norma. Una convención sirve cuando la documentación calla; aquí habla tres veces y de forma incompatible.
+3. **Fija un contrato de privacidad vinculante** — la prohibición de `folioFiscal` en URLs — que excede el alcance de la arquitectura de información y debe ser rastreable como compromiso de seguridad.
+
+`docs/31` y `docs/32` son **Draft v0.1 sin versionar** y declaran en su propio encabezado de control que `docs/14` conserva la autoridad sobre rutas y `docs/08` sobre contratos de API; no pueden por sí solos fundamentar el cambio.
+
+Una vez aprobada, `docs/14` debe incorporarla en `T05`. La decisión es la autoridad; `docs/14` pasa a reflejarla.
+
+### Impacto
+
+- **Backend:** ninguno. `API-0027` ya usa `documentId`.
+- **Base de datos:** ninguno. Sin migración.
+- **Frontend:** rutas de detalle de CFDI. Afecta a `apps/web/src/app/[companyId]/documentos/**`, hoy sin versionar y sin commitear.
+- **Documentación:** `docs/14` `ROUTE-0019`, `docs/31` `PAGE-0020`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md` línea 81.
+- **Privacidad:** mejora — elimina el dato fiscal de la superficie de URL.
+- **EWO-005:** congela la implementación definitiva del detalle de CFDI hasta cerrar `T04`. No afecta a `E5-S3-T06`.
+
+### Riesgos
+
+- **Invalidación de deep links previos.** Mitigación: no existen usuarios en producción; el costo de adoptarla ahora es nulo y crece con el primer tenant real.
+- **Reproceso del frontend de documentos sin commitear**, construido antes de fijar esta identidad.
+- **Reintroducción de `cfdiId` en URLs** por inercia de `docs/31`/`docs/32`. Mitigación: `T05` debe eliminar las formas retiradas, no solo añadir la nueva.
+
+### Validación
+
+1. Existe una sola ruta canónica en todo el corpus documental y en el frontend.
+2. API, documentación y frontend usan `documentId`.
+3. El flujo funciona aunque todavía no exista una fila `Cfdi`.
+4. `folioFiscal` no aparece en ninguna URL.
+5. `D-009` e `issuedAtLocal` permanecen intactos.
+
+### Estado
+
+- **Responsable:** Claude Code (Principal Software Architect), por encargo del responsable de producto de ContaIA.
+- **Estatus:** **IMPLEMENTADA · PENDIENTE DE AUDITORÍA.** `T04` de [`EWO-SEC-NAV-001`](../docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) implementada el 2026-08-04 (documentación de arquitectura de información: `docs/14`, `docs/31`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md`; sin cambios de código). **No auditada con veredicto `PASSED`.** No modifica `D-009` ni ninguna decisión `D-001`–`D-009`.
+
+### Historial
+
+- **2026-08-04** — se registra `D-012` (bloqueador 4, `ALTO`, de la auditoría independiente de navegación).
+- **2026-08-04** — implementación de `T04`: `ROUTE-0019` (`docs/14`), `PAGE-0020` (`docs/31`), árbol de navegación (`docs/32`) y tabla de rutas frontend (`EWO-005_DOCUMENTS_FISCAL_PLAN.md`) convergen a `/{companyId}/documentos/{documentId}/cfdi`; `cfdiId` y `folioFiscal` quedan fuera de toda ruta oficial. `D-012` pasa a `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`.
+
+---

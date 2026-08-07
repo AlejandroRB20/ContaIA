@@ -52,6 +52,16 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - Confirma el contrato `issuedAtLocal: string` aprobado, la persistencia `VARCHAR(19)` y la migración correctiva `20260804013104_preserve_cfdi_local_issue_datetime` sobre tabla vacía. `I-14` e `I-15` quedan **`RESOLVED`**.
 - `D-009` pasa a `PASSED`; `E5-S3-T06` queda desbloqueada, no iniciada; Sprint 3 continúa `IN_PROGRESS`. Sin cambios de código durante este cierre.
 
+## 2026-08-04 — Implementación de T04 (EWO-SEC-NAV-001): identidad canónica de CFDI por `documentId`
+
+**Solo documentación de arquitectura de información.** Sin cambios de código, frontend, backend, `schema.prisma`, permisos ni endpoints nuevos. No se inicia `T03`. `D-011` sin cambios. `D-012` **no se modificó en su contenido** (Contexto, Problema, Alternativas, Análisis, Decisión, Contrato vinculante) — solo su sección `Estado` se actualiza para reflejar la implementación, mismo patrón administrativo que `D-010` tras `T01`. **`T04` queda `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`.**
+
+- Implementa el contrato vinculante de `D-012`: `documentId` es la identidad pública de navegación del Documento y su CFDI asociado; `cfdiId` permanece exclusivamente interno (nunca en URL); `folioFiscal` nunca aparece en una ruta.
+- Corrige tres formas de ruta incompatibles para el detalle de CFDI, convergiendo todas a `/{companyId}/documentos/{documentId}/cfdi`: `docs/14_INFORMATION_ARCHITECTURE.md` (`ROUTE-0019`), `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0020`), `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md` (árbol de navegación — el CFDI cuelga de `/documentos/{documentId}/cfdi`; `/fiscal/cfdi` se conserva solo como listado, anotado como tal) y `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` (fila de ruta de detalle). `docs/08_API_DESIGN.md` `API-0027` ya usaba `documentId`: sin cambio.
+- Sincronización de estado: `brain/DECISIONS.md` (`D-012`, solo `Estado`+`Historial`), `brain/DECISION_INDEX.md`, `AI_CONTEXT.md`, `PROJECT_INDEX.md`.
+- **Validación:** búsqueda global sin ocurrencias vigentes de `cfdiId`/`folioFiscal` como parámetro de ruta ni de las formas de ruta retiradas · `git diff --check` sin advertencias de contenido.
+- Detalle completo: [`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) §18.
+
 ## 2026-08-04 — Implementación parcial de T03 (EWO-SEC-NAV-001): `cfdi.read` para Auditor y Supervisor
 
 **Catálogo de permisos y documentación exclusivamente.** Sin cambios de frontend, navegación, rutas, guards de `D-010`, código de `T01`/`T02`, `schema.prisma` ni migraciones. No se inicia `T04`–`T06`. **`T03` queda `PARCIALMENTE IMPLEMENTADA · PENDIENTE DE AUDITORÍA` — no `PASSED`**, porque `document.download` no quedó resuelta (bloqueada por falta de aprobación explícita de producto).

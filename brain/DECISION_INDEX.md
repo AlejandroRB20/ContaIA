@@ -16,6 +16,7 @@
 | D-009   | Semántica de `Fecha` CFDI 4.0 (`issuedAtLocal: string`) y namespace oficial del TFD (EWO-005 Bloque E) | **APROBADA · IMPLEMENTADA · PASSED**                | 2026-08-02 | `DECISIONS.md`, `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`, `docs/engineering/audits/D-009_FINAL_AUDIT.md`               |
 | D-010   | Platform Admin no hereda autorización company-scoped                                                   | **IMPLEMENTADA · PASSED**                           | 2026-08-04 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `docs/engineering/audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md` |
 | D-011   | Permisos de lectura de CFDI para Auditor y Supervisor; separación de `document.download`               | **IMPLEMENTADA · PENDIENTE DE AUDITORÍA** (`cfdi.read` y `document.download` concedidos; clave separada ratificada y documentación sincronizada el 2026-08-06, §21 del plan) | 2026-08-06 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`                                                                 |
+| D-012   | Identidad canónica de navegación de CFDI mediante `documentId`                                         | **IMPLEMENTADA · PENDIENTE DE AUDITORÍA**                                                                                                                                    | 2026-08-04 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`                                                 |
 
 ## Convenciones
 

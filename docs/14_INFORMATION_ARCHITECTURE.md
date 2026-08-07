@@ -674,7 +674,7 @@ flowchart TB
 | ROUTE-0016 | `/{companyId}/contabilidad/estados-financieros` | PAGE-0016 | Requerida              | Sí                  | MVP  |
 | ROUTE-0017 | `/{companyId}/contabilidad/ejercicios`          | PAGE-0017 | Requerida              | Sí                  | MVP  |
 | ROUTE-0018 | `/{companyId}/fiscal/cfdi`                      | PAGE-0019 | Requerida              | Sí                  | MVP  |
-| ROUTE-0019 | `/{companyId}/fiscal/cfdi/{cfdiId}`             | PAGE-0020 | Requerida              | Sí                  | MVP  |
+| ROUTE-0019 | `/{companyId}/documentos/{documentId}/cfdi`     | PAGE-0020 | Requerida              | Sí                  | MVP  |
 | ROUTE-0020 | `/{companyId}/documentos`                       | PAGE-0021 | Requerida              | Sí                  | MVP  |
 | ROUTE-0021 | `/{companyId}/documentos/nuevo`                 | PAGE-0022 | Requerida              | Sí                  | MVP  |
 | ROUTE-0022 | `/{companyId}/documentos/{documentId}`          | PAGE-0023 | Requerida              | Sí                  | MVP  |
@@ -694,6 +694,8 @@ flowchart TB
 | ROUTE-0036 | `/404`                                          | PAGE-0042 | Variable               | Variable            | MVP  |
 
 **Navegación de retorno:** toda ruta de detalle/edición/creación conserva un enlace explícito a su listado padre. **Errores:** rutas con `{companyId}` inválido o sin Membresía devuelven `ROUTE-0035`; rutas con recurso inexistente devuelven `ROUTE-0036` — nunca se distingue en el mensaje si el recurso "no existe" o "existe pero no está autorizado" (`docs/11_SECURITY_ARCHITECTURE.md`, sección 12).
+
+> **`ROUTE-0019` (`D-012`, `T04` de `EWO-SEC-NAV-001`):** la identidad pública de navegación del CFDI es siempre `documentId`. `cfdiId` es un identificador interno de persistencia y **nunca** aparece en una URL; `folioFiscal` es únicamente **criterio de búsqueda**, nunca parámetro de ruta. La ruta permanece estable durante `PENDING_UPLOAD`, `PROCESSING`, `PROCESSED` y los estados de fallo, incluso sin fila `Cfdi` todavía.
 
 ## 42. Matriz de navegación por rol
 

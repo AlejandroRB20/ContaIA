@@ -59,13 +59,13 @@ Enumeraciones nuevas:
 
 ### 2.3 Frontend
 
-| Ruta                                   | Descripción                                                             | UI Spec |
-| -------------------------------------- | ----------------------------------------------------------------------- | ------- |
-| `/{companyId}/documentos`              | Lista de documentos con estado y filtros básicos                        | UI-0012 |
-| `/{companyId}/documentos/cargar`       | Zona de carga múltiple (`UIC-18`); polling de estado vía `useJobStatus` | UI-0013 |
-| `/{companyId}/documentos/{documentId}` | Detalle del documento: estado, metadatos, motivo de rechazo             | UI-0014 |
-| `/{companyId}/fiscal`                  | Lista de CFDI procesados con filtros                                    | UI-0015 |
-| `/{companyId}/fiscal/{documentId}`     | Detalle de CFDI extraído: emisor, receptor, conceptos, campos ambiguos  | UI-0016 |
+| Ruta                                        | Descripción                                                                                                                                             | UI Spec |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `/{companyId}/documentos`                   | Lista de documentos con estado y filtros básicos                                                                                                        | UI-0012 |
+| `/{companyId}/documentos/cargar`            | Zona de carga múltiple (`UIC-18`); polling de estado vía `useJobStatus`                                                                                 | UI-0013 |
+| `/{companyId}/documentos/{documentId}`      | Detalle del documento: estado, metadatos, motivo de rechazo                                                                                             | UI-0014 |
+| `/{companyId}/fiscal/cfdi`                  | Lista de CFDI procesados con filtros                                                                                                                    | UI-0015 |
+| `/{companyId}/documentos/{documentId}/cfdi` | Detalle de CFDI extraído: emisor, receptor, conceptos, campos ambiguos (`D-012` — identidad canónica por `documentId`, nunca `cfdiId` ni `folioFiscal`) | UI-0016 |
 
 Hooks nuevos: `useDocumentUpload`, `useDocuments`, `useDocument`, `useJobStatus`, `useCfdiList`, `useCfdi`.
 Servicios nuevos: `documentsService` (grupo 9.5 de `docs/08_API_DESIGN.md`), `fiscalService`.
