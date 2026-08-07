@@ -607,50 +607,50 @@ flowchart TB
 
 ## 40. Catálogo de páginas
 
-| ID        | Nombre                            | Módulo                         | Tipo                  | Usuario principal                         | Empresa requerida      | Fase            |
-| --------- | --------------------------------- | ------------------------------ | --------------------- | ----------------------------------------- | ---------------------- | --------------- |
-| PAGE-0001 | Iniciar sesión                    | Acceso                         | Formulario            | Todos                                     | No                     | MVP             |
-| PAGE-0002 | Verificación de correo            | Acceso                         | Estado de proceso     | Todos                                     | No                     | MVP             |
-| PAGE-0003 | Recuperar contraseña              | Acceso                         | Formulario            | Todos                                     | No                     | MVP             |
-| PAGE-0004 | Aceptar invitación                | Acceso                         | Formulario            | Invitado (futuro Usuario)                 | No                     | MVP             |
-| PAGE-0005 | Selección inicial de Empresa      | Acceso                         | Listado               | Todos                                     | No (elige una)         | MVP             |
-| PAGE-0006 | Inicio                            | Inicio                         | Dashboard             | Todos                                     | Sí                     | MVP             |
-| PAGE-0007 | Listado de Empresas               | Empresas                       | Listado               | Administrador                             | No (lista las propias) | MVP             |
-| PAGE-0008 | Alta de Empresa                   | Empresas                       | Creación              | Administrador                             | No                     | MVP             |
-| PAGE-0009 | Detalle de Empresa                | Empresas                       | Detalle               | Administrador (gestión), todos (consulta) | Sí                     | MVP             |
-| PAGE-0010 | Catálogo de cuentas               | Contabilidad                   | Listado               | Contador                                  | Sí                     | MVP             |
-| PAGE-0011 | Detalle/edición de Cuenta         | Contabilidad                   | Detalle/Edición       | Contador                                  | Sí                     | MVP             |
-| PAGE-0012 | Listado de Pólizas                | Contabilidad                   | Listado               | Contador, Auxiliar, Supervisor            | Sí                     | MVP             |
-| PAGE-0013 | Detalle de Póliza                 | Contabilidad                   | Detalle               | Contador, Auxiliar, Supervisor            | Sí                     | MVP             |
-| PAGE-0014 | Captura de Póliza                 | Contabilidad                   | Creación              | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0015 | Balanza de comprobación           | Contabilidad                   | Reporte               | Contador, Administrador                   | Sí                     | MVP             |
-| PAGE-0016 | Estados financieros               | Contabilidad                   | Reporte               | Contador, Administrador                   | Sí                     | MVP             |
-| PAGE-0017 | Ejercicios y cierres              | Contabilidad                   | Listado/Configuración | Administrador                             | Sí                     | MVP             |
-| PAGE-0018 | Sugerencias contables             | Contabilidad / Asistente IA    | Listado               | Contador                                  | Sí                     | MVP             |
-| PAGE-0019 | Listado de CFDI                   | Fiscal                         | Listado               | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0020 | Detalle de CFDI                   | Fiscal                         | Detalle               | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0021 | Biblioteca de Documentos          | Documentos                     | Listado               | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0022 | Carga de Documentos               | Documentos                     | Creación              | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0023 | Detalle de Documento              | Documentos                     | Detalle               | Auxiliar, Contador                        | Sí                     | MVP             |
-| PAGE-0024 | Catálogo de Reportes              | Reportes                       | Listado               | Contador, Administrador                   | Sí                     | MVP             |
-| PAGE-0025 | Visor de Reporte                  | Reportes                       | Reporte               | Contador, Administrador                   | Sí                     | MVP             |
-| PAGE-0026 | Reportes programados              | Reportes                       | Listado               | Contador, Administrador                   | Sí                     | Fase intermedia |
-| PAGE-0027 | Conversación con Asistente IA     | Asistente IA                   | Asistente             | Todos                                     | Sí (o sandbox)         | MVP             |
-| PAGE-0028 | Historial de conversaciones       | Asistente IA                   | Historial             | Todos                                     | Sí                     | MVP             |
-| PAGE-0029 | Centro de trabajo                 | Tareas y aprobaciones          | Dashboard             | Contador, Supervisor                      | Sí                     | MVP             |
-| PAGE-0030 | Detalle de Tarea/Caso de Revisión | Tareas y aprobaciones          | Revisión/Aprobación   | Contador, Supervisor                      | Sí                     | MVP             |
-| PAGE-0031 | Centro de notificaciones          | Notificaciones                 | Listado               | Todos                                     | Sí                     | MVP             |
-| PAGE-0032 | Preferencias de notificaciones    | Notificaciones / Configuración | Configuración         | Todos                                     | No                     | MVP             |
-| PAGE-0033 | Panel de soporte (plataforma)     | Administración                 | Dashboard             | Administrador de plataforma               | No                     | MVP             |
-| PAGE-0034 | Cuentas de plataforma             | Administración                 | Listado               | Administrador de plataforma               | No                     | MVP             |
-| PAGE-0035 | Auditoría de plataforma           | Administración                 | Historial             | Administrador de plataforma               | No                     | MVP             |
-| PAGE-0036 | Perfil personal                   | Configuración                  | Configuración         | Todos                                     | No                     | MVP             |
-| PAGE-0037 | Preferencias personales           | Configuración                  | Configuración         | Todos                                     | No                     | MVP             |
-| PAGE-0038 | Sesiones activas                  | Configuración                  | Configuración         | Todos                                     | No                     | MVP             |
-| PAGE-0039 | Configuración de Empresa (atajo)  | Configuración / Empresas       | Configuración         | Administrador                             | Sí                     | MVP             |
-| PAGE-0040 | Auditoría de la Empresa           | Configuración / Empresas       | Historial             | Auditor, Supervisor, Administrador        | Sí                     | MVP             |
-| PAGE-0041 | Acceso denegado                   | (transversal)                  | Estado                | Todos                                     | Variable               | MVP             |
-| PAGE-0042 | Ruta no encontrada                | (transversal)                  | Estado                | Todos                                     | Variable               | MVP             |
+| ID        | Nombre                            | Módulo                         | Tipo                  | Usuario principal                                      | Empresa requerida      | Fase            |
+| --------- | --------------------------------- | ------------------------------ | --------------------- | ------------------------------------------------------ | ---------------------- | --------------- |
+| PAGE-0001 | Iniciar sesión                    | Acceso                         | Formulario            | Todos                                                  | No                     | MVP             |
+| PAGE-0002 | Verificación de correo            | Acceso                         | Estado de proceso     | Todos                                                  | No                     | MVP             |
+| PAGE-0003 | Recuperar contraseña              | Acceso                         | Formulario            | Todos                                                  | No                     | MVP             |
+| PAGE-0004 | Aceptar invitación                | Acceso                         | Formulario            | Invitado (futuro Usuario)                              | No                     | MVP             |
+| PAGE-0005 | Selección inicial de Empresa      | Acceso                         | Listado               | Todos                                                  | No (elige una)         | MVP             |
+| PAGE-0006 | Inicio                            | Inicio                         | Dashboard             | Todos                                                  | Sí                     | MVP             |
+| PAGE-0007 | Listado de Empresas               | Empresas                       | Listado               | Administrador                                          | No (lista las propias) | MVP             |
+| PAGE-0008 | Alta de Empresa                   | Empresas                       | Creación              | Administrador                                          | No                     | MVP             |
+| PAGE-0009 | Detalle de Empresa                | Empresas                       | Detalle               | Administrador (gestión), todos (consulta)              | Sí                     | MVP             |
+| PAGE-0010 | Catálogo de cuentas               | Contabilidad                   | Listado               | Contador                                               | Sí                     | MVP             |
+| PAGE-0011 | Detalle/edición de Cuenta         | Contabilidad                   | Detalle/Edición       | Contador                                               | Sí                     | MVP             |
+| PAGE-0012 | Listado de Pólizas                | Contabilidad                   | Listado               | Contador, Auxiliar, Supervisor                         | Sí                     | MVP             |
+| PAGE-0013 | Detalle de Póliza                 | Contabilidad                   | Detalle               | Contador, Auxiliar, Supervisor                         | Sí                     | MVP             |
+| PAGE-0014 | Captura de Póliza                 | Contabilidad                   | Creación              | Auxiliar, Contador                                     | Sí                     | MVP             |
+| PAGE-0015 | Balanza de comprobación           | Contabilidad                   | Reporte               | Contador, Administrador                                | Sí                     | MVP             |
+| PAGE-0016 | Estados financieros               | Contabilidad                   | Reporte               | Contador, Administrador                                | Sí                     | MVP             |
+| PAGE-0017 | Ejercicios y cierres              | Contabilidad                   | Listado/Configuración | Administrador                                          | Sí                     | MVP             |
+| PAGE-0018 | Sugerencias contables             | Contabilidad / Asistente IA    | Listado               | Contador                                               | Sí                     | MVP             |
+| PAGE-0019 | Listado de CFDI                   | Fiscal                         | Listado               | Auxiliar, Contador                                     | Sí                     | MVP             |
+| PAGE-0020 | Detalle de CFDI                   | Fiscal                         | Detalle               | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sí                     | MVP             |
+| PAGE-0021 | Biblioteca de Documentos          | Documentos                     | Listado               | Auxiliar, Contador                                     | Sí                     | MVP             |
+| PAGE-0022 | Carga de Documentos               | Documentos                     | Creación              | Auxiliar, Contador                                     | Sí                     | MVP             |
+| PAGE-0023 | Detalle de Documento              | Documentos                     | Detalle               | Auxiliar, Contador                                     | Sí                     | MVP             |
+| PAGE-0024 | Catálogo de Reportes              | Reportes                       | Listado               | Contador, Administrador                                | Sí                     | MVP             |
+| PAGE-0025 | Visor de Reporte                  | Reportes                       | Reporte               | Contador, Administrador                                | Sí                     | MVP             |
+| PAGE-0026 | Reportes programados              | Reportes                       | Listado               | Contador, Administrador                                | Sí                     | Fase intermedia |
+| PAGE-0027 | Conversación con Asistente IA     | Asistente IA                   | Asistente             | Todos                                                  | Sí (o sandbox)         | MVP             |
+| PAGE-0028 | Historial de conversaciones       | Asistente IA                   | Historial             | Todos                                                  | Sí                     | MVP             |
+| PAGE-0029 | Centro de trabajo                 | Tareas y aprobaciones          | Dashboard             | Contador, Supervisor                                   | Sí                     | MVP             |
+| PAGE-0030 | Detalle de Tarea/Caso de Revisión | Tareas y aprobaciones          | Revisión/Aprobación   | Contador, Supervisor                                   | Sí                     | MVP             |
+| PAGE-0031 | Centro de notificaciones          | Notificaciones                 | Listado               | Todos                                                  | Sí                     | MVP             |
+| PAGE-0032 | Preferencias de notificaciones    | Notificaciones / Configuración | Configuración         | Todos                                                  | No                     | MVP             |
+| PAGE-0033 | Panel de soporte (plataforma)     | Administración                 | Dashboard             | Administrador de plataforma                            | No                     | MVP             |
+| PAGE-0034 | Cuentas de plataforma             | Administración                 | Listado               | Administrador de plataforma                            | No                     | MVP             |
+| PAGE-0035 | Auditoría de plataforma           | Administración                 | Historial             | Administrador de plataforma                            | No                     | MVP             |
+| PAGE-0036 | Perfil personal                   | Configuración                  | Configuración         | Todos                                                  | No                     | MVP             |
+| PAGE-0037 | Preferencias personales           | Configuración                  | Configuración         | Todos                                                  | No                     | MVP             |
+| PAGE-0038 | Sesiones activas                  | Configuración                  | Configuración         | Todos                                                  | No                     | MVP             |
+| PAGE-0039 | Configuración de Empresa (atajo)  | Configuración / Empresas       | Configuración         | Administrador                                          | Sí                     | MVP             |
+| PAGE-0040 | Auditoría de la Empresa           | Configuración / Empresas       | Historial             | Auditor, Supervisor, Administrador                     | Sí                     | MVP             |
+| PAGE-0041 | Acceso denegado                   | (transversal)                  | Estado                | Todos                                                  | Variable               | MVP             |
+| PAGE-0042 | Ruta no encontrada                | (transversal)                  | Estado                | Todos                                                  | Variable               | MVP             |
 
 ## 41. Catálogo de rutas
 
@@ -710,15 +710,15 @@ flowchart TB
 
 Muestra representativa (patrón aplicable al catálogo completo de las secciones 40-41):
 
-| Página                         | Ruta       | Módulo            | Persona                            | Workflow | Regla BR                      | Endpoint conceptual       | Permiso                          | Componente                                                                    | Fase |
-| ------------------------------ | ---------- | ----------------- | ---------------------------------- | -------- | ----------------------------- | ------------------------- | -------------------------------- | ----------------------------------------------------------------------------- | ---- |
-| PAGE-0013 Detalle de Póliza    | ROUTE-0013 | Accounting        | Contador, Auxiliar, Supervisor     | 8        | BR-POL-001 a 004              | API-0035 a 0039           | Aprobación (Contador/Supervisor) | Tabla de movimientos, badge de estado (`docs/13_DESIGN_SYSTEM.md` sección 19) | MVP  |
-| PAGE-0020 Detalle de CFDI      | ROUTE-0019 | Fiscal            | Auxiliar, Contador                 | 7        | BR-CFDI-001 a 003, BR-XML-002 | API-0027                  | Lectura + vinculación            | Badge de advertencia, panel de evidencia                                      | MVP  |
-| PAGE-0027 Asistente IA         | ROUTE-0025 | AI                | Todos                              | 9        | BR-IA-001 a 008               | API-0042 a 0045           | Según Rol                        | Tarjeta de respuesta (`docs/13_DESIGN_SYSTEM.md` sección 27)                  | MVP  |
-| PAGE-0029 Centro de trabajo    | ROUTE-0027 | AI, Notifications | Contador, Supervisor               | 9        | BR-GLB-002, BR-NOT-001        | API-0046                  | Aprobación                       | Tarjetas de tarea (sección 22 de Design System)                               | MVP  |
-| PAGE-0009 Detalle de Empresa   | ROUTE-0009 | Organizations     | Administrador                      | 4, 5     | BR-EMP-001 a 003              | API-0013, 0014, 0015-0019 | Gestión (Administrador)          | Pestañas, selector de Empresa                                                 | MVP  |
-| PAGE-0033 Panel de soporte     | ROUTE-0030 | Administration    | Administrador de plataforma        | 11, 15   | BR-SEC-004, BR-AUD-003        | API-0053                  | Acceso JIT                       | Superficie visual distinta (sección 24)                                       | MVP  |
-| PAGE-0040 Auditoría de Empresa | ROUTE-0034 | Audit             | Auditor, Supervisor, Administrador | 11       | BR-AUD-001 a 003              | API-0049, 0050            | Solo lectura                     | Línea de tiempo (sección 26)                                                  | MVP  |
+| Página                         | Ruta       | Módulo            | Persona                                                | Workflow | Regla BR                      | Endpoint conceptual       | Permiso                          | Componente                                                                    | Fase |
+| ------------------------------ | ---------- | ----------------- | ------------------------------------------------------ | -------- | ----------------------------- | ------------------------- | -------------------------------- | ----------------------------------------------------------------------------- | ---- |
+| PAGE-0013 Detalle de Póliza    | ROUTE-0013 | Accounting        | Contador, Auxiliar, Supervisor                         | 8        | BR-POL-001 a 004              | API-0035 a 0039           | Aprobación (Contador/Supervisor) | Tabla de movimientos, badge de estado (`docs/13_DESIGN_SYSTEM.md` sección 19) | MVP  |
+| PAGE-0020 Detalle de CFDI      | ROUTE-0019 | Fiscal            | Administrador, Contador, Auxiliar, Supervisor, Auditor | 7        | BR-CFDI-001 a 003, BR-XML-002 | API-0027                  | Lectura + vinculación            | Badge de advertencia, panel de evidencia                                      | MVP  |
+| PAGE-0027 Asistente IA         | ROUTE-0025 | AI                | Todos                                                  | 9        | BR-IA-001 a 008               | API-0042 a 0045           | Según Rol                        | Tarjeta de respuesta (`docs/13_DESIGN_SYSTEM.md` sección 27)                  | MVP  |
+| PAGE-0029 Centro de trabajo    | ROUTE-0027 | AI, Notifications | Contador, Supervisor                                   | 9        | BR-GLB-002, BR-NOT-001        | API-0046                  | Aprobación                       | Tarjetas de tarea (sección 22 de Design System)                               | MVP  |
+| PAGE-0009 Detalle de Empresa   | ROUTE-0009 | Organizations     | Administrador                                          | 4, 5     | BR-EMP-001 a 003              | API-0013, 0014, 0015-0019 | Gestión (Administrador)          | Pestañas, selector de Empresa                                                 | MVP  |
+| PAGE-0033 Panel de soporte     | ROUTE-0030 | Administration    | Administrador de plataforma                            | 11, 15   | BR-SEC-004, BR-AUD-003        | API-0053                  | Acceso JIT                       | Superficie visual distinta (sección 24)                                       | MVP  |
+| PAGE-0040 Auditoría de Empresa | ROUTE-0034 | Audit             | Auditor, Supervisor, Administrador                     | 11       | BR-AUD-001 a 003              | API-0049, 0050            | Solo lectura                     | Línea de tiempo (sección 26)                                                  | MVP  |
 
 ## 44. Riesgos
 
