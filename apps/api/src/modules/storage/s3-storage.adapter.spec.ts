@@ -286,6 +286,15 @@ describe('S3StorageAdapter', () => {
       expect(result).toEqual(Buffer.alloc(0));
     });
 
+    it('rechaza una respuesta exitosa sin Body como STORAGE_OPERATION_FAILED', async () => {
+      send.mockResolvedValue({});
+      const adapter = buildAdapter();
+
+      await expect(adapter.getObject('key-sin-body')).rejects.toMatchObject({
+        code: 'STORAGE_OPERATION_FAILED',
+      });
+    });
+
     it('lanza STORAGE_OBJECT_NOT_FOUND unicamente cuando el objeto no existe (404 / NotFound)', async () => {
       send.mockRejectedValue({ name: 'NotFound', $metadata: { httpStatusCode: 404 } });
       const adapter = buildAdapter();

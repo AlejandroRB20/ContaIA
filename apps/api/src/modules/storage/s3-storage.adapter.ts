@@ -125,8 +125,12 @@ export class S3StorageAdapter implements StorageAdapter {
       const response = await this.client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
       );
-      const bytes = await response.Body?.transformToByteArray();
-      return Buffer.from(bytes ?? new Uint8Array());
+      const body = response.Body;
+      if (!body || typeof body.transformToByteArray !== 'function') {
+        throw new Error('La respuesta de almacenamiento no incluyo un cuerpo utilizable.');
+      }
+      const bytes = await body.transformToByteArray();
+      return Buffer.from(bytes);
     } catch (error) {
       if (this.isNotFound(error)) {
         throw new StorageError('STORAGE_OBJECT_NOT_FOUND', 'El objeto solicitado no existe.');
