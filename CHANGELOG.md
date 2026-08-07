@@ -34,6 +34,19 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - Confirma el contrato `issuedAtLocal: string` aprobado, la persistencia `VARCHAR(19)` y la migración correctiva `20260804013104_preserve_cfdi_local_issue_datetime` sobre tabla vacía. `I-14` e `I-15` quedan **`RESOLVED`**.
 - `D-009` pasa a `PASSED`; `E5-S3-T06` queda desbloqueada, no iniciada; Sprint 3 continúa `IN_PROGRESS`. Sin cambios de código durante este cierre.
 
+## 2026-08-06 — Integración de E5-S3-T06 (extracción de encabezado CFDI 4.0, Sprint 3)
+
+**Código + documentación.** Sin cambios de `schema.prisma`, migraciones, frontend, worker ni módulos ajenos al extractor.
+
+- Commit aislado `a655bb94a4535e1f9457f3a127a7864b75ecb61a` construido en worktree separado (`worktree-agent-a4b02bb46c9bc7841`) sobre la misma base que `feature/frontend-ux-audit`, integrado mediante `git cherry-pick` limpio (sin conflictos) como commit `3de9a6cb8744439326da1dbe8ce51e2f3f00b24a`.
+- Extiende `apps/api/src/modules/xml-processing/cfdi-40-extractor.ts` (mismo archivo de `E5-S3-T05`, sigue siendo función pura sin `@Injectable`) con la extracción de los ocho campos obligatorios del encabezado CFDI 4.0: `folioFiscal`, `rfcEmisor`, `rfcReceptor`, `issuedAtLocal`, `subtotal`, `total`, `currency`, `tipoComprobante`.
+- **`D-009` preservado:** `issuedAtLocal: string` exacto `AAAA-MM-DDThh:mm:ss`, sin `new Date()`, `Date.parse()`, sufijo `Z` ni conversión de zona horaria — verificado en pruebas dedicadas.
+- **Alcance verificado, sin extensión:** no incluye `concepts[]`, `cfdiTaxes[]` ni `ambiguousFields[]` (`E5-S3-T07`–`T09`, siguen `BLOCKED`); `cfdi-extraction.errors.ts` sin cambios.
+- **Pruebas:** 78 en el archivo (50 preexistentes de `E5-S3-T05` + 28 nuevas), 78/78 `PASSED`. Regresión completa de `apps/api`: 41 suites / 642 pruebas `PASSED`, sin regresiones. `tsc --noEmit`, ESLint y `prettier --check` sin hallazgos sobre los dos archivos.
+- **Nota de entorno:** el `checkout` local convirtió parte del archivo a `CRLF` por `core.autocrlf=true` (el objeto Git integrado es `LF` puro, verificado byte a byte); se corrigió únicamente la copia en disco de los dos archivos de esta tarea para que coincida con el commit — sin tocar configuración de Git ni ningún otro archivo del árbol.
+- `E5-S3-T06` pasa a **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`** — no `PASSED`. Pendiente auditoría final independiente `READ ONLY` de Codex. `E5-S3-T07`–`T12` siguen `BLOCKED`; Sprint 3 continúa `IN_PROGRESS`, no se marca completado.
+- Sin `push`. Detalle completo: [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección E5-S3-T06.
+
 ## 2026-07-25 — Decisión arquitectónica D-007 (EWO-005 Bloque E)
 
 **Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.

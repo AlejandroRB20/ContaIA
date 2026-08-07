@@ -4,20 +4,20 @@
 >
 > **Regla de mantenimiento:** este archivo se actualiza al final de cada sesión de ingeniería que cierre, corrija o audite una tarea. Es una edición mecánica de la tabla de abajo — nunca una reescritura de prosa. Ver [`DOCUMENTATION_STYLE_GUIDE.md`](DOCUMENTATION_STYLE_GUIDE.md) si tienes dudas de formato.
 
-## Estado actual (2026-08-04)
+## Estado actual (2026-08-06)
 
-| Campo                                                             | Valor                                                                                                                                                                 |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Proyecto                                                          | ContaIA — monorepo `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/database` (Prisma)                                                                          |
-| Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                                                        |
-| Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                                              |
-| Sprint / Bloque activo                                            | Sprint 2 de Bloque E — **`COMPLETADO`** · Sprint 1 ya `COMPLETADO` · Sprint 3 `IN_PROGRESS`                                                                           |
-| Última tarea cerrada (`PASSED`)                                   | Corrección arquitectónica **D-009** — `issuedAtLocal: string` y columna `issued_at` como `VARCHAR(19)` — cierre administrativo 2026-08-03; `I-14` e `I-15` `RESOLVED` |
-| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | Ninguna                                                                                                                                                               |
-| Siguiente paso inmediato                                          | Implementación controlada de `E5-S3-T06` con Claude Code, usando el análisis técnico ya aprobado y el contrato `issuedAtLocal` vigente                                |
-| Tarea siguiente en la secuencia                                   | `E5-S3-T06` — habilitada, **no iniciada**. Sprint 3 `IN_PROGRESS`; `E5-S3-T07`–`T12` conservan su estado vigente (`BLOCKED`)                                          |
-| Última auditoría cerrada                                          | [`D-009_FINAL_AUDIT.md`](docs/engineering/audits/D-009_FINAL_AUDIT.md) — `PASSED`                                                                                     |
-| Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea                           |
+| Campo                                                             | Valor                                                                                                                                                                                                              |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Proyecto                                                          | ContaIA — monorepo `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/database` (Prisma)                                                                                                                       |
+| Versión de la documentación                                       | `MASTER_CONTEXT.md` v2.1 · Knowledge Platform v1.0 (este conjunto de archivos)                                                                                                                                     |
+| Work Order activa                                                 | **EWO-005 — Documents & Fiscal**, Bloque E ("Persistencia atómica CFDI")                                                                                                                                           |
+| Sprint / Bloque activo                                            | Sprint 2 de Bloque E — **`COMPLETADO`** · Sprint 1 ya `COMPLETADO` · Sprint 3 `IN_PROGRESS`                                                                                                                        |
+| Última tarea cerrada (`PASSED`)                                   | Corrección arquitectónica **D-009** — `issuedAtLocal: string` y columna `issued_at` como `VARCHAR(19)` — cierre administrativo 2026-08-03; `I-14` e `I-15` `RESOLVED`                                              |
+| Tareas implementadas, pendientes de auditoría (`READY_FOR_AUDIT`) | `E5-S3-T06` — integrada en `feature/frontend-ux-audit` 2026-08-06 (commit `3de9a6cb8744439326da1dbe8ce51e2f3f00b24a`), 78/78 pruebas dirigidas y 41 suites/642 pruebas de regresión completa `PASSED`, sin auditar |
+| Siguiente paso inmediato                                          | Solicitar auditoría independiente `READ ONLY` de Codex sobre `E5-S3-T06`                                                                                                                                           |
+| Tarea siguiente en la secuencia                                   | `E5-S3-T06` — `IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`. Sprint 3 `IN_PROGRESS`; `E5-S3-T07`–`T12` conservan su estado vigente (`BLOCKED`)                                                                     |
+| Última auditoría cerrada                                          | [`D-009_FINAL_AUDIT.md`](docs/engineering/audits/D-009_FINAL_AUDIT.md) — `PASSED`                                                                                                                                  |
+| Detalle completo tarea por tarea                                  | [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección 10 — única fuente detallada por tarea                                                                        |
 
 ## Decisiones activas más relevantes
 
