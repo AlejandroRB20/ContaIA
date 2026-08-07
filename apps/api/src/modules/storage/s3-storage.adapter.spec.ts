@@ -248,6 +248,85 @@ describe('S3StorageAdapter', () => {
     });
   });
 
+  describe('getObject', () => {
+    function mockBody(bytes: Uint8Array) {
+      return { transformToByteArray: jest.fn().mockResolvedValue(bytes) };
+    }
+
+    it('descarga el objeto completo y lo devuelve como Buffer', async () => {
+      const bytes = new Uint8Array([0x3c, 0x3f, 0x78, 0x6d, 0x6c]); // "<?xml"
+      send.mockResolvedValue({ Body: mockBody(bytes) });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getObject('company/1/doc-key.xml');
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result).toEqual(Buffer.from(bytes));
+      const command = send.mock.calls[0][0];
+      expect(command).toBeInstanceOf(GetObjectCommand);
+      expect(command.input).toEqual({ Bucket: 'contaia-documents', Key: 'company/1/doc-key.xml' });
+    });
+
+    it('consume el stream de respuesta mediante el helper del SDK (transformToByteArray), sin gestion manual', async () => {
+      const body = mockBody(new Uint8Array([1, 2, 3]));
+      send.mockResolvedValue({ Body: body });
+      const adapter = buildAdapter();
+
+      await adapter.getObject('key');
+
+      expect(body.transformToByteArray).toHaveBeenCalledTimes(1);
+    });
+
+    it('devuelve un Buffer vacio cuando el objeto no tiene contenido', async () => {
+      send.mockResolvedValue({ Body: mockBody(new Uint8Array()) });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getObject('key-vacio');
+
+      expect(result).toEqual(Buffer.alloc(0));
+    });
+
+    it('lanza STORAGE_OBJECT_NOT_FOUND unicamente cuando el objeto no existe (404 / NotFound)', async () => {
+      send.mockRejectedValue({ name: 'NotFound', $metadata: { httpStatusCode: 404 } });
+      const adapter = buildAdapter();
+
+      await expect(adapter.getObject('key-inexistente')).rejects.toMatchObject({
+        code: 'STORAGE_OBJECT_NOT_FOUND',
+      });
+    });
+
+    it('NO lanza STORAGE_OBJECT_NOT_FOUND ante acceso denegado (403) — propaga STORAGE_OPERATION_FAILED', async () => {
+      send.mockRejectedValue({ name: 'Forbidden', $metadata: { httpStatusCode: 403 } });
+      const adapter = buildAdapter();
+
+      await expect(adapter.getObject('key')).rejects.toMatchObject({
+        code: 'STORAGE_OPERATION_FAILED',
+      });
+    });
+
+    it('un error de red/proveedor se traduce a STORAGE_OPERATION_FAILED, sin exponer el error crudo', async () => {
+      send.mockRejectedValue(new Error('connect ETIMEDOUT 127.0.0.1:9123'));
+      const adapter = buildAdapter();
+
+      const error = await adapter.getObject('key').catch((caught: unknown) => caught);
+
+      expect(error).toMatchObject({ code: 'STORAGE_OPERATION_FAILED' });
+      expect((error as Error).message).not.toContain('9123');
+      expect((error as Error).message).not.toContain('ETIMEDOUT');
+    });
+
+    it('nunca genera ni expone una URL prefirmada', async () => {
+      send.mockResolvedValue({ Body: mockBody(new Uint8Array([1])) });
+      const adapter = buildAdapter();
+
+      const result = await adapter.getObject('key');
+
+      expect(getSignedUrl).not.toHaveBeenCalled();
+      expect(result).not.toHaveProperty('url');
+      expect(result).not.toHaveProperty('expiresAt');
+    });
+  });
+
   describe('deleteObject', () => {
     it('elimina con el bucket y key correctos', async () => {
       send.mockResolvedValue({});
@@ -284,6 +363,22 @@ describe('S3StorageAdapter', () => {
 
       try {
         await adapter.exists('key');
+        throw new Error('no deberia llegar aqui');
+      } catch (error) {
+        expect(error).toBeInstanceOf(StorageError);
+        const serialized =
+          JSON.stringify(error) + (error as Error).message + (error as Error).stack;
+        expect(serialized).not.toContain(CONFIG.accessKeyId);
+        expect(serialized).not.toContain(CONFIG.secretAccessKey);
+      }
+    });
+
+    it('un fallo de getObject nunca expone las credenciales ni el contenido descargado', async () => {
+      send.mockRejectedValue(new Error('boom'));
+      const adapter = buildAdapter();
+
+      try {
+        await adapter.getObject('key');
         throw new Error('no deberia llegar aqui');
       } catch (error) {
         expect(error).toBeInstanceOf(StorageError);

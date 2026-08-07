@@ -28,6 +28,10 @@ export class DisabledStorageAdapter implements StorageAdapter {
     throw this.disabledError();
   }
 
+  async getObject(_key: string): Promise<Buffer> {
+    throw this.disabledError();
+  }
+
   private disabledError(): StorageError {
     return new StorageError(
       'STORAGE_DISABLED',

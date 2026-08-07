@@ -34,4 +34,39 @@ describe('loadServerConfig', () => {
       expect((error as Error).message).not.toContain('s3cr3t');
     }
   });
+
+  describe('configuracion central de XML/BullMQ (Addendum §10.3, E5-S4-T09)', () => {
+    it('aplica los 14 defaults MVP cuando estan ausentes — ningun consumidor necesita su propio default', () => {
+      const config = loadServerConfig(validEnv);
+
+      expect(config.XML_MAX_FILE_SIZE_BYTES).toBe(10485760);
+      expect(config.XML_MAX_DEPTH).toBe(50);
+      expect(config.XML_MAX_NODE_COUNT).toBe(100000);
+      expect(config.XML_MAX_ATTRIBUTE_COUNT).toBe(50000);
+      expect(config.JOBS_RECONCILIATION_ENABLED).toBe(true);
+      expect(config.JOBS_RECONCILIATION_INTERVAL_MS).toBe(300000);
+      expect(config.JOBS_STALE_QUEUED_MS).toBe(600000);
+      expect(config.JOBS_STALE_PROCESSING_MS).toBe(900000);
+      expect(config.JOBS_ATTEMPTS).toBe(3);
+      expect(config.JOBS_BACKOFF_DELAY_MS).toBe(5000);
+      expect(config.JOBS_REMOVE_ON_COMPLETE_COUNT).toBe(1000);
+      expect(config.JOBS_REMOVE_ON_COMPLETE_AGE_SECONDS).toBe(86400);
+      expect(config.JOBS_REMOVE_ON_FAIL_COUNT).toBe(5000);
+      expect(config.JOBS_REMOVE_ON_FAIL_AGE_SECONDS).toBe(604800);
+    });
+
+    it('JOBS_ATTEMPTS fuera de rango hace fallar el arranque completo de la aplicacion', () => {
+      resetServerConfigCache();
+
+      expect(() => loadServerConfig({ ...validEnv, JOBS_ATTEMPTS: '99' })).toThrow(/JOBS_ATTEMPTS/);
+    });
+
+    it('XML_MAX_DEPTH no numerico hace fallar el arranque completo de la aplicacion', () => {
+      resetServerConfigCache();
+
+      expect(() => loadServerConfig({ ...validEnv, XML_MAX_DEPTH: 'no-numero' })).toThrow(
+        /XML_MAX_DEPTH/,
+      );
+    });
+  });
 });

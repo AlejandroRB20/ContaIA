@@ -113,6 +113,28 @@ export class S3StorageAdapter implements StorageAdapter {
     }
   }
 
+  /**
+   * GET real — a diferencia de `exists()`/`getMetadata()` (siempre HEAD).
+   * `Body.transformToByteArray()` es el helper del propio SDK v3 para
+   * consumir el stream de respuesta de forma completa y cerrarlo
+   * correctamente, sin gestionar manualmente eventos `data`/`end`/`error`
+   * ni añadir una dependencia de streaming adicional.
+   */
+  async getObject(key: string): Promise<Buffer> {
+    try {
+      const response = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      const bytes = await response.Body?.transformToByteArray();
+      return Buffer.from(bytes ?? new Uint8Array());
+    } catch (error) {
+      if (this.isNotFound(error)) {
+        throw new StorageError('STORAGE_OBJECT_NOT_FOUND', 'El objeto solicitado no existe.');
+      }
+      throw this.toStorageError(error, 'descargar el objeto');
+    }
+  }
+
   async deleteObject(key: string): Promise<void> {
     try {
       // DeleteObject en S3/MinIO responde 204 tanto si el objeto existia

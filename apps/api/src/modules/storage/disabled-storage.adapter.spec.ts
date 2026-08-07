@@ -28,6 +28,10 @@ describe('DisabledStorageAdapter', () => {
     await expect(adapter.deleteObject('key')).rejects.toMatchObject({ code: 'STORAGE_DISABLED' });
   });
 
+  it('getObject falla con STORAGE_DISABLED (nunca intenta descargar)', async () => {
+    await expect(adapter.getObject('key')).rejects.toMatchObject({ code: 'STORAGE_DISABLED' });
+  });
+
   it('todos los errores son instancias de StorageError con mensaje generico', async () => {
     try {
       await adapter.exists('key');

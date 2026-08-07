@@ -5,6 +5,8 @@ import {
   redisEnvSchema,
   storageEnvSchema,
   observabilityEnvSchema,
+  xmlEnvSchema,
+  jobsEnvSchema,
 } from '@contaia/validation';
 import type { z } from 'zod';
 
@@ -21,7 +23,9 @@ const serverConfigSchema = sharedEnvSchema
   .merge(databaseEnvSchema)
   .merge(redisEnvSchema)
   .merge(storageEnvSchema)
-  .merge(observabilityEnvSchema);
+  .merge(observabilityEnvSchema)
+  .merge(xmlEnvSchema)
+  .merge(jobsEnvSchema);
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 

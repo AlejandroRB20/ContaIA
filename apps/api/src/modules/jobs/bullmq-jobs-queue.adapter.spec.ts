@@ -9,9 +9,11 @@ const PAYLOAD = {
   companyId: '33333333-3333-3333-3333-333333333333',
 };
 
-function buildAdapter(add: jest.Mock) {
+const DEFAULT_CONFIG = { attempts: 3, backoffDelayMs: 5000 };
+
+function buildAdapter(add: jest.Mock, config = DEFAULT_CONFIG) {
   const queue = { add } as unknown as Queue;
-  return new BullMqJobsQueueAdapter(queue);
+  return new BullMqJobsQueueAdapter(queue, config);
 }
 
 describe('BullMqJobsQueueAdapter', () => {
@@ -29,7 +31,7 @@ describe('BullMqJobsQueueAdapter', () => {
       );
     });
 
-    it('configura attempts: 3 y backoff exponencial', async () => {
+    it('configura attempts y backoff exponencial a partir de la configuracion central (JOBS_ATTEMPTS/JOBS_BACKOFF_DELAY_MS)', async () => {
       const add = jest.fn().mockResolvedValue(undefined);
       const adapter = buildAdapter(add);
 
@@ -37,7 +39,18 @@ describe('BullMqJobsQueueAdapter', () => {
 
       const options = add.mock.calls[0]![2];
       expect(options.attempts).toBe(3);
-      expect(options.backoff).toEqual({ type: 'exponential', delay: 1000 });
+      expect(options.backoff).toEqual({ type: 'exponential', delay: 5000 });
+    });
+
+    it('nunca declara un default propio: un valor distinto de configuracion cambia lo que se encola', async () => {
+      const add = jest.fn().mockResolvedValue(undefined);
+      const adapter = buildAdapter(add, { attempts: 7, backoffDelayMs: 12345 });
+
+      await adapter.enqueueXmlExtraction(PAYLOAD);
+
+      const options = add.mock.calls[0]![2];
+      expect(options.attempts).toBe(7);
+      expect(options.backoff).toEqual({ type: 'exponential', delay: 12345 });
     });
 
     it('el payload enviado a BullMQ nunca incluye mas campos que jobId/documentId/companyId', async () => {

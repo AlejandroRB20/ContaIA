@@ -64,8 +64,12 @@ export function buildJobsQueueAdapterProvider(redisEnabled: boolean): Provider {
 
   return {
     provide: JOBS_QUEUE_ADAPTER,
-    useFactory: (queue: Queue): JobsQueueAdapter => new BullMqJobsQueueAdapter(queue),
-    inject: [getQueueToken(XML_EXTRACTION_QUEUE_NAME)],
+    useFactory: (queue: Queue, config: ServerConfig): JobsQueueAdapter =>
+      new BullMqJobsQueueAdapter(queue, {
+        attempts: config.JOBS_ATTEMPTS,
+        backoffDelayMs: config.JOBS_BACKOFF_DELAY_MS,
+      }),
+    inject: [getQueueToken(XML_EXTRACTION_QUEUE_NAME), SERVER_CONFIG],
   };
 }
 

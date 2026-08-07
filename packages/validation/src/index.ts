@@ -5,3 +5,5 @@ export * from './env/database';
 export * from './env/redis';
 export * from './env/storage';
 export * from './env/observability';
+export * from './env/xml';
+export * from './env/jobs';
