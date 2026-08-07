@@ -26,54 +26,11 @@ import {
   UserStatus,
 } from '../generated/client/index.js';
 
+import { PERMISSION_CATALOG, ROLE_PERMISSIONS } from './permissions-catalog.js';
+
 const prisma = new PrismaClient();
 
 const DEMO_PASSWORD = 'ContaIA#Demo2026';
-
-const PERMISSION_CATALOG: Array<{ key: string; description: string; module: string }> = [
-  {
-    key: 'company.read',
-    description: 'Consultar datos generales de la empresa',
-    module: 'company',
-  },
-  {
-    key: 'company.update',
-    description: 'Actualizar datos generales de la empresa',
-    module: 'company',
-  },
-  {
-    key: 'company.fiscal.update',
-    description: 'Actualizar el perfil fiscal y domicilio de la empresa',
-    module: 'company',
-  },
-  {
-    key: 'company.settings.update',
-    description: 'Actualizar la configuracion regional de la empresa',
-    module: 'company',
-  },
-  { key: 'journal.read', description: 'Consultar polizas contables', module: 'journal' },
-  { key: 'journal.create', description: 'Crear polizas contables (borrador)', module: 'journal' },
-  { key: 'journal.approve', description: 'Aprobar polizas contables', module: 'journal' },
-  { key: 'inventory.create', description: 'Crear movimientos de inventario', module: 'inventory' },
-  {
-    key: 'inventory.update',
-    description: 'Actualizar movimientos de inventario',
-    module: 'inventory',
-  },
-  { key: 'sat.download', description: 'Descargar informacion del SAT', module: 'sat' },
-  { key: 'sat.upload', description: 'Cargar informacion hacia el SAT', module: 'sat' },
-  { key: 'cfdi.generate', description: 'Generar/cargar CFDI', module: 'cfdi' },
-  { key: 'cfdi.cancel', description: 'Cancelar CFDI', module: 'cfdi' },
-  { key: 'document.upload', description: 'Cargar documentos a la empresa', module: 'document' },
-  {
-    key: 'document.read',
-    description: 'Consultar documentos y su estado',
-    module: 'document',
-  },
-  { key: 'users.invite', description: 'Invitar usuarios a la empresa', module: 'users' },
-  { key: 'users.remove', description: 'Remover usuarios de la empresa', module: 'users' },
-  { key: 'users.update', description: 'Actualizar el rol de un usuario', module: 'users' },
-];
 
 const ROLE_CATALOG: Array<{ name: RoleName; description: string }> = [
   {
@@ -95,43 +52,6 @@ const ROLE_CATALOG: Array<{ name: RoleName; description: string }> = [
     description: 'Entorno educativo simulado, sin acceso a datos reales de empresa.',
   },
 ];
-
-/** docs/04_BUSINESS_RULES.md seccion 5.1 — Estudiante no aparece: opera en sandbox, sin permisos reales. */
-const ROLE_PERMISSIONS: Partial<Record<RoleName, string[]>> = {
-  [RoleName.ADMINISTRADOR]: PERMISSION_CATALOG.map((p) => p.key),
-  [RoleName.CONTADOR]: [
-    'company.read',
-    'journal.read',
-    'journal.create',
-    'journal.approve',
-    'inventory.create',
-    'inventory.update',
-    'sat.download',
-    'sat.upload',
-    'cfdi.generate',
-    'cfdi.cancel',
-    'document.upload',
-    'document.read',
-  ],
-  [RoleName.AUXILIAR]: [
-    'company.read',
-    'journal.read',
-    'journal.create',
-    'inventory.create',
-    'inventory.update',
-    'cfdi.generate',
-    'document.upload',
-    'document.read',
-  ],
-  [RoleName.SUPERVISOR]: [
-    'company.read',
-    'journal.read',
-    'journal.approve',
-    'sat.download',
-    'document.read',
-  ],
-  [RoleName.AUDITOR]: ['company.read', 'journal.read', 'sat.download', 'document.read'],
-};
 
 async function seedSystemMetadata(): Promise<void> {
   const record = await prisma.systemMetadata.upsert({
