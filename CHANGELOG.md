@@ -174,6 +174,17 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - `E5-S3-T07` pasa a **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`** — no `PASSED`. Pendiente auditoría final independiente `READ ONLY`. `E5-S3-T08`–`T12` siguen `BLOCKED`; Sprint 3 continúa `IN_PROGRESS`, no se marca completado.
 - Sin `push`. Detalle completo: [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección E5-S3-T07.
 
+## 2026-08-07 — Integración de fundamentos de Sprint 4: `StorageAdapter.getObject()` (E5-S4-T01) y configuración central BullMQ/XML (E5-S4-T09)
+
+**Código + documentación.** Sin `XmlExtractionProcessor`, sin `schema.prisma`, sin migraciones, sin Sprint 3 (`E5-S3-T01`–`T12`) tocado.
+
+- Commit `a8a700b` integrado en `feature/frontend-ux-audit`.
+- **`E5-S4-T01`:** `getObject(key: string): Promise<Buffer>` agregado al contrato `StorageAdapter`. `S3StorageAdapter` lo implementa con `GetObjectCommand` (GET real, no HEAD, sin URL prefirmada) para uso exclusivo del futuro worker. `DisabledStorageAdapter.getObject` falla con `STORAGE_DISABLED` sin intentar conexión.
+- **`E5-S4-T09`:** las 14 variables canónicas de Addendum §10.3 existen en `jobsEnvSchema`/`xmlEnvSchema` (`packages/validation/src/env/`), fusionadas en `packages/config/src/server.ts`, validación fail-fast (fuera de rango falla el arranque; ausente aplica el default MVP). `JOBS_ATTEMPTS`/`JOBS_BACKOFF_DELAY_MS` ya se inyectan en `BullMqJobsQueueAdapter` desde `SERVER_CONFIG`, reemplazando las constantes hardcodeadas; el default de `JOBS_BACKOFF_DELAY_MS` pasa del `1000 ms` provisional al `5000 ms` canónico. Variables de reconciliación/umbrales de atasco/retención validadas y disponibles, deliberadamente sin cablear todavía (sin `registerQueue.defaultJobOptions`, sin reconciliador).
+- **Sin `XmlExtractionProcessor`** ni ningún `@Processor`/`WorkerHost` — el consumo de `getObject()` y de la configuración central queda para `E5-S4-T02` en adelante, no iniciada.
+- `E5-S4-T01` y `E5-S4-T09` pasan a **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA`** — no `PASSED`. `E5-S4-T02` en adelante siguen `BLOCKED`.
+- Sin `push`. Detalle completo: [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) secciones `E5-S4-T01` y `E5-S4-T09`.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.

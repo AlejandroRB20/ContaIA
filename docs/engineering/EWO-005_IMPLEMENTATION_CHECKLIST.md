@@ -1674,6 +1674,7 @@ Flujo secuencial obligatorio — cada fase depende de que la anterior cierre su 
 - **Evidencia de cierre:** diff de los tres archivos.
 - **Gate asociado:** precondición de todo el resto de Sprint 4.
 - **Estado inicial:** `BLOCKED`.
+- **Estado actual:** `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`. Código integrado en `feature/frontend-ux-audit` mediante el commit `a8a700b` (junto con `E5-S4-T09`, mismo commit). `getObject(key: string): Promise<Buffer>` agregado a `StorageAdapter` (`storage.interface.ts`); `S3StorageAdapter` lo implementa con `GetObjectCommand` (GET real, no HEAD) sin URL prefirmada — transferencia server-side exclusiva para el futuro worker; `DisabledStorageAdapter.getObject` falla con `STORAGE_DISABLED` sin intentar conexión. **Sin `XmlExtractionProcessor`** ni ningún `@Processor`/`WorkerHost` — el consumo del método queda para `E5-S4-T02`, no iniciada. Sin cambios de `schema.prisma` ni migraciones. **Pendiente:** auditoría final independiente `READ ONLY` — no constituye cierre `PASSED`.
 
 #### E5-S4-T02 — `XmlExtractionProcessor` (consumer BullMQ)
 
@@ -1786,6 +1787,7 @@ Flujo secuencial obligatorio — cada fase depende de que la anterior cierre su 
 - **Evidencia de cierre:** diff de `packages/validation/`, `packages/config/`, `.env.example`, y `bullmq-jobs-queue.adapter.ts` (constantes eliminadas).
 - **Gate asociado:** precondición de AD-12 (retención de BullMQ).
 - **Estado inicial:** `BLOCKED`.
+- **Estado actual:** `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`. Código integrado en `feature/frontend-ux-audit` mediante el commit `a8a700b` (junto con `E5-S4-T01`, mismo commit). Las 14 variables canónicas de Addendum §10.3 (`XML_MAX_FILE_SIZE_BYTES`, `XML_MAX_DEPTH`, `XML_MAX_NODE_COUNT`, `XML_MAX_ATTRIBUTE_COUNT`, `JOBS_RECONCILIATION_ENABLED`, `JOBS_RECONCILIATION_INTERVAL_MS`, `JOBS_STALE_QUEUED_MS`, `JOBS_STALE_PROCESSING_MS`, `JOBS_ATTEMPTS`, `JOBS_BACKOFF_DELAY_MS`, `JOBS_REMOVE_ON_COMPLETE_COUNT`, `JOBS_REMOVE_ON_COMPLETE_AGE_SECONDS`, `JOBS_REMOVE_ON_FAIL_COUNT`, `JOBS_REMOVE_ON_FAIL_AGE_SECONDS`) existen en `jobsEnvSchema`/`xmlEnvSchema` (`packages/validation/src/env/`), fusionadas en `packages/config/src/server.ts`, fail-fast (valor fuera de rango falla el arranque; ausente aplica el default MVP). `JOBS_ATTEMPTS` y `JOBS_BACKOFF_DELAY_MS` ya se inyectan en `BullMqJobsQueueAdapter` desde `SERVER_CONFIG`, reemplazando las constantes hardcodeadas — el default de `JOBS_BACKOFF_DELAY_MS` pasa del `1000 ms` provisional al `5000 ms` canónico de Addendum §10.3 (cambio de comportamiento intencional). Las variables de reconciliación, umbrales de atasco y retención quedan **validadas y disponibles pero deliberadamente sin cablear** — sin `registerQueue.defaultJobOptions`, sin reconciliador. **Sin `XmlExtractionProcessor`** ni migraciones de `schema.prisma`. **Pendiente:** auditoría final independiente `READ ONLY` — no constituye cierre `PASSED`.
 
 #### E5-S4-T10 — Handler `@OnWorkerEvent('failed')`
 
