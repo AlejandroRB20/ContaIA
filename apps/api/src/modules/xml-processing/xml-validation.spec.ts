@@ -545,9 +545,21 @@ describe('validateXml — orden de las dos fases y número de invocaciones', () 
   it('importa solo XMLParser y XMLValidator; nunca XMLBuilder ni fast-xml-validator', () => {
     const fuente = readFileSync(join(__dirname, 'xml-validation.ts'), 'utf8');
 
+    /**
+     * Detección anclada, no por subcadena (corregido —
+     * `E5-S3-T07-TEST-GUARD-FIX`): cada línea se recorta (`trim()`, que
+     * también elimina un `\r` de fin de línea CRLF residual) antes de
+     * comprobar `/^import\s/` — mismo patrón de corrección aplicado en
+     * `cfdi-40-extractor.spec.ts`. El `startsWith('import')` original
+     * comparaba la línea cruda, sin recortar, contra un string exacto vía
+     * `toBe`; un `\r` residual al final de la línea (verificado en este
+     * entorno, checkout con `core.autocrlf=true`) hacía fallar la
+     * comparación exacta con texto sobrante invisible al final.
+     */
     const lineaImport = fuente
       .split('\n')
-      .find((linea) => linea.startsWith('import') && linea.includes(`'fast-xml-parser'`));
+      .map((linea) => linea.trim())
+      .find((linea) => /^import\s/.test(linea) && linea.includes(`'fast-xml-parser'`));
     expect(lineaImport).toBe(`import { XMLParser, XMLValidator } from 'fast-xml-parser';`);
 
     // `fast-xml-validator` solo puede aparecer en prosa (la deuda declarada),

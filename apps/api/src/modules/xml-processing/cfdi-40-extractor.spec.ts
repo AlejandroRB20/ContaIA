@@ -438,17 +438,54 @@ describe('detectCfdiVersion — no vuelve a parsear ni a validar', () => {
    * deliberadamente "fast-xml-parser" y "Logger" en prosa, para explicar por
    * qué no se usan — un `toContain` ingenuo sobre el archivo completo
    * produciría un falso positivo con esa misma prosa.
+   *
+   * **Detección anclada, no por subcadena (corregido — `E5-S3-T07-TEST-GUARD-FIX`).**
+   * `PATRON_LINEA_IMPORT` exige que la línea, ya recortada (`trim()`, que
+   * también elimina un `\r` de fin de línea CRLF residual), empiece
+   * exactamente con la palabra `import` seguida de un espacio. Un
+   * `startsWith('import')` sin ese límite de palabra confundía una
+   * declaración real con cualquier identificador que solo *empezara* con
+   * esas seis letras — p. ej. la propiedad `importe,` de un objeto devuelto,
+   * que `E5-S3-T07` introdujo de forma legítima en `extractCfdiConcepts` y
+   * que no es, ni remotamente, una declaración `import`.
+   *
+   * Esta prueba comprueba la propiedad normativa real — **este módulo nunca
+   * importa `fast-xml-parser`** — no una lista cerrada de todos los imports
+   * legítimos del archivo. Un import nuevo y ajeno a `fast-xml-parser` (como
+   * `import type { ExtractedConcept } from '../cfdi/cfdi-aggregate.types';`,
+   * `import type`, sin huella en runtime) nunca debe romper esta prueba;
+   * `import { XMLParser } from 'fast-xml-parser';` sí debe seguir
+   * rompiéndola, sin excepción.
    */
-  function leerImportsDeProduccion(): string[] {
+  const PATRON_LINEA_IMPORT = /^import\s/;
+
+  function leerLineasDeImportReales(): string[] {
     const fs = jest.requireActual<typeof import('fs')>('fs');
     const path = jest.requireActual<typeof import('path')>('path');
     const fuente = fs.readFileSync(path.join(__dirname, 'cfdi-40-extractor.ts'), 'utf8');
-    return fuente.split('\n').filter((linea) => linea.trim().startsWith('import'));
+    return fuente
+      .split('\n')
+      .map((linea) => linea.trim())
+      .filter((linea) => PATRON_LINEA_IMPORT.test(linea));
   }
 
   it('no importa fast-xml-parser en el módulo de producción', () => {
-    const imports = leerImportsDeProduccion();
-    expect(imports).toEqual(["import { CfdiExtractionError } from './cfdi-extraction.errors';"]);
+    const imports = leerLineasDeImportReales();
+
+    expect(imports.length).toBeGreaterThan(0);
+    expect(imports.some((linea) => linea.includes(`'fast-xml-parser'`))).toBe(false);
+  });
+
+  it('conserva el import real de CfdiExtractionError (control: la detección no queda vacía por error)', () => {
+    const imports = leerLineasDeImportReales();
+    expect(imports).toContain("import { CfdiExtractionError } from './cfdi-extraction.errors';");
+  });
+
+  it('una propiedad `importe` nunca se cuenta como declaración import (regresión del falso positivo corregido)', () => {
+    expect(PATRON_LINEA_IMPORT.test('importe,')).toBe(false);
+    expect(PATRON_LINEA_IMPORT.test('importe: importe,')).toBe(false);
+    expect(PATRON_LINEA_IMPORT.test("import { X } from 'y';")).toBe(true);
+    expect(PATRON_LINEA_IMPORT.test("import type { X } from 'y';")).toBe(true);
   });
 
   it('no registra nada (sin console.*, sin uso real de Logger)', () => {
