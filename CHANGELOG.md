@@ -18,6 +18,14 @@ Vigente — repositorio activo del historial detallado del proyecto.
 
 ---
 
+## 2026-08-07 — Cierre administrativo de E5-S3-T06 y E5-S3-T07 (Sprint 3)
+
+**Solo documentación.** Sin cambios de código de producción, pruebas, `schema.prisma`, migraciones, frontend, worker ni arquitectura técnica.
+
+- **T06:** auditoría final independiente `READ ONLY` sobre snapshot `84babc183e84885f56284de5142ee70d72d3cf84`: **`PASSED`**. Implementación auditada: `3de9a6cb8744439326da1dbe8ce51e2f3f00b24a`; hardening posterior de pruebas: `069a776`. Evidencia: [`E5-S3-T06_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T06_FINAL_AUDIT.md).
+- **T07:** auditoría final independiente `READ ONLY` sobre `1abb93d1c9fa7322dc5d4f4f7b4a05b713b3ac86`, `069a776b5d1aebfdb01a9875920a059bc0725ac3` y `f74f65e218578516eceaabd75202c320a4ca41cc`: **`PASSED`**. Evidencia: [`E5-S3-T07_FINAL_AUDIT.md`](docs/engineering/audits/E5-S3-T07_FINAL_AUDIT.md).
+- `E5-S3-T06` y `E5-S3-T07` pasan a **`PASSED`**. Sprint 3 continúa `IN_PROGRESS`; no se modifica el estado de ninguna otra tarea.
+
 ## 2026-08-01 — Cierre administrativo de E5-S3-T05 (detección de CFDI 4.0, Sprint 3)
 
 **Solo documentación.** Sin cambios de código, `schema.prisma`, migraciones ni pruebas.
