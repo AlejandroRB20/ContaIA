@@ -1581,6 +1581,7 @@ Flujo secuencial obligatorio — cada fase depende de que la anterior cierre su 
 - **Evidencia de cierre:** diff del extractor.
 - **Gate asociado:** precondición de AD-10.1 (verificación de conteos).
 - **Estado inicial:** `BLOCKED`.
+- **Estado actual:** `IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`. Integrada en `feature/frontend-ux-audit` el 2026-08-06/07 mediante dos cherry-picks aislados y limpios: `1abb93d` (implementación — `extractCfdiConcepts` en `apps/api/src/modules/xml-processing/cfdi-40-extractor.ts`, mismo archivo de `E5-S3-T05`/`T06`, 20 pruebas nuevas sobre las 78 preexistentes) y `069a776` (endurecimiento de los autochequeos de imports de producción — sin tocar código de producción, sin debilitar ninguna prueba). **Pruebas:** archivo del extractor en **100/100** (78 preexistentes de `E5-S3-T05`/`T06` + 20 nuevas de `E5-S3-T07` + 2 de control agregadas por `069a776`); regresión completa de `xml-processing/` **234/234** `PASSED`. **Alcance verificado sin extensión:** `taxes: []` incondicional en cada concepto — el nodo `<cfdi:Concepto><cfdi:Impuestos>` nunca se lee (impuestos diferidos a `E5-S3-T08`); ningún campo se registra en `ambiguousFields[]` (diferido a `E5-S3-T09`); no modifica Prisma, migraciones, frontend ni arquitectura de worker. **Pendiente:** auditoría final independiente `READ ONLY` — esta integración no constituye cierre `PASSED`.
 
 #### E5-S3-T08 — Extracción de impuestos (comprobante y concepto)
 

@@ -162,6 +162,18 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - **`H-T04-01` (`ALTO`) → `RESOLVED`**: `validateXml` aceptaba XML no bien formado —tags sin cerrar, tags mal anidados, XML truncado y texto significativo fuera de la raíz—, de modo que un documento inválido podía avanzar con contenido truncado o descartado en silencio, vulnerando BR-XML-001. Corregido en el commit `6670314` mediante la barrera sintáctica previa al parseo estructural. Una auditoría previa sobre HEAD `f2bb09c1bf8dde487000ede4e0c9a8ca98766df0` había resultado `FAILED` por este hallazgo.
 - **`E5-S3-T04` → `PASSED`.** `E5-S3-T05` queda **habilitada, no iniciada**. Sprint 3 permanece `IN_PROGRESS`.
 
+## 2026-08-07 — Integración de E5-S3-T07 (extracción de conceptos CFDI 4.0, Sprint 3)
+
+**Código + documentación.** Sin cambios de `schema.prisma`, migraciones, frontend, worker ni módulos ajenos al extractor.
+
+- Dos commits aislados integrados en `feature/frontend-ux-audit` mediante `git cherry-pick` limpio (sin conflictos), en orden: `1abb93d` (implementación) y `069a776` (endurecimiento de autochequeos de pruebas).
+- Extiende `apps/api/src/modules/xml-processing/cfdi-40-extractor.ts` (mismo archivo de `E5-S3-T05`/`T06`, sigue siendo función pura sin `@Injectable`) con `extractCfdiConcepts`: puebla `concepts[]` con `position` contigua `{1..n}` asignada por orden de aparición en el XML, nunca por atributo. Siete campos obligatorios rechazan el documento completo con `CFDI_STRUCTURE_INVALID` si faltan; tres opcionales se leen como `string | null`; importes preservados como cadena decimal exacta (`BR-GLB-004`).
+- **Impuestos diferidos a `E5-S3-T08`:** cada concepto se devuelve con `taxes: []` incondicionalmente — el nodo `<cfdi:Concepto><cfdi:Impuestos>` nunca se lee. **`ambiguousFields[]` diferido a `E5-S3-T09`:** ningún campo de esta tarjeta se registra ahí.
+- `069a776` corrige dos autochequeos de imports de producción preexistentes (falsos positivos por coincidencia de subcadena y por `\r` residual de `core.autocrlf=true`) sin tocar ningún archivo de producción ni debilitar ninguna prueba — patrón anclado `/^import\s/` sobre línea recortada, verificado por mutación en ambos sentidos.
+- **Pruebas:** archivo del extractor en 100/100 (78 preexistentes de `E5-S3-T05`/`T06` + 20 nuevas de `E5-S3-T07` + 2 de control de `069a776`). Regresión completa de `xml-processing/`: **234/234** `PASSED`. `tsc --noEmit` y ESLint sin hallazgos sobre los tres archivos tocados; `git diff --check` limpio.
+- `E5-S3-T07` pasa a **`IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`** — no `PASSED`. Pendiente auditoría final independiente `READ ONLY`. `E5-S3-T08`–`T12` siguen `BLOCKED`; Sprint 3 continúa `IN_PROGRESS`, no se marca completado.
+- Sin `push`. Detalle completo: [`EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md) sección E5-S3-T07.
+
 ## Contenido preliminar de producto (migrado desde `MASTER_CONTEXT.md` v0.1, 2026-07-30)
 
 > Estas cuatro secciones vivían en `MASTER_CONTEXT.md` (v0.1) con `Estado: Propuesta pendiente de validación` — nunca fueron ratificadas y no tienen todavía un documento técnico dedicado que las absorba por completo. Se preservan aquí, verbatim, como parte del historial de producto — `MASTER_CONTEXT.md` v2.0 las resume solo en una frase y enlaza aquí.
