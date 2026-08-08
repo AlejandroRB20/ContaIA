@@ -62,7 +62,7 @@ export function AppShell({
   );
 
   function handleSwitchCompany() {
-    router.push(`/seleccionar-empresa?next=/${companyId}/inicio`);
+    router.push('/seleccionar-empresa');
   }
 
   function handleLogout() {

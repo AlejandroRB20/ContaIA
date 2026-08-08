@@ -95,6 +95,30 @@ describe('CompanySelector', () => {
     expect(mocks.push).toHaveBeenCalledWith('/company-1/inicio');
   });
 
+  it('conserva un deep link interno válido hacia la Empresa elegida', () => {
+    mocks.searchParam = '/company-1/documentos/123';
+
+    render(<CompanySelector />);
+
+    act(() => {
+      fireEvent.click(getEntryButton(0));
+    });
+
+    expect(mocks.push).toHaveBeenCalledWith('/company-1/documentos/123');
+  });
+
+  it('descarta un deep link que apunta a otra Empresa distinta de la elegida', () => {
+    mocks.searchParam = '/company-2/documentos/123';
+
+    render(<CompanySelector />);
+
+    act(() => {
+      fireEvent.click(getEntryButton(0));
+    });
+
+    expect(mocks.push).toHaveBeenCalledWith('/company-1/inicio');
+  });
+
   it('reemplaza la Empresa activa al cambiar de contexto', () => {
     act(() => {
       useSessionStore.getState().setActiveCompany('company-1');

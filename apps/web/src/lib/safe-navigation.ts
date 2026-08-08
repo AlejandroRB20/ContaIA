@@ -15,3 +15,26 @@ export function safeInternalPath(destination: string | null, fallback = '/'): st
 
   return destination;
 }
+
+/**
+ * Punto único de decisión para el destino tras elegir una Empresa en el
+ * selector (docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md T02).
+ * `next` solo se conserva si es interno, pertenece a `chosenCompanyId` y el
+ * usuario tiene una Membership activa para esa empresa; en cualquier otro
+ * caso aterriza en el inicio de la empresa elegida.
+ */
+export function resolveDestination(
+  next: string | null,
+  chosenCompanyId: string,
+  memberships: Array<{ companyId: string }>,
+): string {
+  const fallback = `/${chosenCompanyId}/inicio`;
+  const path = safeInternalPath(next, '');
+  if (!path) return fallback;
+
+  const [firstSegment] = path.replace(/^\//, '').split('/');
+  if (firstSegment !== chosenCompanyId) return fallback;
+  if (!memberships.some((membership) => membership.companyId === chosenCompanyId)) return fallback;
+
+  return path;
+}
