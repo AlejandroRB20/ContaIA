@@ -7,7 +7,7 @@
 | Work Order     | EWO-SEC-NAV-001                                                                                                                                                                                                                                                              |
 | Título         | Tenant Isolation & Navigation Contracts                                                                                                                                                                                                                                      |
 | Tipo           | **Corrección prioritaria de seguridad y contratos de navegación** — no es una Work Order de funcionalidad nueva                                                                                                                                                              |
-| Estado         | **EN PROGRESO.** `T01` — `PASSED` (auditoría final `READ ONLY` de Codex, `PASSED CON OBSERVACIONES`, ver §17). `T02` — `PASSED` (idem, ver §17). `T03` — `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` (`D-011`, ver §§19–23). `T04` — `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` (`D-012`, ver §18). `T05`/`T06` pendientes. `D-010` `IMPLEMENTADA · PASSED`; `D-011` y `D-012` `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` |
+| Estado         | **EN PROGRESO.** `T01` — `PASSED` (auditoría final `READ ONLY` de Codex, `PASSED CON OBSERVACIONES`, ver §17). `T02` — `PASSED` (idem, ver §17). `T03` — `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (`D-011`, ver §§19–23). `T04` — `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (`D-012`, ver §18). `T05`/`T06` pendientes. `D-010` `IMPLEMENTADA · PASSED`; `D-011` y `D-012` `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` |
 | Severidad      | **CRÍTICA** (`T01`) · ALTA (`T02`, `T03`, `T04`)                                                                                                                                                                                                                             |
 | Fecha del plan | 2026-08-04                                                                                                                                                                                                                                                                   |
 | Baseline       | `feature/frontend-ux-audit` · HEAD `b5b289d32fdcc8d7ab61fd62ecfe0316b8c75be8`                                                                                                                                                                                                |
@@ -20,7 +20,7 @@
 
 > **Esta Work Order no sustituye ni cierra EWO-005.** Ambas coexisten. Ver §8 para la relación exacta, incluidas las superficies congeladas y las que continúan.
 
-> **Estado de implementación vigente: `EWO-SEC-NAV-001` `EN PROGRESO`.** `T01` `PASSED`; `D-010` `IMPLEMENTADA · PASSED`; `T02` `PASSED` — ambas con auditoría final independiente `READ ONLY` de Codex, veredicto `PASSED CON OBSERVACIONES` (dos hallazgos `BAJO`, no bloqueantes, registrados como seguimiento — ver §17). `T03` y `D-011`: `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` (ver §§19–23). `T04` y `D-012`: `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` (ver §18). `T05`/`T06` pendientes. Fuente detallada del estado vigente: tabla de control del documento arriba y §13.
+> **Estado de implementación vigente: `EWO-SEC-NAV-001` `EN PROGRESO`.** `T01` `PASSED`; `D-010` `IMPLEMENTADA · PASSED`; `T02` `PASSED` — ambas con auditoría final independiente `READ ONLY` de Codex, veredicto `PASSED CON OBSERVACIONES` (dos hallazgos `BAJO`, no bloqueantes, registrados como seguimiento — ver §17). `T03` y `D-011`: `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (ver §§19–23). `T04` y `D-012`: `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (ver §18). `T05`/`T06` pendientes. Fuente detallada del estado vigente: tabla de control del documento arriba y §13.
 
 ---
 
@@ -249,8 +249,8 @@ La ausencia de la primera clase de prueba es la causa directa de que la regresi�
 | ----- | ---------------------------------------------- | ----------------------- | --------- |
 | `T01` | **PASSED**                                   | `D-010`                 | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md), ver §17 |
 | `T02` | **PASSED**                                   | —                       | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T02_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T02_FINAL_AUDIT.md), ver §17 |
-| `T03` | **IMPLEMENTADA · PENDIENTE DE AUDITORÍA**    | `D-011`                 | Pendiente |
-| `T04` | **IMPLEMENTADA · PENDIENTE DE AUDITORÍA**    | `D-012`                 | Pendiente auditoría inicial (Codex, `READ ONLY`), ver §18 |
+| `T03` | **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA**  | `D-011`                 | Pendiente reauditoría independiente (Codex, `READ ONLY`) |
+| `T04` | **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA**  | `D-012`                 | Pendiente reauditoría independiente (Codex, `READ ONLY`), ver §18 |
 | `T05` | **PENDIENTE**                                | —                       | Pendiente |
 | `T06` | **PENDIENTE**                                | —                       | —         |
 

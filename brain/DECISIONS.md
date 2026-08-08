@@ -542,7 +542,7 @@ El XML original de un CFDI **no** se gobierna por `cfdi.read`: es el archivo del
 ### Estado
 
 - **Responsable:** Claude Code (Principal Software Architect), por encargo del responsable de producto de ContaIA.
-- **Estatus:** **IMPLEMENTADA · PENDIENTE DE AUDITORÍA.** `cfdi.read` concedido a Auditor y Supervisor en `packages/database/prisma/permissions-catalog.ts` (catálogo importado por `seed.ts`); Contador y Auxiliar lo conservan; Estudiante sigue sin él. `document.download` **aprobado por decisión explícita del responsable de producto (2026-08-05)** y creado como clave independiente en el catálogo, concedida a Administrador, Contador, Auxiliar, Supervisor y Auditor; Estudiante no la recibe. **Ratificado técnicamente el 2026-08-06** (`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §21): la clave separada es la única de las tres opciones evaluadas (crearla / no crearla nunca / integrarla en `document.read`) compatible con BR-PERM-001 y con el punto 10 de este contrato; se corrigió además el residuo documental que §20 dio por cerrado sin estarlo (`docs/15` afirmaba que la clave seguía sin aprobar; `docs/08` `API-0026` no exigía ninguna clave). Sin cambio de contrato vinculante ni de catálogo. No marcado `PASSED` — la certificación requiere auditoría independiente `READ ONLY` de Codex.
+- **Estatus:** **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA.** `cfdi.read` concedido a Auditor y Supervisor en `packages/database/prisma/permissions-catalog.ts` (catálogo importado por `seed.ts`); Contador y Auxiliar lo conservan; Estudiante sigue sin él. `document.download` **aprobado por decisión explícita del responsable de producto (2026-08-05)** y creado como clave independiente en el catálogo, concedida a Administrador, Contador, Auxiliar, Supervisor y Auditor; Estudiante no la recibe. **Ratificado técnicamente el 2026-08-06** (`EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §21): la clave separada es la única de las tres opciones evaluadas (crearla / no crearla nunca / integrarla en `document.read`) compatible con BR-PERM-001 y con el punto 10 de este contrato; se corrigió además el residuo documental que §20 dio por cerrado sin estarlo (`docs/15` afirmaba que la clave seguía sin aprobar; `docs/08` `API-0026` no exigía ninguna clave). Sin cambio de contrato vinculante ni de catálogo. No marcado `PASSED` — la certificación requiere auditoría independiente `READ ONLY` de Codex.
 
 ### Historial
 
@@ -661,7 +661,7 @@ Una vez aprobada, `docs/14` debe incorporarla en `T05`. La decisión es la autor
 ### Estado
 
 - **Responsable:** Claude Code (Principal Software Architect), por encargo del responsable de producto de ContaIA.
-- **Estatus:** **IMPLEMENTADA · PENDIENTE DE AUDITORÍA.** `T04` de [`EWO-SEC-NAV-001`](../docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) implementada el 2026-08-04 (documentación de arquitectura de información: `docs/14`, `docs/31`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md`; sin cambios de código). **No auditada con veredicto `PASSED`.** No modifica `D-009` ni ninguna decisión `D-001`–`D-009`.
+- **Estatus:** **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA.** `T04` de [`EWO-SEC-NAV-001`](../docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) implementada el 2026-08-04 (documentación de arquitectura de información: `docs/14`, `docs/31`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md`; sin cambios de código). **No auditada con veredicto `PASSED`.** No modifica `D-009` ni ninguna decisión `D-001`–`D-009`.
 
 ### Historial
 
