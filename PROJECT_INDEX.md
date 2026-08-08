@@ -90,16 +90,16 @@ Busca por categoría (Ctrl+F el nombre del dominio: "API", "Seguridad", "Auditor
 
 ## Engineering (EWO)
 
-| Documento                                                                                                                | Contenido                                                                            |
-| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| [`docs/engineering/EWO-001_FOUNDATION_REPORT.md`](docs/engineering/EWO-001_FOUNDATION_REPORT.md)                         | Cierre EWO-001 — Project Foundation                                                  |
-| [`docs/engineering/EWO-002_AUTH_REPORT.md`](docs/engineering/EWO-002_AUTH_REPORT.md)                                     | Cierre EWO-002 — Authentication & Authorization                                      |
-| [`docs/engineering/EWO-003_COMPANY_REPORT.md`](docs/engineering/EWO-003_COMPANY_REPORT.md)                               | Cierre EWO-003 — Organization & Company Management                                   |
-| [`docs/engineering/EWO-004_USER_RBAC_REPORT.md`](docs/engineering/EWO-004_USER_RBAC_REPORT.md)                           | Cierre EWO-004 — User, RBAC & Workspace Context                                      |
-| [`docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md`](docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md)                 | Plan técnico EWO-005 — Documents & Fiscal                                            |
-| [`docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`](docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md) | Addendum de arquitectura, Bloque E (AD-*)                                            |
-| [`docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md)           | Checklist tarea por tarea, EWO-005 — la fuente más detallada de "qué se hizo y cómo" |
-| [`docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) | Plan de corrección EWO-SEC-NAV-001 — `EN PROGRESO`; T01/T02 `PASSED`; T03/D-011 y T04/D-012 `IMPLEMENTADA · PENDIENTE DE AUDITORÍA` |
+| Documento                                                                                                                | Contenido                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| [`docs/engineering/EWO-001_FOUNDATION_REPORT.md`](docs/engineering/EWO-001_FOUNDATION_REPORT.md)                         | Cierre EWO-001 — Project Foundation                                                                             |
+| [`docs/engineering/EWO-002_AUTH_REPORT.md`](docs/engineering/EWO-002_AUTH_REPORT.md)                                     | Cierre EWO-002 — Authentication & Authorization                                                                 |
+| [`docs/engineering/EWO-003_COMPANY_REPORT.md`](docs/engineering/EWO-003_COMPANY_REPORT.md)                               | Cierre EWO-003 — Organization & Company Management                                                              |
+| [`docs/engineering/EWO-004_USER_RBAC_REPORT.md`](docs/engineering/EWO-004_USER_RBAC_REPORT.md)                           | Cierre EWO-004 — User, RBAC & Workspace Context                                                                 |
+| [`docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md`](docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md)                 | Plan técnico EWO-005 — Documents & Fiscal                                                                       |
+| [`docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`](docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md) | Addendum de arquitectura, Bloque E (AD-*)                                                                       |
+| [`docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md`](docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md)           | Checklist tarea por tarea, EWO-005 — la fuente más detallada de "qué se hizo y cómo"                            |
+| [`docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`](docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) | Plan de corrección EWO-SEC-NAV-001 — `EN PROGRESO`; T01–T04 `PASSED`; D-010/D-011/D-012 `IMPLEMENTADA · PASSED` |
 
 ## Auditorías
 

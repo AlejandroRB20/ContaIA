@@ -2,25 +2,25 @@
 
 ## Control del documento
 
-| Campo          | Valor                                                                                                                                                                                                                                                                        |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Work Order     | EWO-SEC-NAV-001                                                                                                                                                                                                                                                              |
-| Título         | Tenant Isolation & Navigation Contracts                                                                                                                                                                                                                                      |
-| Tipo           | **Corrección prioritaria de seguridad y contratos de navegación** — no es una Work Order de funcionalidad nueva                                                                                                                                                              |
-| Estado         | **EN PROGRESO.** `T01` — `PASSED` (auditoría final `READ ONLY` de Codex, `PASSED CON OBSERVACIONES`, ver §17). `T02` — `PASSED` (idem, ver §17). `T03` — `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (`D-011`, ver §§19–23). `T04` — `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (`D-012`, ver §18). `T05`/`T06` pendientes. `D-010` `IMPLEMENTADA · PASSED`; `D-011` y `D-012` `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` |
-| Severidad      | **CRÍTICA** (`T01`) · ALTA (`T02`, `T03`, `T04`)                                                                                                                                                                                                                             |
-| Fecha del plan | 2026-08-04                                                                                                                                                                                                                                                                   |
-| Baseline       | `feature/frontend-ux-audit` · HEAD `b5b289d32fdcc8d7ab61fd62ecfe0316b8c75be8`                                                                                                                                                                                                |
-| Origen         | Auditoría independiente de navegación (veredicto `RECHAZADO`, cuatro bloqueadores) y análisis de confirmación contra el código, 2026-08-04                                                                                                                                    |
-| Decisiones     | [`D-010`](../../brain/DECISIONS.md), [`D-011`](../../brain/DECISIONS.md), [`D-012`](../../brain/DECISIONS.md)                                                                                                                                                                |
+| Campo          | Valor                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work Order     | EWO-SEC-NAV-001                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Título         | Tenant Isolation & Navigation Contracts                                                                                                                                                                                                                                                                                                                                                                           |
+| Tipo           | **Corrección prioritaria de seguridad y contratos de navegación** — no es una Work Order de funcionalidad nueva                                                                                                                                                                                                                                                                                                   |
+| Estado         | **EN PROGRESO.** `T01`–`T04` — `PASSED` (auditorías independientes `READ ONLY`; para `T03`/`T04`, ver reauditorías en `audits/`). `T05`/`T06` pendientes. `D-010`, `D-011` y `D-012` `IMPLEMENTADA · PASSED`                                                                                                                                                                                                      |
+| Severidad      | **CRÍTICA** (`T01`) · ALTA (`T02`, `T03`, `T04`)                                                                                                                                                                                                                                                                                                                                                                  |
+| Fecha del plan | 2026-08-04                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Baseline       | `feature/frontend-ux-audit` · HEAD `b5b289d32fdcc8d7ab61fd62ecfe0316b8c75be8`                                                                                                                                                                                                                                                                                                                                     |
+| Origen         | Auditoría independiente de navegación (veredicto `RECHAZADO`, cuatro bloqueadores) y análisis de confirmación contra el código, 2026-08-04                                                                                                                                                                                                                                                                        |
+| Decisiones     | [`D-010`](../../brain/DECISIONS.md), [`D-011`](../../brain/DECISIONS.md), [`D-012`](../../brain/DECISIONS.md)                                                                                                                                                                                                                                                                                                     |
 | Fuentes        | `docs/04_BUSINESS_RULES.md`, `docs/08_API_DESIGN.md`, `docs/09_DATABASE_DESIGN.md`, `docs/11_SECURITY_ARCHITECTURE.md`, `docs/14_INFORMATION_ARCHITECTURE.md`, `docs/15_UX_FLOWS.md`, `docs/16_WIREFRAMES_SPECIFICATION.md`, `docs/31_MASTER_SCREEN_MAP.md`, `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md`, `docs/engineering/EWO-004_USER_RBAC_REPORT.md` §10, `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` |
-| Prerrequisitos | `D-010`, `D-011` y `D-012` registradas y aprobadas — **cumplido el 2026-08-04**                                                                                                                                                                                              |
+| Prerrequisitos | `D-010`, `D-011` y `D-012` registradas y aprobadas — **cumplido el 2026-08-04**                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 
 > **Esta Work Order no sustituye ni cierra EWO-005.** Ambas coexisten. Ver §8 para la relación exacta, incluidas las superficies congeladas y las que continúan.
 
-> **Estado de implementación vigente: `EWO-SEC-NAV-001` `EN PROGRESO`.** `T01` `PASSED`; `D-010` `IMPLEMENTADA · PASSED`; `T02` `PASSED` — ambas con auditoría final independiente `READ ONLY` de Codex, veredicto `PASSED CON OBSERVACIONES` (dos hallazgos `BAJO`, no bloqueantes, registrados como seguimiento — ver §17). `T03` y `D-011`: `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (ver §§19–23). `T04` y `D-012`: `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA` (ver §18). `T05`/`T06` pendientes. Fuente detallada del estado vigente: tabla de control del documento arriba y §13.
+> **Estado de implementación vigente: `EWO-SEC-NAV-001` `EN PROGRESO`.** `T01` y `T02` `PASSED`; `D-010` `IMPLEMENTADA · PASSED`. `T03` y `D-011` `PASSED` / `IMPLEMENTADA · PASSED` tras la reauditoría independiente `READ ONLY` sobre `6dc846d5cd40bbd4b13d21ad9ca6ff646dca5540` ([`T03_REAUDIT`](audits/EWO-SEC-NAV-001-T03_REAUDIT.md)). `T04` y `D-012` `PASSED` / `IMPLEMENTADA · PASSED` bajo el mismo snapshot ([`T04_REAUDIT`](audits/EWO-SEC-NAV-001-T04_REAUDIT.md)). `T05`/`T06` pendientes. Fuente detallada del estado vigente: tabla de control del documento arriba y §13.
 
 ---
 
@@ -32,14 +32,14 @@ El defecto central no es que los guards permitan el paso a un Administrador de p
 
 ## 2. Alcance
 
-| Incluye                                                                                    | Tarea |
-| ------------------------------------------------------------------------------------------ | ----- |
-| Los cuatro guards de `apps/api/src/common/guards/` y `assertActorIsCompanyAdmin`           | `T01` |
-| Contrato de navegación del selector de Empresa y del shell de aplicación                   | `T02` |
-| Catálogo de permisos (`Permission`/`RolePermission`) y resolución de `document.download`    | `T03` |
-| Ruta canónica de detalle de CFDI en documentación y frontend                                | `T04` |
-| Sincronización del corpus documental afectado                                               | `T05` |
-| Auditoría final independiente                                                               | `T06` |
+| Incluye                                                                                  | Tarea |
+| ---------------------------------------------------------------------------------------- | ----- |
+| Los cuatro guards de `apps/api/src/common/guards/` y `assertActorIsCompanyAdmin`         | `T01` |
+| Contrato de navegación del selector de Empresa y del shell de aplicación                 | `T02` |
+| Catálogo de permisos (`Permission`/`RolePermission`) y resolución de `document.download` | `T03` |
+| Ruta canónica de detalle de CFDI en documentación y frontend                             | `T04` |
+| Sincronización del corpus documental afectado                                            | `T05` |
+| Auditoría final independiente                                                            | `T06` |
 
 ## 3. Fuera de alcance
 
@@ -52,14 +52,14 @@ El defecto central no es que los guards permitan el paso a un Administrador de p
 
 ## 4. Dependencias
 
-| Dependencia                                                | Estado                       |
-| ---------------------------------------------------------- | ---------------------------- |
-| `D-010` aprobada antes de iniciar `T01`                    | ✅ Cumplida (2026-08-04)     |
-| `D-011` aprobada antes de iniciar `T03`                    | ✅ Cumplida (2026-08-04)     |
-| `D-012` aprobada antes de iniciar `T04`                    | ✅ Cumplida (2026-08-04)     |
-| Resolución explícita de `document.download`                | ✅ Cumplida (2026-08-05) — aprobada para Administrador, Contador, Auxiliar, Supervisor, Auditor; Estudiante excluida |
-| `T01` cerrada antes de `T05`                               | ⛔ Pendiente                 |
-| `T01`–`T05` cerradas antes de `T06`                        | ⛔ Pendiente                 |
+| Dependencia                                 | Estado                                                                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `D-010` aprobada antes de iniciar `T01`     | ✅ Cumplida (2026-08-04)                                                                                             |
+| `D-011` aprobada antes de iniciar `T03`     | ✅ Cumplida (2026-08-04)                                                                                             |
+| `D-012` aprobada antes de iniciar `T04`     | ✅ Cumplida (2026-08-04)                                                                                             |
+| Resolución explícita de `document.download` | ✅ Cumplida (2026-08-05) — aprobada para Administrador, Contador, Auxiliar, Supervisor, Auditor; Estudiante excluida |
+| `T01` cerrada antes de `T05`                | ⛔ Pendiente                                                                                                         |
+| `T01`–`T05` cerradas antes de `T06`         | ⛔ Pendiente                                                                                                         |
 
 ## 5. Tareas
 
@@ -72,14 +72,14 @@ El defecto central no es que los guards permitan el paso a un Administrador de p
 - Mantener `@Company()` como defensa en profundidad — **no se elimina**.
 - Cubrir los **seis endpoints confirmados**:
 
-| Endpoint                                        | Capacidad expuesta hoy                            |
-| ----------------------------------------------- | ------------------------------------------------- |
-| `PATCH /v1/companies/:companyId/fiscal-profile` | Modificar régimen fiscal de cualquier Empresa     |
-| `PATCH /v1/companies/:companyId/address`        | Modificar domicilio fiscal de cualquier Empresa   |
-| `PATCH /v1/companies/:companyId/settings`       | Modificar configuración regional                  |
-| `GET /v1/companies/:companyId/memberships`      | Leer PII de terceros (correos, roles, `isOwner`)  |
-| `PATCH /v1/memberships/:membershipId`           | Cambiar el Rol de cualquier usuario               |
-| `DELETE /v1/memberships/:membershipId`          | Revocar cualquier Membership                      |
+| Endpoint                                        | Capacidad expuesta hoy                           |
+| ----------------------------------------------- | ------------------------------------------------ |
+| `PATCH /v1/companies/:companyId/fiscal-profile` | Modificar régimen fiscal de cualquier Empresa    |
+| `PATCH /v1/companies/:companyId/address`        | Modificar domicilio fiscal de cualquier Empresa  |
+| `PATCH /v1/companies/:companyId/settings`       | Modificar configuración regional                 |
+| `GET /v1/companies/:companyId/memberships`      | Leer PII de terceros (correos, roles, `isOwner`) |
+| `PATCH /v1/memberships/:membershipId`           | Cambiar el Rol de cualquier usuario              |
+| `DELETE /v1/memberships/:membershipId`          | Revocar cualquier Membership                     |
 
 - Registrar el intento denegado con la capacidad vigente de `AuditService`, **sin inventar un contexto JIT**.
 - Agregar pruebas que impidan la reaparición del patrón, no solo que cubran las seis instancias.
@@ -127,12 +127,12 @@ Fuentes a sincronizar, como mínimo:
 
 Contradicciones conocidas a resolver, con su autoridad determinada:
 
-| Contradicción                                                                     | Autoridad que prevalece                        |
-| --------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `docs/31` línea 78 («fiscal») vs. línea 120 (`PAGE-0020` sin Auditor)             | `D-011` y `docs/04` §5.1                       |
-| `docs/31` línea 120 omite al Administrador vs. `API-0027` que lo incluye          | `docs/08_API_DESIGN.md`                        |
-| Tres formas de ruta de CFDI en `docs/14`, `docs/31`, `docs/32` y plan de EWO-005  | `D-012`                                        |
-| `docs/14` `ROUTE-0019` (`{cfdiId}`) vs. ruta canónica adoptada                    | `D-012` — `docs/14` debe reflejarla            |
+| Contradicción                                                                    | Autoridad que prevalece             |
+| -------------------------------------------------------------------------------- | ----------------------------------- |
+| `docs/31` línea 78 («fiscal») vs. línea 120 (`PAGE-0020` sin Auditor)            | `D-011` y `docs/04` §5.1            |
+| `docs/31` línea 120 omite al Administrador vs. `API-0027` que lo incluye         | `docs/08_API_DESIGN.md`             |
+| Tres formas de ruta de CFDI en `docs/14`, `docs/31`, `docs/32` y plan de EWO-005 | `D-012`                             |
+| `docs/14` `ROUTE-0019` (`{cfdiId}`) vs. ruta canónica adoptada                   | `D-012` — `docs/14` debe reflejarla |
 
 ### T06 — Auditoría independiente final
 
@@ -204,38 +204,38 @@ Ejecución **paralela como corrección prioritaria separada**, no interrupción 
 
 ## 9. Pruebas obligatorias
 
-| Tarea | Prueba                                                                                                          |
-| ----- | --------------------------------------------------------------------------------------------------------------- |
-| `T01` | Rechazo de Platform Admin por **cada** endpoint company-scoped                                                  |
-| `T01` | **Un endpoint nuevo sin `@Company()` sigue protegido** — prueba de la clase de defecto, no de sus instancias    |
-| `T01` | Regresión: ningún usuario con Membership válida cambia de comportamiento                                        |
-| `T02` | Caso A (cambio manual) y Caso B (deep link), incluido un `next` perteneciente a otra Empresa                     |
-| `T03` | Permisos por rol contra el catálogo sembrado, para los seis roles oficiales                                     |
-| `T04` | Resolución de la ruta con Documento en `PENDING_UPLOAD` y en `PROCESSING` (sin fila `Cfdi`)                      |
+| Tarea | Prueba                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------ |
+| `T01` | Rechazo de Platform Admin por **cada** endpoint company-scoped                                               |
+| `T01` | **Un endpoint nuevo sin `@Company()` sigue protegido** — prueba de la clase de defecto, no de sus instancias |
+| `T01` | Regresión: ningún usuario con Membership válida cambia de comportamiento                                     |
+| `T02` | Caso A (cambio manual) y Caso B (deep link), incluido un `next` perteneciente a otra Empresa                 |
+| `T03` | Permisos por rol contra el catálogo sembrado, para los seis roles oficiales                                  |
+| `T04` | Resolución de la ruta con Documento en `PENDING_UPLOAD` y en `PROCESSING` (sin fila `Cfdi`)                  |
 
 La ausencia de la primera clase de prueba es la causa directa de que la regresión de `EWO-004` §10.3 pasara inadvertida.
 
 ## 10. Riesgos
 
-| ID       | Riesgo                                                                        | Mitigación                                                                       |
-| -------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `RW-01`  | `T01` rompe flujos internos que hoy dependan del bypass                       | Inventariar antes de modificar. No se conoce ninguno; verificar, no asumir       |
-| `RW-02`  | Falsa sensación de cumplimiento de `BR-SEC-004`                               | Declarar expresamente que la parte positiva sigue pendiente hasta `API-0053`     |
-| `RW-03`  | `T03` amplía la lectura de datos fiscales a dos roles                         | Estrictamente lectura; descarga gobernada por clave separada                     |
-| `RW-04`  | `document.download` queda sin resolver y la descarga hereda `document.read`   | **Resuelto (2026-08-05)** — clave aprobada y creada; ver §20 |
-| `RW-05`  | `T04` invalida deep links previos                                             | Sin usuarios en producción; el costo es nulo ahora y crece con el primer tenant  |
-| `RW-06`  | Reintroducción de `cfdiId` en URLs por inercia de `docs/31`/`docs/32`         | `T05` elimina las formas retiradas, no solo añade la nueva                       |
-| `RW-07`  | Presión operativa por reabrir el bypass ante una urgencia de soporte          | `D-010` contrato 2 y 12: la vía es `API-0053`, nunca una excepción puntual       |
+| ID      | Riesgo                                                                      | Mitigación                                                                      |
+| ------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `RW-01` | `T01` rompe flujos internos que hoy dependan del bypass                     | Inventariar antes de modificar. No se conoce ninguno; verificar, no asumir      |
+| `RW-02` | Falsa sensación de cumplimiento de `BR-SEC-004`                             | Declarar expresamente que la parte positiva sigue pendiente hasta `API-0053`    |
+| `RW-03` | `T03` amplía la lectura de datos fiscales a dos roles                       | Estrictamente lectura; descarga gobernada por clave separada                    |
+| `RW-04` | `document.download` queda sin resolver y la descarga hereda `document.read` | **Resuelto (2026-08-05)** — clave aprobada y creada; ver §20                    |
+| `RW-05` | `T04` invalida deep links previos                                           | Sin usuarios en producción; el costo es nulo ahora y crece con el primer tenant |
+| `RW-06` | Reintroducción de `cfdiId` en URLs por inercia de `docs/31`/`docs/32`       | `T05` elimina las formas retiradas, no solo añade la nueva                      |
+| `RW-07` | Presión operativa por reabrir el bypass ante una urgencia de soporte        | `D-010` contrato 2 y 12: la vía es `API-0053`, nunca una excepción puntual      |
 
 ## 11. Rollback
 
-| Tarea | Reversibilidad                                                                 |
-| ----- | ------------------------------------------------------------------------------ |
-| `T01` | Revert directo. **Sin migración**                                              |
-| `T02` | Revert directo. Solo frontend                                                  |
-| `T03` | Requiere reseed del catálogo de permisos                                       |
-| `T04` | Documental más rutas de frontend                                               |
-| `T05` | Documental                                                                     |
+| Tarea | Reversibilidad                           |
+| ----- | ---------------------------------------- |
+| `T01` | Revert directo. **Sin migración**        |
+| `T02` | Revert directo. Solo frontend            |
+| `T03` | Requiere reseed del catálogo de permisos |
+| `T04` | Documental más rutas de frontend         |
+| `T05` | Documental                               |
 
 **Ninguna tarea introduce migración de base de datos.** Es una propiedad deliberada del diseño de `D-010` y una razón material para haber preferido la alternativa (D) sobre implementar el flujo JIT completo: una corrección de seguridad debe poder revertirse sin tocar datos.
 
@@ -245,16 +245,16 @@ La ausencia de la primera clase de prueba es la causa directa de que la regresi�
 
 ## 13. Estado por tarea
 
-| Tarea | Estado                                       | Decisión que implementa | Auditoría |
-| ----- | ---------------------------------------------- | ----------------------- | --------- |
-| `T01` | **PASSED**                                   | `D-010`                 | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md), ver §17 |
-| `T02` | **PASSED**                                   | —                       | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T02_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T02_FINAL_AUDIT.md), ver §17 |
-| `T03` | **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA**  | `D-011`                 | Pendiente reauditoría independiente (Codex, `READ ONLY`) |
-| `T04` | **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA**  | `D-012`                 | Pendiente reauditoría independiente (Codex, `READ ONLY`), ver §18 |
-| `T05` | **PENDIENTE**                                | —                       | Pendiente |
-| `T06` | **PENDIENTE**                                | —                       | —         |
+| Tarea | Estado        | Decisión que implementa | Auditoría                                                                                                                                                       |
+| ----- | ------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `T01` | **PASSED**    | `D-010`                 | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md), ver §17 |
+| `T02` | **PASSED**    | —                       | Final: `PASSED CON OBSERVACIONES` (Codex, `READ ONLY`, 2026-08-04) — [`EWO-SEC-NAV-001-T02_FINAL_AUDIT.md`](audits/EWO-SEC-NAV-001-T02_FINAL_AUDIT.md), ver §17 |
+| `T03` | **PASSED**    | `D-011`                 | Reauditoría independiente `READ ONLY`: `PASSED` — [`EWO-SEC-NAV-001-T03_REAUDIT.md`](audits/EWO-SEC-NAV-001-T03_REAUDIT.md)                                     |
+| `T04` | **PASSED**    | `D-012`                 | Reauditoría independiente `READ ONLY`: `PASSED` — [`EWO-SEC-NAV-001-T04_REAUDIT.md`](audits/EWO-SEC-NAV-001-T04_REAUDIT.md)                                     |
+| `T05` | **PENDIENTE** | —                       | Pendiente                                                                                                                                                       |
+| `T06` | **PENDIENTE** | —                       | —                                                                                                                                                               |
 
-`T01` y `T02` cierran administrativamente el 2026-08-04 tras auditoría final independiente `READ ONLY` de Codex, ambas con veredicto `PASSED CON OBSERVACIONES` — ver §17 para el detalle y las dos observaciones `BAJO` registradas como seguimiento no bloqueante. `T04` implementada el 2026-08-04 (documentación de arquitectura de información, sin cambios de código) — ver §18.
+`T01` y `T02` cierran administrativamente el 2026-08-04 tras auditoría final independiente `READ ONLY` de Codex, ambas con veredicto `PASSED CON OBSERVACIONES` — ver §17 para el detalle y las dos observaciones `BAJO` registradas como seguimiento no bloqueante. `T03`/`D-011` y `T04`/`D-012` cierran administrativamente tras las reauditorías independientes `READ ONLY` sobre el snapshot `6dc846d5cd40bbd4b13d21ad9ca6ff646dca5540`; las auditorías históricas `REQUIERE CAMBIOS` permanecen preservadas.
 
 ## 14. Reporte de implementación de T01 (2026-08-04)
 
@@ -266,22 +266,22 @@ La ausencia de la primera clase de prueba es la causa directa de que la regresi�
 
 Rutas company-scoped inventariadas y su dependencia real del bypass, verificada contra el código antes de editar:
 
-| Ruta | `CompanyGuard` aplicado | Dependía del bypass |
-| --- | --- | --- |
-| `GET /v1/companies/:companyId` | Sí | No (ya usaba `@Company()`) |
-| `PATCH /v1/companies/:companyId` | Sí | No (ya usaba `@Company()`) |
-| `POST /v1/companies/:companyId/invitations` | Sí | No (ya usaba `@Company()`) |
-| `GET /v1/companies/:companyId/my-permissions` | Sí | No (ya usaba `@Company()`) |
-| `POST /v1/companies/:companyId/documents` | Sí | No (ya usaba `@Company()`) |
-| `GET /v1/companies/:companyId/documents` | Sí | No (ya usaba `@Company()`) |
-| `PATCH /v1/companies/:companyId/fiscal-profile` | Sí | **Sí** — sin `@Company()`, protegido solo por el guard tras esta corrección |
-| `PATCH /v1/companies/:companyId/address` | Sí | **Sí** — idem |
-| `PATCH /v1/companies/:companyId/settings` | Sí | **Sí** — idem |
-| `GET /v1/companies/:companyId/memberships` | Sí | **Sí** — idem |
-| `PATCH /v1/memberships/:membershipId` | No (ruta plana) | **Sí** — vía `assertActorIsCompanyAdmin` |
-| `DELETE /v1/memberships/:membershipId` | No (ruta plana) | **Sí** — vía `assertActorIsCompanyAdmin` |
-| `GET /v1/documents/:documentId` | No (ruta plana) | No — `DocumentsAuthorizationService` ya excluía el bypass deliberadamente |
-| `POST /v1/documents/:documentId/confirm-upload` | No (ruta plana) | No — idem |
+| Ruta                                            | `CompanyGuard` aplicado | Dependía del bypass                                                         |
+| ----------------------------------------------- | ----------------------- | --------------------------------------------------------------------------- |
+| `GET /v1/companies/:companyId`                  | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `PATCH /v1/companies/:companyId`                | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `POST /v1/companies/:companyId/invitations`     | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `GET /v1/companies/:companyId/my-permissions`   | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `POST /v1/companies/:companyId/documents`       | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `GET /v1/companies/:companyId/documents`        | Sí                      | No (ya usaba `@Company()`)                                                  |
+| `PATCH /v1/companies/:companyId/fiscal-profile` | Sí                      | **Sí** — sin `@Company()`, protegido solo por el guard tras esta corrección |
+| `PATCH /v1/companies/:companyId/address`        | Sí                      | **Sí** — idem                                                               |
+| `PATCH /v1/companies/:companyId/settings`       | Sí                      | **Sí** — idem                                                               |
+| `GET /v1/companies/:companyId/memberships`      | Sí                      | **Sí** — idem                                                               |
+| `PATCH /v1/memberships/:membershipId`           | No (ruta plana)         | **Sí** — vía `assertActorIsCompanyAdmin`                                    |
+| `DELETE /v1/memberships/:membershipId`          | No (ruta plana)         | **Sí** — vía `assertActorIsCompanyAdmin`                                    |
+| `GET /v1/documents/:documentId`                 | No (ruta plana)         | No — `DocumentsAuthorizationService` ya excluía el bypass deliberadamente   |
+| `POST /v1/documents/:documentId/confirm-upload` | No (ruta plana)         | No — idem                                                                   |
 
 **Hallazgo del inventario:** las cuatro rutas de `companies.controller.ts` marcadas "No" ya estaban protegidas por `@Company()`/`extractMembership()` — la corrección de `CompanyGuard` las deja intactas en su comportamiento observable, pero elimina su dependencia de ese decorador como única barrera. Ningún flujo platform-scoped legítimo se encontró mezclado dentro de una ruta company-scoped: `RoleGuard`, `PermissionGuard` y `OwnershipGuard` no se aplican hoy fuera del contexto ya resuelto por `CompanyGuard`.
 
@@ -289,20 +289,20 @@ Rutas company-scoped inventariadas y su dependencia real del bypass, verificada 
 
 ### 14.3 Archivos modificados
 
-| Archivo | Cambio |
-| --- | --- |
-| `apps/api/src/common/guards/company.guard.ts` | Bypass eliminado; resolución de Membership incondicional; emisión de evento al denegar a un Platform Admin |
-| `apps/api/src/common/guards/permission.guard.ts` | Bypass eliminado; opera solo sobre `request.membership` |
-| `apps/api/src/common/guards/role.guard.ts` | Bypass eliminado; comentario actualizado |
-| `apps/api/src/common/guards/ownership.guard.ts` | Bypass eliminado |
-| `apps/api/src/modules/roles-permissions/services/memberships.service.ts` | `assertActorIsCompanyAdmin` ya no retorna temprano por `isPlatformAdmin`; emite el mismo evento de denegación; `context` propagado desde `updateRole`/`revoke` |
-| `apps/api/src/common/events/auth.events.ts` | Nuevo evento `PLATFORM_ADMIN_COMPANY_ACCESS_DENIED` + clase `PlatformAdminCompanyAccessDeniedEvent` |
-| `apps/api/src/modules/audit/audit.service.ts` | Nuevo listener `onPlatformAdminCompanyAccessDenied`, `result: 'FAILURE'`, sin campo `reason` |
-| `apps/api/src/common/guards/company.guard.spec.ts` | Reescrito: casos de denegación, verificación de evento, y prueba de regresión estructural (endpoint sin `@Company()`) |
-| `apps/api/src/common/guards/permission.guard.spec.ts` | Caso de bypass sustituido por caso de denegación + caso de Membership ya resuelta |
-| `apps/api/src/common/guards/role.guard.spec.ts` | Idem |
-| `apps/api/src/common/guards/ownership.guard.spec.ts` | Idem |
-| `apps/api/src/modules/roles-permissions/services/memberships.service.spec.ts` | +3 pruebas: denegación en `updateRole`, denegación en `revoke`, no-emisión del evento para un actor no-Platform-Admin |
+| Archivo                                                                       | Cambio                                                                                                                                                         |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/common/guards/company.guard.ts`                                 | Bypass eliminado; resolución de Membership incondicional; emisión de evento al denegar a un Platform Admin                                                     |
+| `apps/api/src/common/guards/permission.guard.ts`                              | Bypass eliminado; opera solo sobre `request.membership`                                                                                                        |
+| `apps/api/src/common/guards/role.guard.ts`                                    | Bypass eliminado; comentario actualizado                                                                                                                       |
+| `apps/api/src/common/guards/ownership.guard.ts`                               | Bypass eliminado                                                                                                                                               |
+| `apps/api/src/modules/roles-permissions/services/memberships.service.ts`      | `assertActorIsCompanyAdmin` ya no retorna temprano por `isPlatformAdmin`; emite el mismo evento de denegación; `context` propagado desde `updateRole`/`revoke` |
+| `apps/api/src/common/events/auth.events.ts`                                   | Nuevo evento `PLATFORM_ADMIN_COMPANY_ACCESS_DENIED` + clase `PlatformAdminCompanyAccessDeniedEvent`                                                            |
+| `apps/api/src/modules/audit/audit.service.ts`                                 | Nuevo listener `onPlatformAdminCompanyAccessDenied`, `result: 'FAILURE'`, sin campo `reason`                                                                   |
+| `apps/api/src/common/guards/company.guard.spec.ts`                            | Reescrito: casos de denegación, verificación de evento, y prueba de regresión estructural (endpoint sin `@Company()`)                                          |
+| `apps/api/src/common/guards/permission.guard.spec.ts`                         | Caso de bypass sustituido por caso de denegación + caso de Membership ya resuelta                                                                              |
+| `apps/api/src/common/guards/role.guard.spec.ts`                               | Idem                                                                                                                                                           |
+| `apps/api/src/common/guards/ownership.guard.spec.ts`                          | Idem                                                                                                                                                           |
+| `apps/api/src/modules/roles-permissions/services/memberships.service.spec.ts` | +3 pruebas: denegación en `updateRole`, denegación en `revoke`, no-emisión del evento para un actor no-Platform-Admin                                          |
 
 **Sin cambios fuera de `apps/api/src/`.** Ningún controlador, frontend, `schema.prisma`, `seed.ts` ni migración fue tocado.
 
@@ -314,13 +314,13 @@ El evento se emite **únicamente** cuando el actor denegado tiene `isPlatformAdm
 
 ### 14.5 Validación ejecutada
 
-| Comando | Resultado |
-| --- | --- |
-| `tsc --noEmit` (apps/api) | Sin errores |
-| `eslint src` (apps/api, árbol completo) | Sin errores ni advertencias |
-| `nest build` (apps/api) | Compila sin errores |
-| `jest` — suites de guards, memberships, companies, documents | 8 suites, verde |
-| `jest` — suite completa de apps/api | **40 suites, 608 pruebas, todas verdes** (598 antes de esta tarea + 10 nuevas) |
+| Comando                                                      | Resultado                                                                      |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `tsc --noEmit` (apps/api)                                    | Sin errores                                                                    |
+| `eslint src` (apps/api, árbol completo)                      | Sin errores ni advertencias                                                    |
+| `nest build` (apps/api)                                      | Compila sin errores                                                            |
+| `jest` — suites de guards, memberships, companies, documents | 8 suites, verde                                                                |
+| `jest` — suite completa de apps/api                          | **40 suites, 608 pruebas, todas verdes** (598 antes de esta tarea + 10 nuevas) |
 
 ## 15. Corrección de hallazgos de la primera auditoría de T01 (2026-08-04)
 
@@ -350,14 +350,14 @@ La garantía de que un fallo de auditoría **no puede alterar la decisión de au
 
 ### 15.4 Validación de la corrección
 
-| Comando | Resultado |
-| --- | --- |
-| `tsc --noEmit` (apps/api) | Sin errores |
-| `eslint src test` (apps/api) | Sin errores |
-| `nest build` (apps/api) | Compila sin errores |
-| `git diff --check` | Sin advertencias |
-| `jest` unitario completo | **41 suites, 614 pruebas** (608 antes de esta corrección) |
-| `jest --config test/jest-e2e.json` (integración) | **4 suites, 33 pruebas** (23 antes de esta corrección) |
+| Comando                                          | Resultado                                                 |
+| ------------------------------------------------ | --------------------------------------------------------- |
+| `tsc --noEmit` (apps/api)                        | Sin errores                                               |
+| `eslint src test` (apps/api)                     | Sin errores                                               |
+| `nest build` (apps/api)                          | Compila sin errores                                       |
+| `git diff --check`                               | Sin advertencias                                          |
+| `jest` unitario completo                         | **41 suites, 614 pruebas** (608 antes de esta corrección) |
+| `jest --config test/jest-e2e.json` (integración) | **4 suites, 33 pruebas** (23 antes de esta corrección)    |
 
 Ningún archivo fuera de `apps/api/src/` y `apps/api/test/` (más los registros de gobierno listados en §15.2) fue modificado. No se tocó ningún guard, controlador, `schema.prisma`, `seed.ts`, ni `T02`–`T06`.
 
@@ -384,9 +384,9 @@ Ningún archivo fuera de `apps/api/src/` y `apps/api/test/` (más los registros 
 
 ### Observaciones BAJAS registradas (seguimiento, no bloqueante)
 
-| ID | Origen | Descripción | Estado |
-| --- | --- | --- | --- |
-| T01-OBS-01 | Auditoría final de `T01` | Encabezado de estado de `AI_CONTEXT.md` mostraba una fecha desfasada (`2026-08-03`) respecto al trabajo del mismo día registrado en su tabla. | **RESUELTO** en este cierre — encabezado actualizado a `2026-08-04`. |
+| ID         | Origen                   | Descripción                                                                                                                                                                                                          | Estado                                                                 |
+| ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| T01-OBS-01 | Auditoría final de `T01` | Encabezado de estado de `AI_CONTEXT.md` mostraba una fecha desfasada (`2026-08-03`) respecto al trabajo del mismo día registrado en su tabla.                                                                        | **RESUELTO** en este cierre — encabezado actualizado a `2026-08-04`.   |
 | T02-OBS-01 | Auditoría final de `T02` | Falta una prueba de interacción directa del botón "Cambiar empresa" (`app-shell.tsx`) que asegure `router.push('/seleccionar-empresa')` sin `next`; el handler y el resolver ya tienen cobertura dirigida indirecta. | **MEJORA FUTURA** — no reabre `T02`; pendiente de una tarea posterior. |
 
 ### Estados sincronizados
@@ -401,13 +401,13 @@ Ningún archivo fuera de `apps/api/src/` y `apps/api/test/` (más los registros 
 
 Existían tres formas de ruta incompatibles para el detalle de CFDI, exactamente las que `D-012` documenta:
 
-| Fuente | Ruta anterior | Ruta canónica adoptada |
-| --- | --- | --- |
-| `docs/14_INFORMATION_ARCHITECTURE.md` `ROUTE-0019` | `/{companyId}/fiscal/cfdi/{cfdiId}` | `/{companyId}/documentos/{documentId}/cfdi` |
-| `docs/31_MASTER_SCREEN_MAP.md` `PAGE-0020` | `/{companyId}/fiscal/cfdi/{cfdiId}` | `/{companyId}/documentos/{documentId}/cfdi` |
-| `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md` (árbol de navegación) | `/fiscal/cfdi` → `/{cfdiId}` | `/documentos/{documentId}` → `/cfdi` |
-| `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` (tabla de rutas frontend) | `/{companyId}/fiscal/{documentId}` | `/{companyId}/documentos/{documentId}/cfdi` |
-| `docs/08_API_DESIGN.md` `API-0027` | `GET /documents/{documentId}/cfdi` | **Sin cambio** — ya usaba `documentId`, es el contrato de detalle vigente (`D-012` contrato #6) |
+| Fuente                                                                        | Ruta anterior                       | Ruta canónica adoptada                                                                          |
+| ----------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `docs/14_INFORMATION_ARCHITECTURE.md` `ROUTE-0019`                            | `/{companyId}/fiscal/cfdi/{cfdiId}` | `/{companyId}/documentos/{documentId}/cfdi`                                                     |
+| `docs/31_MASTER_SCREEN_MAP.md` `PAGE-0020`                                    | `/{companyId}/fiscal/cfdi/{cfdiId}` | `/{companyId}/documentos/{documentId}/cfdi`                                                     |
+| `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md` (árbol de navegación)             | `/fiscal/cfdi` → `/{cfdiId}`        | `/documentos/{documentId}` → `/cfdi`                                                            |
+| `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` (tabla de rutas frontend) | `/{companyId}/fiscal/{documentId}`  | `/{companyId}/documentos/{documentId}/cfdi`                                                     |
+| `docs/08_API_DESIGN.md` `API-0027`                                            | `GET /documents/{documentId}/cfdi`  | **Sin cambio** — ya usaba `documentId`, es el contrato de detalle vigente (`D-012` contrato #6) |
 
 ### Documentos inspeccionados
 
@@ -434,17 +434,17 @@ Existían tres formas de ruta incompatibles para el detalle de CFDI, exactamente
 
 ### Validación
 
-| Verificación | Resultado |
-| --- | --- |
-| No quedan rutas oficiales usando `cfdiId` | ✅ (grep en `docs/`, sin coincidencias fuera de `docs/09` como nombre de campo y las descripciones históricas de `D-012`/este plan) |
-| No quedan rutas oficiales usando `folioFiscal` | ✅ (ninguna coincidencia como parámetro de ruta) |
-| Todas las referencias usan `documentId` | ✅ `docs/14`, `docs/31`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md`, `docs/08` (`API-0027`, sin cambio) |
-| Sin contradicciones entre `docs/08`, `14`, `15`, `16`, `17`, `31`, `32` | ✅ |
-| `D-012` intacta (Contexto/Problema/Alternativas/Análisis/Decisión/Contrato) | ✅ — solo `Estado`/`Historial` actualizados |
-| `D-011` sin modificar | ✅ |
-| `T03` continúa `NO INICIADA` (desbloqueada) | ✅ |
-| Código, frontend, backend sin modificar | ✅ |
-| `git diff --check` | Sin advertencias de contenido |
+| Verificación                                                                | Resultado                                                                                                                           |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| No quedan rutas oficiales usando `cfdiId`                                   | ✅ (grep en `docs/`, sin coincidencias fuera de `docs/09` como nombre de campo y las descripciones históricas de `D-012`/este plan) |
+| No quedan rutas oficiales usando `folioFiscal`                              | ✅ (ninguna coincidencia como parámetro de ruta)                                                                                    |
+| Todas las referencias usan `documentId`                                     | ✅ `docs/14`, `docs/31`, `docs/32`, `EWO-005_DOCUMENTS_FISCAL_PLAN.md`, `docs/08` (`API-0027`, sin cambio)                          |
+| Sin contradicciones entre `docs/08`, `14`, `15`, `16`, `17`, `31`, `32`     | ✅                                                                                                                                  |
+| `D-012` intacta (Contexto/Problema/Alternativas/Análisis/Decisión/Contrato) | ✅ — solo `Estado`/`Historial` actualizados                                                                                         |
+| `D-011` sin modificar                                                       | ✅                                                                                                                                  |
+| `T03` continúa `NO INICIADA` (desbloqueada)                                 | ✅                                                                                                                                  |
+| Código, frontend, backend sin modificar                                     | ✅                                                                                                                                  |
+| `git diff --check`                                                          | Sin advertencias de contenido                                                                                                       |
 
 ### Hallazgos
 
@@ -473,22 +473,22 @@ Ninguno de severidad `CRÍTICO`, `ALTO`, `MEDIO` ni `BAJO`. Las tres formas de r
 2. Supervisor recibe `cfdi.read` — **sí**, contrato vinculante punto 2.
 3. Contador y Auxiliar conservan `cfdi.read` — **sí**, ya estaban en el árbol de trabajo sin commitear (contrato puntos 3–4); confirmado en `seed.ts` antes de editar.
 4. Estudiante permanece sin `cfdi.read` — **sí**, no tiene entrada en `ROLE_PERMISSIONS` (sandbox, sin permisos reales).
-5. `document.download` formalmente aprobado — **no**. D-011 solo *ordena evaluarla* ("debe evaluarse y, si procede, aprobarse la clave separada `document.download`", contrato punto 9) y su propio `Estado` original decía "la aprobación... queda pendiente de resolución explícita dentro de `T03`" — eso es una delegación de la decisión a `T03`, no una aprobación. Ninguna otra fuente canónica (`docs/04`, `docs/08`, `docs/11`) aprueba la clave. Conclusión: **no aprobada**, no se crea.
+5. `document.download` formalmente aprobado — **no**. D-011 solo _ordena evaluarla_ ("debe evaluarse y, si procede, aprobarse la clave separada `document.download`", contrato punto 9) y su propio `Estado` original decía "la aprobación... queda pendiente de resolución explícita dentro de `T03`" — eso es una delegación de la decisión a `T03`, no una aprobación. Ninguna otra fuente canónica (`docs/04`, `docs/08`, `docs/11`) aprueba la clave. Conclusión: **no aprobada**, no se crea.
 6. Qué cubre `cfdi.read` — listar, ver resumen, ver datos fiscales estructurados (contrato punto 6).
 7. Qué queda prohibido — generar, cancelar, modificar, eliminar CFDI vía `cfdi.read` (contrato punto 7); ningún permiso nuevo de escritura CFDI (punto 8, BR-INT-002).
 
 ### Inventario de permisos (Tarea 1)
 
-| Recurso | Acción | Clave | Roles autorizados (antes) | Roles autorizados (después) | Estado implementado | Estado documentado (antes) | Contradicción |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Documento | Listar / metadatos | `document.read` | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sin cambio | API-0024/0025 implementadas | Consistente | Ninguna |
-| Documento | Descargar original | `document.download` | No existe | **Sin cambio — no existe** | No implementada (API-0026 sin permiso propio) | `docs/08` no la exige; D-011 la señala como faltante | **Persiste** — pendiente de decisión de producto |
-| CFDI | Listar | `cfdi.read` | Contador, Auxiliar (Auditor/Supervisor sin ella) | + Auditor, Supervisor | Catálogo sí; endpoint no (API-0028 sin controlador) | `docs/31`/`docs/08` excluían a Auditor/Supervisor | **Resuelta** |
-| CFDI | Ver resumen / datos estructurados | `cfdi.read` | Contador, Auxiliar | + Auditor, Supervisor | Catálogo sí; endpoint no (API-0027 sin controlador) | `docs/15` UXF-0011 excluía explícitamente a Auditor/Supervisor | **Resuelta** |
-| CFDI | Descargar XML original | `document.download` | No existe | **Sin cambio — no existe** | No implementada | Mismo binario que Documento origen (D-011) | **Persiste** |
-| CFDI | Exportar | — | No existe | Sin cambio | No implementada | Sin mención canónica | Ninguna (fuera de alcance) |
-| CFDI | Modificar | — | No existe | Sin cambio | No existe por diseño | BR-INT-002 | Ninguna |
-| CFDI | Eliminar | — | No existe | Sin cambio | No existe por diseño | BR-INT-002 | Ninguna |
+| Recurso   | Acción                            | Clave               | Roles autorizados (antes)                              | Roles autorizados (después) | Estado implementado                                 | Estado documentado (antes)                                     | Contradicción                                    |
+| --------- | --------------------------------- | ------------------- | ------------------------------------------------------ | --------------------------- | --------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------ |
+| Documento | Listar / metadatos                | `document.read`     | Administrador, Contador, Auxiliar, Supervisor, Auditor | Sin cambio                  | API-0024/0025 implementadas                         | Consistente                                                    | Ninguna                                          |
+| Documento | Descargar original                | `document.download` | No existe                                              | **Sin cambio — no existe**  | No implementada (API-0026 sin permiso propio)       | `docs/08` no la exige; D-011 la señala como faltante           | **Persiste** — pendiente de decisión de producto |
+| CFDI      | Listar                            | `cfdi.read`         | Contador, Auxiliar (Auditor/Supervisor sin ella)       | + Auditor, Supervisor       | Catálogo sí; endpoint no (API-0028 sin controlador) | `docs/31`/`docs/08` excluían a Auditor/Supervisor              | **Resuelta**                                     |
+| CFDI      | Ver resumen / datos estructurados | `cfdi.read`         | Contador, Auxiliar                                     | + Auditor, Supervisor       | Catálogo sí; endpoint no (API-0027 sin controlador) | `docs/15` UXF-0011 excluía explícitamente a Auditor/Supervisor | **Resuelta**                                     |
+| CFDI      | Descargar XML original            | `document.download` | No existe                                              | **Sin cambio — no existe**  | No implementada                                     | Mismo binario que Documento origen (D-011)                     | **Persiste**                                     |
+| CFDI      | Exportar                          | —                   | No existe                                              | Sin cambio                  | No implementada                                     | Sin mención canónica                                           | Ninguna (fuera de alcance)                       |
+| CFDI      | Modificar                         | —                   | No existe                                              | Sin cambio                  | No existe por diseño                                | BR-INT-002                                                     | Ninguna                                          |
+| CFDI      | Eliminar                          | —                   | No existe                                              | Sin cambio                  | No existe por diseño                                | BR-INT-002                                                     | Ninguna                                          |
 
 ### Cambios de catálogo (Tarea 2)
 
@@ -500,7 +500,7 @@ Ninguno de severidad `CRÍTICO`, `ALTO`, `MEDIO` ni `BAJO`. Las tres formas de r
 
 ### Tarea 3 — `document.download`
 
-**No resuelta — bloqueada por falta de aprobación explícita.** Conforme a las instrucciones de esta tarea y a `.claude/rules/00-governance.md` ("no inventar requisitos, estado, aprobaciones"), no se creó la clave. `D-011` únicamente ordena *evaluarla*; ninguna fuente canónica la aprueba. Queda registrada en `docs/04_BUSINESS_RULES.md` BR-PERM-004 como "sin aprobar", y en `EWO-SEC-NAV-001` §4/§7 como pendiente explícito — no resuelta por omisión bajo `document.read` (D-011 contrato punto 10, respetado: no se afirma en ningún documento que `document.read` cubra la descarga).
+**No resuelta — bloqueada por falta de aprobación explícita.** Conforme a las instrucciones de esta tarea y a `.claude/rules/00-governance.md` ("no inventar requisitos, estado, aprobaciones"), no se creó la clave. `D-011` únicamente ordena _evaluarla_; ninguna fuente canónica la aprueba. Queda registrada en `docs/04_BUSINESS_RULES.md` BR-PERM-004 como "sin aprobar", y en `EWO-SEC-NAV-001` §4/§7 como pendiente explícito — no resuelta por omisión bajo `document.read` (D-011 contrato punto 10, respetado: no se afirma en ningún documento que `document.read` cubra la descarga).
 
 ### Cambios documentales (Tarea 4)
 
@@ -528,13 +528,13 @@ Ninguno de severidad `CRÍTICO`, `ALTO`, `MEDIO` ni `BAJO`. Las tres formas de r
 
 ### Validaciones ejecutadas
 
-| Validación | Comando | Resultado |
-| --- | --- | --- |
-| Pruebas unitarias del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` | ✅ 8/8 verdes |
-| TypeScript del paquete | `pnpm --filter @contaia/database run typecheck` | ✅ sin errores (`prisma/` no está en `rootDir` del proyecto tsc; verificado además con ESLint type-aware) |
-| ESLint | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts` | ✅ sin errores ni advertencias |
-| Prisma / schema | No aplica — sin cambios a `schema.prisma` | — |
-| `git diff --check` | Pendiente de ejecutar como parte del cierre de esta entrega | — |
+| Validación                     | Comando                                                                                                                    | Resultado                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Pruebas unitarias del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts`                                          | ✅ 8/8 verdes                                                                                             |
+| TypeScript del paquete         | `pnpm --filter @contaia/database run typecheck`                                                                            | ✅ sin errores (`prisma/` no está en `rootDir` del proyecto tsc; verificado además con ESLint type-aware) |
+| ESLint                         | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts` | ✅ sin errores ni advertencias                                                                            |
+| Prisma / schema                | No aplica — sin cambios a `schema.prisma`                                                                                  | —                                                                                                         |
+| `git diff --check`             | Pendiente de ejecutar como parte del cierre de esta entrega                                                                | —                                                                                                         |
 
 **No ejecutado:** `pnpm run seed` contra una base real (prohibido sin autorización humana expresa, `.claude/rules/20-fiscal-data-safety.md`) — la cobertura del catálogo se limita a la prueba unitaria sobre los datos en memoria, no a una corrida real contra PostgreSQL.
 
@@ -549,10 +549,10 @@ Ninguno de severidad `CRÍTICO`, `ALTO`, `MEDIO` ni `BAJO`. Las tres formas de r
 
 ### Hallazgos
 
-| Severidad | Ubicación | Problema | Impacto | Corrección mínima |
-| --- | --- | --- | --- | --- |
-| **ALTO** | D-011 / `document.download` | La clave sigue sin resolverse: ni aprobada ni denegada explícitamente por el responsable de producto. `API-0026` (descarga del Documento) queda sin permiso propio exigido — hoy no implementada, así que no hay riesgo de ejecución, pero el criterio de aceptación 4 de `T03` no se cumple. | Cuando se implemente `API-0026`/el detalle de descarga de CFDI, sin esta decisión el equipo podría (a) asumir por omisión que `document.read` cubre la descarga (prohibido por D-011 punto 10) o (b) bloquear la funcionalidad indefinidamente. | Decisión explícita del responsable de producto: aprobar `document.download` como clave separada (y asignarla a los roles que corresponda) o denegarla formalmente y decidir el mecanismo alterno de autorización de descarga. |
-| **BAJO** | `docs/31_MASTER_SCREEN_MAP.md` `API-0028` (`GET /companies/{companyId}/cfdi`) | Administrador no aparece en la lista de roles de `API-0028`, pese a tener todos los permisos incluido `cfdi.read`. Contradicción preexistente a D-011 (no está en su tabla de contradicciones ni en su contrato vinculante), por lo que no se corrigió en este turno para no ampliar el alcance de `T03` sin autorización. | Cosmético — Administrador ya está autorizado vía el catálogo (`ADMINISTRADOR` recibe todos los permisos); ningún endpoint deniega el acceso realmente porque `API-0028` no está implementada. | Añadir "Administrador" a la lista de roles de `API-0028` en `docs/08_API_DESIGN.md` en una tarea de documentación separada, o incluirlo expresamente en el alcance de `T05` (sincronización documental general). |
+| Severidad | Ubicación                                                                     | Problema                                                                                                                                                                                                                                                                                                                   | Impacto                                                                                                                                                                                                                                         | Corrección mínima                                                                                                                                                                                                             |
+| --------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ALTO**  | D-011 / `document.download`                                                   | La clave sigue sin resolverse: ni aprobada ni denegada explícitamente por el responsable de producto. `API-0026` (descarga del Documento) queda sin permiso propio exigido — hoy no implementada, así que no hay riesgo de ejecución, pero el criterio de aceptación 4 de `T03` no se cumple.                              | Cuando se implemente `API-0026`/el detalle de descarga de CFDI, sin esta decisión el equipo podría (a) asumir por omisión que `document.read` cubre la descarga (prohibido por D-011 punto 10) o (b) bloquear la funcionalidad indefinidamente. | Decisión explícita del responsable de producto: aprobar `document.download` como clave separada (y asignarla a los roles que corresponda) o denegarla formalmente y decidir el mecanismo alterno de autorización de descarga. |
+| **BAJO**  | `docs/31_MASTER_SCREEN_MAP.md` `API-0028` (`GET /companies/{companyId}/cfdi`) | Administrador no aparece en la lista de roles de `API-0028`, pese a tener todos los permisos incluido `cfdi.read`. Contradicción preexistente a D-011 (no está en su tabla de contradicciones ni en su contrato vinculante), por lo que no se corrigió en este turno para no ampliar el alcance de `T03` sin autorización. | Cosmético — Administrador ya está autorizado vía el catálogo (`ADMINISTRADOR` recibe todos los permisos); ningún endpoint deniega el acceso realmente porque `API-0028` no está implementada.                                                   | Añadir "Administrador" a la lista de roles de `API-0028` en `docs/08_API_DESIGN.md` en una tarea de documentación separada, o incluirlo expresamente en el alcance de `T05` (sincronización documental general).              |
 
 ### Riesgos residuales
 
@@ -610,13 +610,13 @@ El responsable de producto aprueba la clave independiente `document.download`, t
 
 ### Validaciones ejecutadas
 
-| Validación | Comando | Resultado |
-| --- | --- | --- |
-| Pruebas unitarias del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` | ✅ 13/13 verdes |
-| TypeScript del paquete | `pnpm --filter @contaia/database run typecheck` | ✅ sin errores |
-| ESLint | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts` | ✅ sin errores ni advertencias |
-| Prisma / schema | `prisma validate` falla solo por `DATABASE_URL` ausente en el shell (entorno, no contenido) — `schema.prisma` confirmado sin cambios vía `git status` | Sin cambios de schema |
-| `git diff --check` | Ejecutado sobre el diff completo del worktree | Sin hallazgos nuevos atribuibles a esta entrega |
+| Validación                     | Comando                                                                                                                                               | Resultado                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Pruebas unitarias del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts`                                                                     | ✅ 13/13 verdes                                 |
+| TypeScript del paquete         | `pnpm --filter @contaia/database run typecheck`                                                                                                       | ✅ sin errores                                  |
+| ESLint                         | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts`                            | ✅ sin errores ni advertencias                  |
+| Prisma / schema                | `prisma validate` falla solo por `DATABASE_URL` ausente en el shell (entorno, no contenido) — `schema.prisma` confirmado sin cambios vía `git status` | Sin cambios de schema                           |
+| `git diff --check`             | Ejecutado sobre el diff completo del worktree                                                                                                         | Sin hallazgos nuevos atribuibles a esta entrega |
 
 **No ejecutado:** `pnpm run seed` contra una base real (prohibido sin autorización humana expresa).
 
@@ -662,27 +662,27 @@ Estado de partida verificado contra el árbol de trabajo (no inferido): la opci�
 ### Análisis técnico — por qué (A) es la única opción correcta
 
 1. **Mínimo privilegio (BR-PERM-001, denegar por defecto).** Consultar metadatos (nombre, tipo, estado, fecha) y obtener el binario almacenado son exposiciones materialmente distintas. El XML contiene RFC, importes, impuestos y las partes del comprobante — clasificados **Confidencial**/**Altamente sensible** en `docs/11` §3 — y, una vez descargado, sale del perímetro donde ContaIA puede aplicar aislamiento por Empresa, trazabilidad o revocación. **(C)** haría imposible conceder consulta sin conceder extracción, fijando un piso de privilegio permanente que BR-PERM-001 prohíbe ("permitir solo explícitamente"). **(B)** es **(C)** por omisión, con el agravante de dejar `API-0026` sin clave que exigir.
-2. **Consistencia con `D-011` (contrato vinculante).** El punto 10 prohíbe expresamente asumir `document.read` como equivalente a descargar el binario, y la *Distinción normativa de recursos* asigna el XML original del CFDI a la clave de descarga, no a `cfdi.read`. **(B)** y **(C)** exigirían **modificar** el contrato vinculante de una decisión aprobada; **(A)** es la única que lo cumple sin enmendarlo. Además, dos filas de `BR-PERM-004` quedarían sin clave bajo **(B)**/**(C)**, obligando a la matriz canónica a afirmar justo lo que `D-011` prohíbe.
+2. **Consistencia con `D-011` (contrato vinculante).** El punto 10 prohíbe expresamente asumir `document.read` como equivalente a descargar el binario, y la _Distinción normativa de recursos_ asigna el XML original del CFDI a la clave de descarga, no a `cfdi.read`. **(B)** y **(C)** exigirían **modificar** el contrato vinculante de una decisión aprobada; **(A)** es la única que lo cumple sin enmendarlo. Además, dos filas de `BR-PERM-004` quedarían sin clave bajo **(B)**/**(C)**, obligando a la matriz canónica a afirmar justo lo que `D-011` prohíbe.
 3. **Escalabilidad.** La autorización se resuelve en `PermissionGuard` contra `Role`/`Permission`/`RolePermission`, con semántica **AND** sobre las claves declaradas y sin bypass por `isPlatformAdmin`. Añadir una clave ortogonal cuesta una fila de seed y un decorador `@Permissions`; el guard no cambia. Bajo **(C)**, restringir la descarga a un rol en el futuro (Auditor externo, Supervisor sin extracción de evidencia) obligaría a partir la clave **después** de que las concesiones ya viven en bases reales — migración de permisos concedidos más reescritura de todo endpoint que exija `document.read`. El costo de **(A)** se paga una vez, hoy; el de **(C)** se paga más tarde y con intereses. El catálogo ya usa este patrón: `sat.download` existe como clave de descarga propia — **(C)** sería la excepción, no la regla.
 4. **BR-SEC y evidencia auditable.** `API-0026` está marcada como auditada y `docs/11` §3 exige auditoría de "carga, descarga" del Documento XML. Un evento de auditoría solo es evidencia si corresponde a una decisión de autorización distinguible: bajo **(C)**, "descargó" y "consultó" provienen de la misma concesión y el registro pierde poder probatorio frente a BR-SEC-004/BR-AUD-002. BR-SEC-001 refuerza lo mismo: la URL firmada es el punto exacto donde el activo cifrado en reposo deja de estar bajo control del sistema, y ese punto merece su propia puerta.
 5. **Irreversibilidad.** El Documento se conserva indefinidamente y no admite eliminación física una vez ligado a un CFDI o a una Póliza definitiva (`docs/11` §3, BR-INT-002). Una capacidad cuyos efectos son permanentes e irrecuperables no debe viajar implícita dentro de una capacidad de listado.
 
-**Objeción considerada y respondida:** hoy los cinco roles con `document.read` tienen también `document.download`, por lo que la separación no produce diferenciación *actual* y puede parecer redundante. Se sostiene igualmente porque (i) sí diferencia frente a Estudiante y frente a cualquier rol futuro; (ii) es la única forma de que la restricción futura no sea un cambio rompiente; y (iii) `BR-PERM-004` es una matriz **por acción**, no una optimización del número de claves. La redundancia es deliberada y queda documentada, no es un descuido.
+**Objeción considerada y respondida:** hoy los cinco roles con `document.read` tienen también `document.download`, por lo que la separación no produce diferenciación _actual_ y puede parecer redundante. Se sostiene igualmente porque (i) sí diferencia frente a Estudiante y frente a cualquier rol futuro; (ii) es la única forma de que la restricción futura no sea un cambio rompiente; y (iii) `BR-PERM-004` es una matriz **por acción**, no una optimización del número de claves. La redundancia es deliberada y queda documentada, no es un descuido.
 
 **Conclusión:** se ratifica **(A)**. `(B)` y `(C)` se rechazan por violar BR-PERM-001 y el punto 10 del contrato vinculante de `D-011`, y por trasladar a una migración futura un costo evitable hoy.
 
 ### Hallazgos de este turno — ocho contradicciones residuales que §19/§20 dieron por cerradas y no lo estaban
 
-| Severidad | Ubicación | Problema | Estado |
-| --- | --- | --- | --- |
-| **ALTO** | `docs/15_UX_FLOWS.md` `UXF-0011` | Afirmaba "la clave `document.download` **sigue sin aprobar**" — contradicción directa con `BR-PERM-004`, con el `Estado` de `D-011` y con el catálogo implementado. §20 declaró que `docs/15` "no requería corrección"; esa verificación fue incorrecta. | **Corregido** |
-| **ALTO** | `docs/08_API_DESIGN.md` `API-0026` | El contrato de API de la descarga declaraba actor "Cualquier Rol con Membresía" y permiso "Pertenencia a la Empresa" — sin `document.download`. Quien implementara el endpoint leyendo `docs/08` habría construido exactamente la descarga sin clave que `D-011` punto 10 prohíbe. | **Corregido** |
-| **MEDIO** | `docs/08_API_DESIGN.md` `API-0023`/`0024`/`0025` | La columna **Permiso** no enunciaba la clave del catálogo (`document.upload`/`document.read`), pese a que el código ya las exige; `API-0023` omitía a Administrador y `API-0024`/`0025` decían "Cualquier Rol con Membresía", lo que incluiría a un Estudiante con Membresía que el catálogo deniega. | **Corregido** |
-| **MEDIO** | `docs/04_BUSINESS_RULES.md` `BR-PERM-004` | La celda de estado decía "(API-0026 sin permiso propio)" después de aprobar la clave: la matriz canónica se contradecía a sí misma. | **Corregido** |
-| **MEDIO** | `docs/31_MASTER_SCREEN_MAP.md` `PAGE-0021`/`0022`/`0023` | Roles base "Auxiliar, Contador" en las pantallas de Documentos, con acción explícita "Ver estado/**descargar**" — misma clase de contradicción que originó `D-011` (excluir de la pantalla a roles que el catálogo autoriza). | **Corregido** |
-| **MEDIO** | `docs/31` `PAGE-0019`/`PAGE-0020` · `docs/16` `WF-0013`/`WF-0015`/`WF-0016` | **Administrador omitido** de las pantallas de CFDI y de la carga documental, pese a poseer `cfdi.read`/`document.upload` y a figurar en `API-0027`/`API-0028`. Es exactamente la contradicción que la sección *Problema* de `D-011` nombró ("`docs/31` línea 120 contradice a `API-0027` al omitir al Administrador"): §19 la corrigió en `docs/08` pero no en las pantallas, y §20 no la revisó. | **Corregido** |
-| **BAJO** | `docs/16_WIREFRAMES_SPECIFICATION.md` `WF-0012`/`WF-0016` | Acciones de descarga (lote en la biblioteca, evidencia en el detalle de CFDI) sin nombrar la clave que las gobierna; `WF-0012` con la misma lista de roles incompleta. | **Corregido** |
-| **BAJO** | `docs/11_SECURITY_ARCHITECTURE.md` §9 | La matriz de permisos no tiene símbolo para "descarga": `L` sobre Documentos podía leerse como si incluyera el binario. No era una contradicción sino un vacío de granularidad explotable por interpretación. | **Corregido** (nota al pie que subordina la granularidad a `BR-PERM-004`) |
+| Severidad | Ubicación                                                                   | Problema                                                                                                                                                                                                                                                                                                                                                                                          | Estado                                                                    |
+| --------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **ALTO**  | `docs/15_UX_FLOWS.md` `UXF-0011`                                            | Afirmaba "la clave `document.download` **sigue sin aprobar**" — contradicción directa con `BR-PERM-004`, con el `Estado` de `D-011` y con el catálogo implementado. §20 declaró que `docs/15` "no requería corrección"; esa verificación fue incorrecta.                                                                                                                                          | **Corregido**                                                             |
+| **ALTO**  | `docs/08_API_DESIGN.md` `API-0026`                                          | El contrato de API de la descarga declaraba actor "Cualquier Rol con Membresía" y permiso "Pertenencia a la Empresa" — sin `document.download`. Quien implementara el endpoint leyendo `docs/08` habría construido exactamente la descarga sin clave que `D-011` punto 10 prohíbe.                                                                                                                | **Corregido**                                                             |
+| **MEDIO** | `docs/08_API_DESIGN.md` `API-0023`/`0024`/`0025`                            | La columna **Permiso** no enunciaba la clave del catálogo (`document.upload`/`document.read`), pese a que el código ya las exige; `API-0023` omitía a Administrador y `API-0024`/`0025` decían "Cualquier Rol con Membresía", lo que incluiría a un Estudiante con Membresía que el catálogo deniega.                                                                                             | **Corregido**                                                             |
+| **MEDIO** | `docs/04_BUSINESS_RULES.md` `BR-PERM-004`                                   | La celda de estado decía "(API-0026 sin permiso propio)" después de aprobar la clave: la matriz canónica se contradecía a sí misma.                                                                                                                                                                                                                                                               | **Corregido**                                                             |
+| **MEDIO** | `docs/31_MASTER_SCREEN_MAP.md` `PAGE-0021`/`0022`/`0023`                    | Roles base "Auxiliar, Contador" en las pantallas de Documentos, con acción explícita "Ver estado/**descargar**" — misma clase de contradicción que originó `D-011` (excluir de la pantalla a roles que el catálogo autoriza).                                                                                                                                                                     | **Corregido**                                                             |
+| **MEDIO** | `docs/31` `PAGE-0019`/`PAGE-0020` · `docs/16` `WF-0013`/`WF-0015`/`WF-0016` | **Administrador omitido** de las pantallas de CFDI y de la carga documental, pese a poseer `cfdi.read`/`document.upload` y a figurar en `API-0027`/`API-0028`. Es exactamente la contradicción que la sección _Problema_ de `D-011` nombró ("`docs/31` línea 120 contradice a `API-0027` al omitir al Administrador"): §19 la corrigió en `docs/08` pero no en las pantallas, y §20 no la revisó. | **Corregido**                                                             |
+| **BAJO**  | `docs/16_WIREFRAMES_SPECIFICATION.md` `WF-0012`/`WF-0016`                   | Acciones de descarga (lote en la biblioteca, evidencia en el detalle de CFDI) sin nombrar la clave que las gobierna; `WF-0012` con la misma lista de roles incompleta.                                                                                                                                                                                                                            | **Corregido**                                                             |
+| **BAJO**  | `docs/11_SECURITY_ARCHITECTURE.md` §9                                       | La matriz de permisos no tiene símbolo para "descarga": `L` sobre Documentos podía leerse como si incluyera el binario. No era una contradicción sino un vacío de granularidad explotable por interpretación.                                                                                                                                                                                     | **Corregido** (nota al pie que subordina la granularidad a `BR-PERM-004`) |
 
 ### Cambios documentales
 
@@ -709,13 +709,13 @@ Esto responde al riesgo que §18 dejó registrado ("ninguna prueba automatizada 
 
 ### Validaciones ejecutadas
 
-| Validación | Comando | Resultado |
-| --- | --- | --- |
-| Pruebas unitarias del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` | ✅ 22/22 verdes |
-| Verificación por mutación de la prueba de sincronización | Edición temporal de `docs/04` + reejecución + reversión | ✅ 1 fallo esperado; verde tras revertir |
-| ESLint | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts` | ✅ sin errores ni advertencias |
-| TypeScript del paquete | `pnpm --filter @contaia/database run typecheck` | ✅ sin errores |
-| Prisma / schema | No aplica — sin cambios a `schema.prisma` | — |
+| Validación                                               | Comando                                                                                                                    | Resultado                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Pruebas unitarias del catálogo                           | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts`                                          | ✅ 22/22 verdes                          |
+| Verificación por mutación de la prueba de sincronización | Edición temporal de `docs/04` + reejecución + reversión                                                                    | ✅ 1 fallo esperado; verde tras revertir |
+| ESLint                                                   | `pnpm --filter @contaia/database exec eslint prisma/seed.ts prisma/permissions-catalog.ts src/permissions-catalog.test.ts` | ✅ sin errores ni advertencias           |
+| TypeScript del paquete                                   | `pnpm --filter @contaia/database run typecheck`                                                                            | ✅ sin errores                           |
+| Prisma / schema                                          | No aplica — sin cambios a `schema.prisma`                                                                                  | —                                        |
 
 **No ejecutado:** `pnpm run seed` contra una base real (prohibido sin autorización humana expresa, `.claude/rules/20-fiscal-data-safety.md`). Sin `commit` ni `push` — no solicitados.
 
@@ -777,26 +777,26 @@ Corregir exclusivamente `T03-OBS-01` y las contradicciones equivalentes que una 
 
 Patrones buscados en todo `docs/`, `brain/` y el árbol de trabajo: "Supervisor excluido de CFDI", "Auditor excluido de CFDI", "ADMINISTRADOR, CONTADOR, AUXILIAR" como única lista de `cfdi.read`, "`document.download` todavía pendiente", "descarga de XML gobernada por `cfdi.read`".
 
-| Ubicación | Clasificación | Acción |
-| --- | --- | --- |
-| `docs/16_WIREFRAMES_SPECIFICATION.md` §54, filas `WF-0012`/`0013`/`0015`/`0016` | Norma vigente, contradictoria | **Corregida** (Tarea 1) |
-| `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §12, §3.1 (línea 162), §15 (criterios 28, 34), DoD de cierre (`document.download` de `API-0026`) | Norma vigente, contradictoria | **Corregida** (Tarea 2 + hallazgos adicionales de la búsqueda global, mismo archivo autorizado) |
-| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` §5 regla 9, tarjeta `E5-S7-T02`, fila de trazabilidad "API-0027 RBAC" | Norma vigente, contradictoria | **Corregida** (Tarea 3) |
-| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` tarjeta `E5-S1-T08` (Acciones/Criterio originales) | Registro histórico legítimo de una tarjeta ya `PASSED` bajo el criterio vigente en su fecha | **No alterado** — se añadió nota de vigencia sin tocar el texto histórico |
-| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` §4 "Estado real del repositorio", línea 76 | Snapshot histórico fechado (2026-07-25), correcto para esa fecha | **No alterado** |
-| `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` líneas 140, 198–207 (incluida una nota "⚠ Corrección" previa que también quedó obsoleta frente a `D-011`) | Norma vigente, contradictoria — **misma clase de defecto** | **No corregida.** `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` no está en el `ALLOWED_WRITE` de esta misión. Reportado como hallazgo abierto, no oculto — ver §"Riesgos residuales". |
-| `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §18–§21, `brain/DECISIONS.md` (D-011) | Texto histórico legítimo (documenta la contradicción original, ya resuelta, con fecha) | **No alterado** |
-| `docs/04_BUSINESS_RULES.md` `BR-PERM-004`, `docs/08_API_DESIGN.md`, `docs/31_MASTER_SCREEN_MAP.md`, `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md`, `packages/database/prisma/permissions-catalog.ts` | Ya correctos (verificado por lectura) | Sin acción |
+| Ubicación                                                                                                                                                                                          | Clasificación                                                                               | Acción                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/16_WIREFRAMES_SPECIFICATION.md` §54, filas `WF-0012`/`0013`/`0015`/`0016`                                                                                                                    | Norma vigente, contradictoria                                                               | **Corregida** (Tarea 1)                                                                                                                                                                     |
+| `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §12, §3.1 (línea 162), §15 (criterios 28, 34), DoD de cierre (`document.download` de `API-0026`)                                       | Norma vigente, contradictoria                                                               | **Corregida** (Tarea 2 + hallazgos adicionales de la búsqueda global, mismo archivo autorizado)                                                                                             |
+| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` §5 regla 9, tarjeta `E5-S7-T02`, fila de trazabilidad "API-0027 RBAC"                                                                       | Norma vigente, contradictoria                                                               | **Corregida** (Tarea 3)                                                                                                                                                                     |
+| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` tarjeta `E5-S1-T08` (Acciones/Criterio originales)                                                                                          | Registro histórico legítimo de una tarjeta ya `PASSED` bajo el criterio vigente en su fecha | **No alterado** — se añadió nota de vigencia sin tocar el texto histórico                                                                                                                   |
+| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` §4 "Estado real del repositorio", línea 76                                                                                                  | Snapshot histórico fechado (2026-07-25), correcto para esa fecha                            | **No alterado**                                                                                                                                                                             |
+| `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` líneas 140, 198–207 (incluida una nota "⚠ Corrección" previa que también quedó obsoleta frente a `D-011`)                                      | Norma vigente, contradictoria — **misma clase de defecto**                                  | **No corregida.** `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` no está en el `ALLOWED_WRITE` de esta misión. Reportado como hallazgo abierto, no oculto — ver §"Riesgos residuales". |
+| `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §18–§21, `brain/DECISIONS.md` (D-011)                                                                                                  | Texto histórico legítimo (documenta la contradicción original, ya resuelta, con fecha)      | **No alterado**                                                                                                                                                                             |
+| `docs/04_BUSINESS_RULES.md` `BR-PERM-004`, `docs/08_API_DESIGN.md`, `docs/31_MASTER_SCREEN_MAP.md`, `docs/32_MASTER_NAVIGATION_ARCHITECTURE.md`, `packages/database/prisma/permissions-catalog.ts` | Ya correctos (verificado por lectura)                                                       | Sin acción                                                                                                                                                                                  |
 
 ### Validaciones ejecutadas
 
-| Validación | Comando/método | Resultado |
-| --- | --- | --- |
-| Pruebas del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` | ✅ 22/22 verdes — sin cambios de catálogo, resultado idéntico al de turnos anteriores |
-| TypeScript del paquete de base de datos | `pnpm --filter @contaia/database run typecheck` | ✅ sin errores |
-| Búsquedas globales dirigidas | `grep` sobre los patrones de la Tarea 4, acotado primero a los tres archivos autorizados y después a todo `docs/`/`brain/` | Ver tabla de Búsqueda global |
-| `git diff --check` | Acotado a los archivos modificados por este turno | Sin marcadores de conflicto ni contenido inválido — solo avisos de normalización de fin de línea LF→CRLF, preexistentes en todo el repositorio |
-| Confirmación de alcance | Lectura de `permissions-catalog.ts`, `seed.ts`, `schema.prisma` | Sin diferencias — ninguno de los tres fue tocado en este turno |
+| Validación                              | Comando/método                                                                                                             | Resultado                                                                                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pruebas del catálogo                    | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts`                                          | ✅ 22/22 verdes — sin cambios de catálogo, resultado idéntico al de turnos anteriores                                                          |
+| TypeScript del paquete de base de datos | `pnpm --filter @contaia/database run typecheck`                                                                            | ✅ sin errores                                                                                                                                 |
+| Búsquedas globales dirigidas            | `grep` sobre los patrones de la Tarea 4, acotado primero a los tres archivos autorizados y después a todo `docs/`/`brain/` | Ver tabla de Búsqueda global                                                                                                                   |
+| `git diff --check`                      | Acotado a los archivos modificados por este turno                                                                          | Sin marcadores de conflicto ni contenido inválido — solo avisos de normalización de fin de línea LF→CRLF, preexistentes en todo el repositorio |
+| Confirmación de alcance                 | Lectura de `permissions-catalog.ts`, `seed.ts`, `schema.prisma`                                                            | Sin diferencias — ninguno de los tres fue tocado en este turno                                                                                 |
 
 ### Confirmaciones de alcance
 
@@ -861,21 +861,21 @@ Patrones buscados en todo `docs/`, `brain/` y el árbol de trabajo: "Supervisor 
 
 Patrones de la Tarea 3 sobre todo el repositorio (excluyendo el propio archivo ya corregido y los artefactos de auditoría, que documentan intencionalmente el estado histórico):
 
-| Resultado | Ubicación | Clasificación |
-| --- | --- | --- |
-| Sin contradicciones vigentes nuevas | `docs/04`, `docs/08`, `docs/11`, `docs/15`, `docs/16`, `docs/31`, `docs/32`, `Addendum`, `Checklist`, `AI_CONTEXT.md`, `brain/DECISIONS.md`, `brain/DECISION_INDEX.md`, `CHANGELOG.md` | Ya correctos (verificado por lectura/grep dirigido) |
-| Residuo divergente, mismo defecto | `.claude/worktrees/agent-a4b02bb46c9bc7841/{CHANGELOG.md, docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md, docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md, docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md}` | Worktree aislado de otro agente — **no tocado**, fuera de `ALLOWED_WRITE`, reportado |
-| Texto histórico correctamente enmarcado | `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` tarjeta `E5-S1-T08` (ya `PASSED`) y su sección 4 fechada; `brain/DECISIONS.md` `D-011` Contexto/Riesgos/Historial; `EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §14–§22 | Sin acción — ya corregidos/anotados por la misión anterior |
+| Resultado                               | Ubicación                                                                                                                                                                                                                      | Clasificación                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Sin contradicciones vigentes nuevas     | `docs/04`, `docs/08`, `docs/11`, `docs/15`, `docs/16`, `docs/31`, `docs/32`, `Addendum`, `Checklist`, `AI_CONTEXT.md`, `brain/DECISIONS.md`, `brain/DECISION_INDEX.md`, `CHANGELOG.md`                                         | Ya correctos (verificado por lectura/grep dirigido)                                  |
+| Residuo divergente, mismo defecto       | `.claude/worktrees/agent-a4b02bb46c9bc7841/{CHANGELOG.md, docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md, docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md, docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md}` | Worktree aislado de otro agente — **no tocado**, fuera de `ALLOWED_WRITE`, reportado |
+| Texto histórico correctamente enmarcado | `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md` tarjeta `E5-S1-T08` (ya `PASSED`) y su sección 4 fechada; `brain/DECISIONS.md` `D-011` Contexto/Riesgos/Historial; `EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md` §14–§22   | Sin acción — ya corregidos/anotados por la misión anterior                           |
 
 ### Validaciones ejecutadas
 
-| Validación | Comando/resultado |
-| --- | --- |
-| Pruebas del catálogo | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` → ✅ 22/22 verdes, sin cambio de catálogo |
-| Búsquedas globales | `grep` dirigido, ver tabla de arriba |
-| Ruta de listado de `T04` | `/{companyId}/fiscal/cfdi` confirmada intacta en línea 80 antes y después de editar |
-| `git diff --check` | Acotado a `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` → sin advertencias de ningún tipo |
-| Confirmación de alcance | `git status --short` sobre `permissions-catalog.ts`, `seed.ts`, `schema.prisma`, `Addendum`, `Checklist`, `brain/DECISIONS.md` → sin diferencias nuevas atribuibles a este turno |
+| Validación               | Comando/resultado                                                                                                                                                                |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pruebas del catálogo     | `pnpm --filter @contaia/database exec vitest run src/permissions-catalog.test.ts` → ✅ 22/22 verdes, sin cambio de catálogo                                                      |
+| Búsquedas globales       | `grep` dirigido, ver tabla de arriba                                                                                                                                             |
+| Ruta de listado de `T04` | `/{companyId}/fiscal/cfdi` confirmada intacta en línea 80 antes y después de editar                                                                                              |
+| `git diff --check`       | Acotado a `docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md` → sin advertencias de ningún tipo                                                                                  |
+| Confirmación de alcance  | `git status --short` sobre `permissions-catalog.ts`, `seed.ts`, `schema.prisma`, `Addendum`, `Checklist`, `brain/DECISIONS.md` → sin diferencias nuevas atribuibles a este turno |
 
 ### Confirmaciones de alcance
 

@@ -18,6 +18,16 @@ Vigente — repositorio activo del historial detallado del proyecto.
 
 ---
 
+## 2026-08-08 — Cierre administrativo de T03/D-011 y T04/D-012 (EWO-SEC-NAV-001)
+
+**Solo documentación de cierre.** Sin cambios de código, catálogo, `seed.ts`, pruebas, `schema.prisma`, migraciones, frontend, rutas ni contratos API.
+
+- Reauditorías independientes `READ ONLY` sobre `6dc846d5cd40bbd4b13d21ad9ca6ff646dca5540`: [`EWO-SEC-NAV-001-T03_REAUDIT.md`](docs/engineering/audits/EWO-SEC-NAV-001-T03_REAUDIT.md) y [`EWO-SEC-NAV-001-T04_REAUDIT.md`](docs/engineering/audits/EWO-SEC-NAV-001-T04_REAUDIT.md), ambas con veredicto **`PASSED`**.
+- `T03` y `D-011` pasan a **`PASSED`** / **`IMPLEMENTADA · PASSED`**. La reauditoría confirmó `cfdi.read` y `document.download` para Administrador, Contador, Auxiliar, Supervisor y Auditor; Estudiante excluido; Platform Admin fuera de `RoleName`; catálogo único y 22/22 pruebas aprobadas.
+- `T04` y `D-012` pasan a **`PASSED`** / **`IMPLEMENTADA · PASSED`**. La reauditoría confirmó listado `/{companyId}/fiscal/cfdi`, detalle `/{companyId}/documentos/{documentId}/cfdi`, identidad pública `documentId`, `cfdiId` interno y `folioFiscal` fuera de URLs.
+- Los informes `EWO-SEC-NAV-001-T03_FINAL_AUDIT.md` y `EWO-SEC-NAV-001-T04_FINAL_AUDIT.md` se preservan sin cambios como evidencia histórica de sus veredictos `REQUIERE CAMBIOS` anteriores.
+- Se preservan los cierres `PASSED` de `T01`, `T02`, `D-010`, `E5-S3-T06`, `E5-S3-T07`, `E5-S4-T01` y `E5-S4-T09`.
+
 ## 2026-08-07 — Cierre administrativo de E5-S4-T01 y E5-S4-T09 (fundamentos de Sprint 4)
 
 **Solo documentación de cierre.** Sin cambios de código, Prisma, migraciones, frontend, `WorkerHost`, `@Processor` ni Sprint 3 en este commit.
@@ -28,6 +38,7 @@ Vigente — repositorio activo del historial detallado del proyecto.
 - `E5-S4-T09` confirma las 14 variables XML/Jobs, validación fail-fast, composición en `SERVER_CONFIG`, inyección de `JOBS_ATTEMPTS` y `JOBS_BACKOFF_DELAY_MS`, con backoff canónico de `5000 ms`.
 - Evidencia de reauditoría: S3 31/31, Storage 46/46, Jobs sin PostgreSQL 21/21, Validation 50/50, Config 6/6, TypeScript, ESLint y `git diff --check` en `PASS`. `jobs.repository.spec.ts` y `jobs.service.spec.ts` requieren PostgreSQL dedicado; es una observación de entorno, no un defecto de código.
 - Las demás tareas conservan su estado vigente. No se implementa un consumidor BullMQ ni se altera Sprint 3.
+
 ## 2026-08-07 — Cierre administrativo de E5-S3-T06 y E5-S3-T07 (Sprint 3)
 
 **Solo documentación.** Sin cambios de código de producción, pruebas, `schema.prisma`, migraciones, frontend, worker ni arquitectura técnica.
