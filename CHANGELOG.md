@@ -18,6 +18,16 @@ Vigente — repositorio activo del historial detallado del proyecto.
 
 ---
 
+## 2026-08-07 — Cierre administrativo de E5-S4-T01 y E5-S4-T09 (fundamentos de Sprint 4)
+
+**Solo documentación de cierre.** Sin cambios de código, Prisma, migraciones, frontend, `WorkerHost`, `@Processor` ni Sprint 3 en este commit.
+
+- El hardening de `E5-S4-T01` fue auditado como `889f151ff92b0a1885be7ec55a274572a6c7e6df` y está integrado en main mediante el cherry-pick equivalente `7eeefda014974215aecbcca482efcc6d922eda68`, sobre la implementación inicial `a8a700b`.
+- Auditorías finales independientes `READ ONLY` sobre `889f151`: [`E5-S4-T01_FINAL_AUDIT.md`](docs/engineering/audits/E5-S4-T01_FINAL_AUDIT.md) y [`E5-S4-T09_FINAL_AUDIT.md`](docs/engineering/audits/E5-S4-T09_FINAL_AUDIT.md), ambas con veredicto **`PASSED`**.
+- `E5-S4-T01` confirma `GetObjectCommand`, `transformToByteArray()` y el rechazo `STORAGE_OPERATION_FAILED` cuando una respuesta exitosa no contiene `Body` utilizable; conserva `404 → STORAGE_OBJECT_NOT_FOUND` y `403`/red → `STORAGE_OPERATION_FAILED`.
+- `E5-S4-T09` confirma las 14 variables XML/Jobs, validación fail-fast, composición en `SERVER_CONFIG`, inyección de `JOBS_ATTEMPTS` y `JOBS_BACKOFF_DELAY_MS`, con backoff canónico de `5000 ms`.
+- Evidencia de reauditoría: S3 31/31, Storage 46/46, Jobs sin PostgreSQL 21/21, Validation 50/50, Config 6/6, TypeScript, ESLint y `git diff --check` en `PASS`. `jobs.repository.spec.ts` y `jobs.service.spec.ts` requieren PostgreSQL dedicado; es una observación de entorno, no un defecto de código.
+- Las demás tareas conservan su estado vigente. No se implementa un consumidor BullMQ ni se altera Sprint 3.
 ## 2026-08-07 — Cierre administrativo de E5-S3-T06 y E5-S3-T07 (Sprint 3)
 
 **Solo documentación.** Sin cambios de código de producción, pruebas, `schema.prisma`, migraciones, frontend, worker ni arquitectura técnica.
