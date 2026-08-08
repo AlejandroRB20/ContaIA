@@ -11,11 +11,13 @@ import { cn } from './cn';
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'link';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-action text-white hover:bg-action/90 disabled:bg-disabled',
+  primary:
+    'bg-action text-white hover:bg-action/90 disabled:bg-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-2',
   secondary:
-    'border border-border bg-surface text-foreground hover:bg-page disabled:text-disabled dark:bg-surface-dark dark:text-foreground-dark dark:border-border-dark',
-  ghost: 'text-foreground hover:bg-page disabled:text-disabled dark:text-foreground-dark',
-  link: 'text-action underline-offset-4 hover:underline disabled:text-disabled p-0 h-auto',
+    'border border-border bg-surface text-foreground hover:bg-page disabled:text-disabled dark:bg-surface-dark dark:text-foreground-dark dark:border-border-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2',
+  ghost:
+    'text-foreground hover:bg-page disabled:text-disabled dark:text-foreground-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2',
+  link: 'text-action underline-offset-4 hover:underline disabled:text-disabled p-0 h-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-2',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -3,7 +3,13 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  /* La app aun no tiene modo oscuro implementado (docs/13_DESIGN_SYSTEM.md
+     define solo paleta clara). "light dark" dejaba que el navegador aplicara
+     su render nativo oscuro (scrollbars, controles de formulario, canvas de
+     fondo) cuando el SO esta en modo oscuro, lo que en la practica se veia
+     como una pagina "oscura y desordenada" aunque las clases de Tailwind
+     siguieran siendo las claras. */
+  color-scheme: light;
 }
 
 body {
