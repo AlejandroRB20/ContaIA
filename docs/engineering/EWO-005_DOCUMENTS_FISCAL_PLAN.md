@@ -237,9 +237,10 @@ apps/api/src/workers/
   xml-extraction.worker.ts
   xml-extraction.worker.spec.ts
 
-apps/api/src/modules/roles-permissions/seeds/
-  permissions.seed.ts         ← NUEVO (el directorio seeds/ no existe todavía — debe crearse)
-                                Añade los permisos: document.upload, document.read, cfdi.read
+packages/database/prisma/
+  permissions-catalog.ts      ← Catálogo central de permisos de Documento/CFDI
+                                Define: document.upload, document.read, document.download, cfdi.read
+  seed.ts                     ← Consume el catálogo central al sembrar Permission/RolePermission
 ```
 
 **Frontend:**
@@ -248,11 +249,12 @@ apps/api/src/modules/roles-permissions/seeds/
 apps/web/src/app/[companyId]/documentos/
   page.tsx                      (lista)
   cargar/page.tsx               (upload)
-  [documentId]/page.tsx         (detalle)
+  [documentId]/
+    page.tsx                    (detalle)
+    cfdi/page.tsx               (detalle CFDI; identidad canónica: documentId)
 
 apps/web/src/app/[companyId]/fiscal/
-  page.tsx                      (lista CFDI)
-  [documentId]/page.tsx         (detalle CFDI)
+  cfdi/page.tsx                 (lista CFDI)
 
 apps/web/src/hooks/
   use-document-upload.ts
@@ -284,7 +286,7 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 | `apps/web/src/app/[companyId]/app-shell.tsx`       | Agregar ítems de navegación Documentos y Fiscal                                      |
 | `docs/20_BACKEND_IMPLEMENTATION_PLAN.md` línea 246 | ✅ YA APLICADO — nota de migración actualizada al 2026-07-22 (EWO-004 DONE)          |
 
-> `apps/api/src/modules/roles-permissions/seeds/permissions.seed.ts` fue reclasificado a **§5.1 (archivo nuevo)**. El directorio `seeds/` no existe en el repositorio y debe crearse junto con el archivo.
+> El catálogo vigente de permisos de Documento/CFDI vive en `packages/database/prisma/permissions-catalog.ts`; `seed.ts` lo consume al sembrar `Permission` y `RolePermission`. Esta es la única fuente de catálogo para `document.upload`, `document.read`, `document.download` y `cfdi.read` (BR-PERM-004).
 
 ---
 
@@ -295,7 +297,7 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 | Paso | Tarea                                                                                                                                                                                                                                                                                                               | Dependencia                        |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | 1    | Añadir modelos `Document`, `Cfdi`, `Job` + enums (`DocumentStatus`, `DocumentFileType`, `JobStatus`, `JobType`) a `schema.prisma` + generar y aplicar migración Prisma. Si Prisma falla desde Windows, usar el mismo procedimiento Linux/Docker validado en EWO-004 (`node:22-bookworm-slim` en `contaia_network`). | Ninguna                            |
-| 2    | Crear `apps/api/src/modules/roles-permissions/seeds/permissions.seed.ts` con permisos `document.upload`, `document.read` y `cfdi.read` asignados a los roles correctos (§4.4).                                                                                                                                      | Paso 1                             |
+| 2    | Definir o actualizar el catálogo central `packages/database/prisma/permissions-catalog.ts` con `document.upload`, `document.read`, `document.download` y `cfdi.read`, asignados a los roles correctos (§4.4, BR-PERM-004); `seed.ts` lo consume.                                                                    | Paso 1                             |
 | 3    | Extender `docker-compose.yml` con servicio `minio` (imagen `minio/minio`) con health check, volumen local y bucket inicial.                                                                                                                                                                                         | Ninguna (paralelo con paso 1)      |
 | 4    | Implementar contrato `StorageAdapter` en `apps/api/src/modules/storage/storage.interface.ts` + `StorageModule`.                                                                                                                                                                                                     | Paso 1                             |
 | 5    | Implementar `MinioStorageAdapter` en `apps/api/src/modules/storage/minio.adapter.ts` + pruebas unitarias.                                                                                                                                                                                                           | Pasos 3, 4                         |
@@ -305,7 +307,7 @@ packages/database/prisma/migrations/     (nueva migración generada con Prisma)
 | 9    | Implementar `XmlProcessingModule` (`XmlValidationService` + `CfdiExtractorService`) + pruebas unitarias con CFDI 4.0 reales.                                                                                                                                                                                        | Ninguna (sin DB)                   |
 | 10   | Implementar worker BullMQ `xml-extraction` dentro del mismo proceso NestJS (mismo proceso que el servidor HTTP, via `@Processor` + `BullModule.registerQueue`). Orquesta: XmlValidationService → CfdiExtractorService → actualizar Document y crear Cfdi. Separación a proceso independiente es evolución futura.   | Pasos 7, 8, 9                      |
 | 11   | Implementar `CfdiModule` (servicio + controlador API-0027, 0028 + repositorio con permiso `cfdi.read`) + pruebas unitarias.                                                                                                                                                                                         | Pasos 1, 9                         |
-| 12   | Verificar guards RBAC para los tres permisos nuevos en endpoints de DocumentsModule y CfdiModule. Reutilizar cadena `AuthenticationGuard → CompanyGuard → PermissionGuard` sin modificarla.                                                                                                                         | Pasos 2, 6, 8, 11                  |
+| 12   | Verificar guards RBAC para los cuatro permisos de Documento/CFDI (`document.upload`, `document.read`, `document.download`, `cfdi.read`) en endpoints de DocumentsModule y CfdiModule. Reutilizar cadena `AuthenticationGuard → CompanyGuard → PermissionGuard` sin modificarla.                                     | Pasos 2, 6, 8, 11                  |
 | 13   | Pruebas unitarias backend: cobertura mínima ≥80% en todos los servicios nuevos.                                                                                                                                                                                                                                     | Pasos 6–12                         |
 | 14   | Frontend: hooks + servicios (`useDocumentUpload`, `useDocuments`, `useDocument`, `useJobStatus`, `useCfdiList`, `useCfdi`).                                                                                                                                                                                         | Pasos 6–11 (una vez la API exista) |
 | 15   | Frontend: páginas UI-0012 a UI-0016 + ítems de navegación en `app-shell.tsx`.                                                                                                                                                                                                                                       | Paso 14                            |
@@ -367,7 +369,7 @@ EWO-005 se declara **DONE** cuando:
 - [ ] Páginas de documentos y fiscal renderizan con datos reales (no placeholders) en el frontend.
 - [ ] Worker BullMQ `xml-extraction` procesa un CFDI real de prueba de punta a punta.
 - [ ] Deduplicación verificada en integration test.
-- [ ] Permisos `document.upload`, `document.read` y `cfdi.read` presentes en la tabla `permissions` y asignados a los roles correctos (§4.4).
+- [ ] Permisos `document.upload`, `document.read`, `document.download` y `cfdi.read` presentes en la tabla `permissions` y asignados a los roles correctos (§4.4, BR-PERM-004).
 - [ ] `pnpm run check` verde.
 - [ ] `docs/engineering/EWO-005_DOCUMENTS_FISCAL_REPORT.md` creado con el informe de cierre.
 - [ ] `MASTER_CONTEXT.md` actualizado con la entrada de historial de EWO-005.
@@ -428,7 +430,7 @@ EWO-005 se declara **DONE** cuando:
 
 ### 11.3 Impacto sobre autenticación y RBAC
 
-EWO-005 **no modifica** ningún guard, decorator ni lógica de RBAC existente. Únicamente agrega tres permisos nuevos (`document.upload`, `document.read`, `cfdi.read`) a la tabla `permissions` y los asigna a los roles correspondientes mediante un seed ejecutable (`permissions.seed.ts`, archivo nuevo — ver §5.1). La cadena de guards `AuthenticationGuard → CompanyGuard → PermissionGuard` se mantiene sin cambios.
+EWO-005 **no modifica** ningún guard, decorator ni lógica de RBAC existente. Define los cuatro permisos de Documento/CFDI (`document.upload`, `document.read`, `document.download`, `cfdi.read`) en el catálogo central `packages/database/prisma/permissions-catalog.ts`; `seed.ts` los asigna a los roles correspondientes conforme a BR-PERM-004. La cadena de guards `AuthenticationGuard → CompanyGuard → PermissionGuard` se mantiene sin cambios.
 
 No se crea ningún endpoint sin protección de RBAC. No se modifica el Workspace Context. No se toca el `schema.prisma` de entidades de identidad o RBAC.
 
