@@ -10,6 +10,13 @@ import { InsufficientPermissionException } from '../exceptions/auth.exceptions';
  * Autorizacion granular por Permission (EWO-002: "No hardcodear permisos").
  * Las claves de permiso de un Rol se resuelven siempre contra el catalogo
  * Role/Permission/RolePermission — nunca una lista fija en el codigo.
+ *
+ * D-010 — opera exclusivamente sobre el contexto empresarial ya resuelto
+ * (`request.membership`). Sin bypass por `isPlatformAdmin`: en toda ruta
+ * company-scoped, `CompanyGuard` ya deniega antes de llegar aqui a un
+ * Administrador de plataforma sin Membership (fail-closed en el punto
+ * central) — este guard no necesita, ni debe, repetir esa decision con un
+ * criterio distinto.
  */
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -29,10 +36,6 @@ export class PermissionGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-
-    if (request.user?.isPlatformAdmin) {
-      return true;
-    }
 
     if (!request.membership) {
       throw new InsufficientPermissionException();

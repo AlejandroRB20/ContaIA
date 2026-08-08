@@ -293,3 +293,151 @@ Adopción de OCR o IA **con coste o créditos** antes de la persistencia; increm
 - **Responsable:** Claude Code (Principal Software Architect / Data Modeling Engineer), registrando la evidencia normativa y la autorización expresa del responsable de producto en la sesión del 2026-08-02, y ejecutando la implementación el 2026-08-04 tras verificar la seguridad de la migración.
 - **Auditoría final independiente `READ ONLY` (Codex, 2026-08-03) sobre HEAD `6934b26f6f568c27d697f8c3f31cebaddb0261a0`: `PASSED`.** Confirma la preservación determinista de la fecha local sin inferencia de zona horaria, el contrato `issuedAtLocal: string`, la persistencia `VARCHAR(19)`, la migración correctiva segura sobre tabla vacía, la conservación del índice y la revalidación de los contratos previamente aprobados de Sprint 1 y Sprint 2, sin regresiones de atomicidad ni persistencia. `I-14` e `I-15` quedan **`RESOLVED`**. Evidencia: [`D-009_FINAL_AUDIT.md`](../docs/engineering/audits/D-009_FINAL_AUDIT.md). `E5-S3-T06` queda habilitada para implementación, no iniciada.
 - **Estatus:** **APROBADA · IMPLEMENTADA · PASSED** en sus tres partes. Partes 1 y 2 (namespace TFD y prohibición de conversión) registradas en Addendum §5.3quater. Parte 3 (contrato `issuedAtLocal`, schema y migración correctiva) aplicada el 2026-08-04 y cerrada por auditoría final independiente `READ ONLY` el 2026-08-03 — historial: `READY_FOR_AUDIT` → auditoría Codex `PASSED`.
+
+---
+
+## D-010 — Platform Admin no hereda autorización company-scoped
+
+- **Fecha:** 2026-08-04
+- **Origen:** auditoría independiente de navegación (veredicto `RECHAZADO`, bloqueador 1 `CRÍTICO`) y análisis de confirmación contra el código sobre HEAD `b5b289d32fdcc8d7ab61fd62ecfe0316b8c75be8`.
+
+### Contexto
+
+`isPlatformAdmin` es un booleano de `User` (`packages/database/prisma/schema.prisma`) que identifica al personal interno de ContaIA. El propio schema lo describe correctamente: un Usuario con `isPlatformAdmin=true` y sin Membership «nunca hereda una Membership de Empresa cliente por defecto». `D-002` estableció que el Administrador de plataforma ve todas las Empresas sin sostener Membership en ninguna, y los cuatro guards del backend implementan esa lectura universal con un retorno incondicional.
+
+El acceso legítimo de soporte a datos de una Empresa cliente ya está diseñado: `BR-SEC-004` y `BR-AUD-003` exigen **motivo registrado previamente**, `SEC-REQ-0007` lo eleva a requisito de seguridad, y `API-0053` (`POST /admin/support-access`) es su contrato. Ese endpoint pertenece al módulo Administration, **Fase 8**, y **no está implementado** — determinación ya registrada en `docs/engineering/EWO-004_USER_RBAC_REPORT.md` §10.2.
+
+### Problema
+
+El bypass de los guards no es el defecto. El defecto es que **la denegación es opt-in por endpoint**.
+
+`CompanyGuard` retorna `true` para un Administrador de plataforma **sin asignar `request.membership`**. El único control que convierte esa ausencia en un rechazo es el decorador `@Company()`, cuya función `extractMembership()` lanza `PlatformAdminWithoutSupportAccessException` (403). En consecuencia, un endpoint company-scoped queda protegido **solo si quien lo escribió recordó inyectar `@Company()`**. Es un patrón fail-open por omisión: la superficie insegura crece sola cada vez que se añade un controlador.
+
+`EWO-004` §10.3 aplicó esa protección el 2026-07-21 como «medida temporal y mínima», enumerando manualmente los cuatro endpoints que existían entonces. Los endpoints creados después no la heredaron, porque nada la impone estructuralmente.
+
+### Evidencia
+
+Verificada por lectura directa del código, no aceptada del informe de auditoría:
+
+| Ubicación                                                                          | Hecho                                                                                           |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `apps/api/src/common/guards/company.guard.ts` línea 33                             | `if (request.user.isPlatformAdmin) return true;` — sin asignar `request.membership`             |
+| `apps/api/src/common/guards/permission.guard.ts` línea 33                          | Bypass incondicional equivalente                                                                |
+| `apps/api/src/common/guards/role.guard.ts` línea 34                                | Bypass incondicional equivalente                                                                |
+| `apps/api/src/common/guards/ownership.guard.ts` línea 18                           | Bypass incondicional equivalente                                                                |
+| `apps/api/src/modules/roles-permissions/services/memberships.service.ts` línea 302 | `assertActorIsCompanyAdmin` retorna temprano si `actor?.isPlatformAdmin`                        |
+| `apps/api/src/common/decorators/company.decorator.ts` líneas 12-18                 | `extractMembership()` — único control compensatorio, opt-in                                     |
+| `apps/api/src/common/guards/company.guard.spec.ts` línea 35                        | Prueba que **afirma el bypass como correcto**                                                   |
+| `apps/api/src/modules/documents/documents-authorization.service.ts` líneas 18-26   | Única capa que cierra correctamente: «Deliberadamente NO distingue Administrador de plataforma» |
+
+**Seis endpoints confirmados sin control compensatorio** — la auditoría independiente había reportado tres; el análisis contra el código encontró tres más:
+
+| Endpoint                                        | Capacidad expuesta                                       | ¿Reportado por la auditoría? |
+| ----------------------------------------------- | -------------------------------------------------------- | ---------------------------- |
+| `PATCH /v1/companies/:companyId/fiscal-profile` | Modificar régimen fiscal de cualquier Empresa            | Sí                           |
+| `PATCH /v1/companies/:companyId/address`        | Modificar domicilio fiscal de cualquier Empresa          | Sí                           |
+| `PATCH /v1/companies/:companyId/settings`       | Modificar configuración regional de cualquier Empresa    | Sí                           |
+| `GET /v1/companies/:companyId/memberships`      | Leer PII de terceros (correos, roles, `isOwner`)         | **No**                       |
+| `PATCH /v1/memberships/:membershipId`           | Cambiar el Rol de cualquier usuario en cualquier Empresa | **No**                       |
+| `DELETE /v1/memberships/:membershipId`          | Revocar cualquier Membership                             | **No**                       |
+
+Las dos últimas, combinadas, permiten tomar control efectivo de un tenant cliente.
+
+**Calibración de explotabilidad.** El ataque requiere una cuenta con `isPlatformAdmin=true`. El campo es `@default(false)`, ningún endpoint lo asigna y el seed no crea ninguna cuenta así — solo puede establecerse por escritura directa en base de datos. Por tanto **no es escalación cross-tenant para un usuario cliente**: es una falla de límite de privilegio frente a personal interno, sin los controles que `BR-SEC-004` exige. Riesgo de insider o de compromiso de cuenta interna.
+
+**Auditoría existente, insuficiente.** `AuditService` persiste los eventos de `companies.service.ts` de forma append-only con `actorUserId`, estados `before`/`after` y `correlationId`. **No existe campo `reason` ni marca de contexto de soporte.** El registro no distingue un cambio legítimo del Administrador de la Empresa de una modificación unilateral de plataforma — incumpliendo el «motivo registrado previamente» de `BR-SEC-004`.
+
+**Cobertura de pruebas.** Ninguna prueba verifica que los seis endpoints rechacen a un Administrador de plataforma. Las pruebas existentes afirman el bypass como comportamiento correcto. Esa ausencia es la razón directa de que la regresión pasara inadvertida.
+
+### Alternativas
+
+- **(A) Prohibir todo acceso de Platform Admin a rutas company-scoped.** Aislamiento total, complejidad baja. Deja a la plataforma sin ninguna vía de soporte y obliga a rehacer el trabajo al llegar la Fase 8.
+- **(B) Implementar ahora el acceso JIT completo (`API-0053`).** Es el destino correcto y el único que satisface `BR-SEC-004` de forma plena. Requiere modelo nuevo, migración, endpoint, pantalla `PAGE-0033` y lógica de expiración — alcance desproporcionado como respuesta a un defecto de seguridad urgente, y perteneciente a Fase 8 por determinación ya registrada.
+- **(C) Mantener el bypass global actual.** Descartada por los principios de aislamiento absoluto, mínimo privilegio y fail-closed, y por incumplir `BR-SEC-004`/`BR-AUD-003`.
+- **(D) Invertir el control en el punto central de decisión, sin construir todavía el flujo JIT.** `CompanyGuard` deja de retornar `true` incondicionalmente y pasa a resolver un contexto de empresa autorizado: o Membership activa, o concesión de soporte vigente. Mientras `API-0053` no exista, la segunda rama no puede satisfacerse nunca y el guard deniega siempre.
+
+### Análisis
+
+Se adopta **(D)**.
+
+El razonamiento decisivo es que **(A), (B) y (C) responden a la pregunta equivocada**. Las tres discuten _qué debe poder hacer_ un Administrador de plataforma; ninguna corrige _dónde se decide_. Mientras la denegación siga distribuida entre N controladores, cualquier respuesta correcta se degrada sola con el siguiente endpoint que se escriba.
+
+(D) mueve el punto de control de N controladores a **uno**. Con ello un endpoint company-scoped nuevo nace protegido por omisión en lugar de expuesto por omisión — se elimina la **clase** de defecto, no sus seis instancias actuales.
+
+(D) entrega además el comportamiento observable de (A) de inmediato — 403 en toda ruta company-scoped — y deja (B) como la extensión de una sola rama condicional, sin retrabajo ni contrato que rehacer. No requiere migración, lo que mantiene el rollback trivial: una consideración material tratándose de una corrección de seguridad que debe poder revertirse sin tocar datos.
+
+`@Company()` conserva su 403 como defensa en profundidad: dos controles independientes, no uno redundante.
+
+### Decisión
+
+Toda operación company-scoped exige un **contexto de empresa autorizado**, resuelto en el punto central de decisión y denegado por defecto. `isPlatformAdmin` deja de satisfacer por sí solo cualquier autorización sobre datos de una Empresa cliente.
+
+### Contrato vinculante
+
+1. `isPlatformAdmin` **no representa una Membership implícita** en ninguna Empresa.
+2. Toda operación company-scoped requiere **Membership activa y autorizada**, o una **concesión futura de soporte JIT** válida, temporal, explícita y auditable.
+3. Mientras el sistema JIT definido conceptualmente por `API-0053` no esté implementado, un Platform Admin sin Membership **debe recibir `403`** en rutas company-scoped.
+4. La autorización debe ser **fail-closed en el punto central de decisión**.
+5. El guard empresarial **resuelve un contexto autorizado o deniega** — no existe tercer resultado.
+6. La seguridad **no puede depender** de que cada controlador recuerde agregar `@Company()`.
+7. `@Company()` **permanece** como defensa en profundidad.
+8. Los bypasses incondicionales de `PermissionGuard`, `RoleGuard`, `OwnershipGuard` y `assertActorIsCompanyAdmin` **deben alinearse** con el contexto empresarial autorizado.
+9. Esta decisión **restringe el alcance de `D-002`, no la deroga**.
+10. `D-002` puede seguir permitiendo operaciones administrativas globales **expresamente clasificadas como platform-scoped**.
+11. Los **intentos denegados** de acceso company-scoped por Platform Admin deben ser auditables.
+12. El futuro soporte JIT deberá incluir **motivo, alcance, aprobación, expiración y trazabilidad**.
+
+### Impacto
+
+- **Backend:** cuatro guards y `assertActorIsCompanyAdmin`. Sin cambios en controladores.
+- **API:** seis endpoints pasan de `200` a `403` para Platform Admin sin Membership. **No es cambio de contrato público**: el `403` ya está documentado como respuesta válida de esas rutas y ningún usuario con Membership cambia de comportamiento.
+- **Base de datos:** **ninguno**. Sin migración, sin modelo nuevo.
+- **Frontend:** ninguno.
+- **Pruebas:** carga alta y deliberada — una prueba de rechazo por cada endpoint company-scoped, más una prueba de que un endpoint nuevo sin `@Company()` sigue protegido.
+- **Auditoría/observabilidad:** registro del intento denegado, con la capacidad vigente del `AuditService`, sin inventar un contexto JIT que aún no existe.
+- **EWO-005:** ninguno. No comparte superficie con el worker XML ni con `E5-S3-T06`.
+
+### Riesgos
+
+- **Flujos internos dependientes del bypass.** Mitigación: inventariarlos antes de modificar los guards. No se conoce ninguno; la afirmación debe verificarse, no asumirse.
+- **Falsa sensación de cumplimiento de `BR-SEC-004`.** Esta decisión **no** implementa el motivo registrado — solo cierra el acceso no autorizado. `BR-SEC-004` seguirá parcialmente incumplida en su parte positiva (dar soporte con motivo) hasta que `API-0053` exista. Debe declararse así, sin presentarlo como resuelto.
+- **Presión operativa futura por reabrir el bypass** ante una necesidad urgente de soporte. Mitigación: el contrato prohíbe expresamente el acceso global irrestricto; la vía es `API-0053`, no una excepción puntual.
+
+### Compatibilidad con D-002
+
+`D-002` estableció el patrón Membership como modelo de multi-tenancy y registró que el Administrador de plataforma ve todas las Empresas sin sostener Membership. **`D-010` no deroga `D-002`**: restringe su alcance.
+
+- Lo que `D-002` conserva: el patrón Membership; la existencia del Administrador de plataforma como rol de plataforma sin Membership de Empresa; su capacidad de operar sobre recursos **platform-scoped**.
+- Lo que `D-010` restringe: la lectura de «ve todas las Empresas» deja de traducirse en autorización automática sobre rutas **company-scoped**. Ver todas las Empresas como agregado de plataforma y operar sobre los datos de una Empresa cliente son capacidades distintas; `D-002` no las distinguió y la implementación las fusionó.
+- Regla de precedencia: ante conflicto entre `D-002` y `D-010` sobre una ruta company-scoped, **prevalece `D-010`**.
+
+### Validación
+
+La implementación de esta decisión (tarea `T01` de `EWO-SEC-NAV-001`) se considera correcta solo si:
+
+1. Los seis endpoints confirmados devuelven `403` a un Platform Admin sin Membership.
+2. Un endpoint company-scoped nuevo nace protegido **aunque omita `@Company()`**.
+3. Ningún guard conserva un bypass universal incompatible con el contrato.
+4. **No se crea Membership implícita**, rol sintético, `isOwner` artificial ni permiso derivado de un rol inexistente.
+5. **No se implementa `API-0053`** en esta corrección.
+6. Existen pruebas directas y de regresión por endpoint.
+7. El intento denegado queda registrado con la capacidad vigente, **sin inventar un contexto JIT**.
+
+Verificación independiente `READ ONLY` por Codex, conforme a `AI_PLAYBOOK.md`. Esta decisión **no puede autocertificarse**.
+
+### Historial
+
+- **2026-07-19** — `D-002` registra el patrón Membership y la lectura universal del Administrador de plataforma.
+- **2026-07-21** — `EWO-004` §10.1/§10.3 detecta que cuatro endpoints producían `500` no controlado y aplica `@Company()` como protección temporal y mínima, enumerándolos manualmente. Determina que `API-0053` pertenece a Fase 8.
+- **2026-08-03** — auditoría independiente de navegación emite `RECHAZADO` con bloqueador 1 `CRÍTICO`.
+- **2026-08-04** — confirmación contra el código sobre HEAD `b5b289d3`: hallazgo `CONFIRMADO`, con seis endpoints expuestos en lugar de los tres reportados. Se registra `D-010`.
+- **2026-08-04** — implementación de `T01`: los cuatro guards y `assertActorIsCompanyAdmin` alineados al contrato; `T01` pasa a `IMPLEMENTADA · PENDIENTE DE AUDITORÍA`.
+- **2026-08-04** — auditoría independiente de `T01` devuelve `PENDIENTE DE CORRECCIÓN` (tres hallazgos `MEDIO`/`MEDIO`/`BAJO`, ninguno sobre la corrección de seguridad en sí: cobertura de pruebas HTTP autenticadas, estados documentales contradictorios entre `T01` y `D-010`, y ausencia de prueba directa del listener de auditoría). Los tres se corrigen sin tocar el diseño de los guards ni del evento — `T01` pasa a `IMPLEMENTADA · PENDIENTE DE REAUDITORÍA`; `D-010` pasa a `IMPLEMENTADA · PENDIENTE DE AUDITORÍA FINAL`.
+- **2026-08-04** — auditoría final independiente `READ ONLY` de Codex sobre `T01` ([`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](../docs/engineering/audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md)): veredicto **`PASSED CON OBSERVACIONES`** (un hallazgo `BAJO` no bloqueante — encabezado de fecha desfasado en `AI_CONTEXT.md`, corregido en este mismo cierre). `T01` cierra `PASSED`; `D-010` cierra **`IMPLEMENTADA · PASSED`**.
+
+### Estado
+
+- **Responsable:** Claude Code (Principal Software Architect), redactando el análisis y el contrato por encargo del responsable de producto de ContaIA.
+- **Estatus:** **IMPLEMENTADA · PASSED** (cierre administrativo 2026-08-04). `T01` de [`EWO-SEC-NAV-001`](../docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md) implementada el 2026-08-04; auditoría final independiente `READ ONLY` de Codex: `PASSED CON OBSERVACIONES` — [`EWO-SEC-NAV-001-T01_FINAL_AUDIT.md`](../docs/engineering/audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md). Una observación `BAJO` (T01-OBS-01), no bloqueante, registrada como seguimiento. No modifica `D-001`–`D-009` salvo la restricción de alcance sobre `D-002` documentada arriba.
+
+---

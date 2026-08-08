@@ -27,6 +27,7 @@ export const AUTH_EVENTS = {
   COMPANY_FISCAL_PROFILE_UPDATED: 'companies.fiscal_profile_updated',
   COMPANY_ADDRESS_UPDATED: 'companies.address_updated',
   COMPANY_SETTINGS_UPDATED: 'companies.settings_updated',
+  PLATFORM_ADMIN_COMPANY_ACCESS_DENIED: 'security.platform_admin_company_access_denied',
 } as const;
 
 interface BaseAuditContext {
@@ -211,6 +212,21 @@ export class CompanySettingsUpdatedEvent {
     public readonly actorUserId: string,
     public readonly beforeState: CompanyStateSnapshot,
     public readonly afterState: CompanyStateSnapshot,
+    public readonly context: BaseAuditContext,
+  ) {}
+}
+
+/**
+ * D-010 — todo intento de un Administrador de plataforma sin Membership
+ * contra una ruta o servicio company-scoped se registra, sea denegado por
+ * `CompanyGuard` o por `MembershipsService.assertActorIsCompanyAdmin`. No
+ * implica motivo registrado ni contexto de soporte JIT (API-0053 aun no
+ * existe) — es exclusivamente el registro del intento denegado.
+ */
+export class PlatformAdminCompanyAccessDeniedEvent {
+  constructor(
+    public readonly actorUserId: string,
+    public readonly companyId: string,
     public readonly context: BaseAuditContext,
   ) {}
 }

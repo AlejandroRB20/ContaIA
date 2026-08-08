@@ -56,7 +56,7 @@ describe('PermissionGuard (EWO-002: "No hardcodear permisos")', () => {
     ).resolves.toBe(true);
   });
 
-  it('un Administrador de plataforma satisface cualquier @Permissions(...)', async () => {
+  it('D-010: rechaza a un Administrador de plataforma sin contexto de Membership, aunque isPlatformAdmin sea true', async () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(['users.invite']),
     } as unknown as Reflector;
@@ -67,7 +67,23 @@ describe('PermissionGuard (EWO-002: "No hardcodear permisos")', () => {
 
     await expect(
       guard.canActivate(buildContext({ user: { isPlatformAdmin: true } })),
-    ).resolves.toBe(true);
+    ).rejects.toThrow();
     expect(rolesRepository.findPermissionKeysForRole).not.toHaveBeenCalled();
+  });
+
+  it('D-010: un Administrador de plataforma con request.membership ya resuelto por CompanyGuard se evalua igual que cualquier Membership', async () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(['users.invite']),
+    } as unknown as Reflector;
+    const rolesRepository = {
+      findPermissionKeysForRole: jest.fn().mockResolvedValue(['users.invite']),
+    } as unknown as jest.Mocked<RolesRepository>;
+    const guard = new PermissionGuard(reflector, rolesRepository);
+
+    await expect(
+      guard.canActivate(
+        buildContext({ membership: { roleId: 'role-1' }, user: { isPlatformAdmin: true } }),
+      ),
+    ).resolves.toBe(true);
   });
 });

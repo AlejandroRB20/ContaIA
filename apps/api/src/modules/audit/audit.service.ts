@@ -19,6 +19,7 @@ import {
   type OrganizationCreatedEvent,
   type PasswordChangedEvent,
   type PasswordResetRequestedEvent,
+  type PlatformAdminCompanyAccessDeniedEvent,
   type RoleChangedEvent,
   type SessionRevokedEvent,
   type UserLoggedInEvent,
@@ -158,6 +159,29 @@ export class AuditService {
       resourceType: 'Membership',
       resourceId: event.membershipId,
       result: 'SUCCESS',
+      correlationId: event.context.correlationId,
+      ipAddress: event.context.ipAddress,
+      deviceInfo: event.context.deviceInfo,
+    });
+  }
+
+  /**
+   * D-010 — intento denegado de un Administrador de plataforma sin
+   * Membership contra una ruta o servicio company-scoped. `result: FAILURE`
+   * porque el acceso fue denegado, no concedido; sin `reason` (ese campo
+   * pertenece al futuro flujo de soporte JIT, API-0053, aun no implementado).
+   */
+  @OnEvent(AUTH_EVENTS.PLATFORM_ADMIN_COMPANY_ACCESS_DENIED)
+  async onPlatformAdminCompanyAccessDenied(
+    event: PlatformAdminCompanyAccessDeniedEvent,
+  ): Promise<void> {
+    await this.auditRepository.append({
+      actorUserId: event.actorUserId,
+      companyId: event.companyId,
+      action: 'security.platform_admin_company_access_denied',
+      resourceType: 'Company',
+      resourceId: event.companyId,
+      result: 'FAILURE',
       correlationId: event.context.correlationId,
       ipAddress: event.context.ipAddress,
       deviceInfo: event.context.deviceInfo,

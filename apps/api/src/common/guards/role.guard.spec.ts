@@ -54,12 +54,28 @@ describe('RoleGuard', () => {
     ).toBe(true);
   });
 
-  it('un Administrador de plataforma satisface cualquier @Roles(...)', () => {
+  it('D-010: rechaza a un Administrador de plataforma sin contexto de Membership, aunque isPlatformAdmin sea true', () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue([RoleName.ADMINISTRADOR]),
     } as unknown as Reflector;
     const guard = new RoleGuard(reflector);
 
-    expect(guard.canActivate(buildContext({ user: { isPlatformAdmin: true } }))).toBe(true);
+    expect(() => guard.canActivate(buildContext({ user: { isPlatformAdmin: true } }))).toThrow();
+  });
+
+  it('D-010: un Administrador de plataforma con request.membership ya resuelto por CompanyGuard se evalua igual que cualquier Membership', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue([RoleName.ADMINISTRADOR]),
+    } as unknown as Reflector;
+    const guard = new RoleGuard(reflector);
+
+    expect(
+      guard.canActivate(
+        buildContext({
+          membership: { roleName: RoleName.ADMINISTRADOR },
+          user: { isPlatformAdmin: true },
+        }),
+      ),
+    ).toBe(true);
   });
 });

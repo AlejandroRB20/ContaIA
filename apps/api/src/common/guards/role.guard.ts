@@ -11,9 +11,15 @@ import { InsufficientPermissionException } from '../exceptions/auth.exceptions';
  * no solo ocultar el boton"). Denegar por defecto (BR-PERM-001): si el
  * controlador no declara `@Roles(...)`, este guard no restringe nada — la
  * ausencia de metadata no es un "permitir todo" implicito en otros guards.
- * Un Administrador de plataforma (sin Membership de Empresa) satisface
- * cualquier verificacion de Rol, al operar en su propio plano de
- * autorizacion (docs/05_SYSTEM_DOMAIN_MODEL.md, contexto "Administration").
+ *
+ * D-010 — sin bypass por `isPlatformAdmin`. Ninguna ruta company-scoped
+ * actual aplica este guard fuera del contexto ya resuelto por `CompanyGuard`
+ * (que deniega antes de llegar aqui a un Administrador de plataforma sin
+ * Membership); un flujo genuinamente platform-scoped (sin `companyId` en la
+ * ruta) nunca depende de `request.membership` y por tanto nunca pasa por
+ * este guard con `@Roles(...)` declarado. Mantener el bypass aqui habria
+ * sido exactamente el patron que D-010 prohibe: autorizacion company-scoped
+ * derivada unicamente de `isPlatformAdmin`.
  */
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -30,10 +36,6 @@ export class RoleGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-
-    if (request.user?.isPlatformAdmin) {
-      return true;
-    }
 
     if (!request.membership || !requiredRoles.includes(request.membership.roleName)) {
       throw new InsufficientPermissionException();

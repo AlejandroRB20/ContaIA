@@ -9,15 +9,15 @@ import { InsufficientPermissionException } from '../exceptions/auth.exceptions';
  * transferir propiedad), nunca usado para ampliar permisos tecnicos
  * generales (BR-PERM-003: el atributo propietario no otorga capacidad
  * tecnica adicional sobre las de cualquier Administrador).
+ *
+ * D-010 — sin bypass por `isPlatformAdmin`. Exige `request.membership`
+ * (resuelto por `CompanyGuard`, que ya deniega antes de aqui a un
+ * Administrador de plataforma sin Membership) con `isOwner=true`.
  */
 @Injectable()
 export class OwnershipGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-
-    if (request.user?.isPlatformAdmin) {
-      return true;
-    }
 
     if (!request.membership?.isOwner) {
       throw new InsufficientPermissionException();

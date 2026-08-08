@@ -10,6 +10,7 @@ import {
   InvitationCreatedEvent,
   InvitationDeclinedEvent,
   MembershipRevokedEvent,
+  PlatformAdminCompanyAccessDeniedEvent,
   RoleChangedEvent,
 } from '../../../common/events/auth.events';
 import {
@@ -244,7 +245,7 @@ export class MembershipsService {
       throw new InsufficientPermissionException();
     }
 
-    await this.assertActorIsCompanyAdmin(actorUserId, target.companyId);
+    await this.assertActorIsCompanyAdmin(actorUserId, target.companyId, context);
 
     const newRoleRecord = await this.rolesRepository.findByName(newRole);
     if (!newRoleRecord) {
@@ -280,7 +281,7 @@ export class MembershipsService {
       throw new InsufficientPermissionException();
     }
 
-    await this.assertActorIsCompanyAdmin(actorUserId, target.companyId);
+    await this.assertActorIsCompanyAdmin(actorUserId, target.companyId, context);
 
     if (target.isOwner) {
       const activeOwners = await this.membershipsRepository.countActiveOwners(target.companyId);
@@ -297,19 +298,37 @@ export class MembershipsService {
     );
   }
 
-  private async assertActorIsCompanyAdmin(actorUserId: string, companyId: string): Promise<void> {
-    const actor = await this.usersRepository.findById(actorUserId);
-    if (actor?.isPlatformAdmin) {
-      return;
-    }
-
+  /**
+   * D-010 — fail-closed: exige Membership `ADMINISTRADOR` activa en la
+   * Empresa propietaria del recurso, resuelta arriba a partir del propio
+   * `target` (nunca del `membershipId` opaco por si solo). Sin bypass por
+   * `isPlatformAdmin` — un Administrador de plataforma sin esa Membership
+   * es denegado igual que cualquier otro actor sin ella, y el intento queda
+   * registrado (`PLATFORM_ADMIN_COMPANY_ACCESS_DENIED`) para distinguirlo en
+   * auditoria de una denegacion ordinaria.
+   */
+  private async assertActorIsCompanyAdmin(
+    actorUserId: string,
+    companyId: string,
+    context: AuditContext,
+  ): Promise<void> {
     const actorMembership = await this.membershipsRepository.findActiveByUserAndCompany(
       actorUserId,
       companyId,
     );
 
-    if (!actorMembership || actorMembership.role.name !== RoleName.ADMINISTRADOR) {
-      throw new InsufficientPermissionException();
+    if (actorMembership && actorMembership.role.name === RoleName.ADMINISTRADOR) {
+      return;
     }
+
+    const actor = await this.usersRepository.findById(actorUserId);
+    if (actor?.isPlatformAdmin) {
+      this.events.emit(
+        AUTH_EVENTS.PLATFORM_ADMIN_COMPANY_ACCESS_DENIED,
+        new PlatformAdminCompanyAccessDeniedEvent(actorUserId, companyId, context),
+      );
+    }
+
+    throw new InsufficientPermissionException();
   }
 }

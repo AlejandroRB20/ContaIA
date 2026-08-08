@@ -2,6 +2,7 @@ import { MembershipStatus, RoleName } from '@contaia/database';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
 
 import type { EmailSender } from '../../../common/email/email-sender.interface';
+import { AUTH_EVENTS } from '../../../common/events/auth.events';
 import type { CompaniesRepository } from '../../companies/repositories/companies.repository';
 import type { UsersRepository } from '../../users/repositories/users.repository';
 import type { InvitationsRepository } from '../repositories/invitations.repository';
@@ -111,6 +112,27 @@ describe('MembershipsService', () => {
       expect(membershipsRepository.updateRole).toHaveBeenCalledWith('membership-1', 'role-new', 1);
       expect(events.emit).toHaveBeenCalled();
     });
+
+    it('D-010: rechaza a un Administrador de plataforma sin Membership en esa empresa y registra el intento', async () => {
+      membershipsRepository.findById.mockResolvedValue({
+        id: 'membership-1',
+        userId: 'user-2',
+        companyId: 'company-1',
+        roleId: 'role-old',
+      } as never);
+      membershipsRepository.findActiveByUserAndCompany.mockResolvedValue(null);
+      usersRepository.findById.mockResolvedValue({ isPlatformAdmin: true } as never);
+
+      await expect(
+        service.updateRole('membership-1', RoleName.AUXILIAR, 1, 'admin-1', CONTEXT),
+      ).rejects.toThrow();
+
+      expect(membershipsRepository.updateRole).not.toHaveBeenCalled();
+      expect(events.emit).toHaveBeenCalledWith(
+        AUTH_EVENTS.PLATFORM_ADMIN_COMPANY_ACCESS_DENIED,
+        expect.objectContaining({ actorUserId: 'admin-1', companyId: 'company-1' }),
+      );
+    });
   });
 
   describe('revoke', () => {
@@ -180,6 +202,40 @@ describe('MembershipsService', () => {
 
       expect(membershipsRepository.countActiveOwners).not.toHaveBeenCalled();
       expect(membershipsRepository.revoke).toHaveBeenCalledWith('membership-1');
+    });
+
+    it('D-010: rechaza a un Administrador de plataforma sin Membership en esa empresa y registra el intento', async () => {
+      membershipsRepository.findById.mockResolvedValue({
+        id: 'membership-1',
+        userId: 'user-2',
+        companyId: 'company-1',
+        isOwner: false,
+      } as never);
+      membershipsRepository.findActiveByUserAndCompany.mockResolvedValue(null);
+      usersRepository.findById.mockResolvedValue({ isPlatformAdmin: true } as never);
+
+      await expect(service.revoke('membership-1', 'admin-1', CONTEXT)).rejects.toThrow();
+
+      expect(membershipsRepository.revoke).not.toHaveBeenCalled();
+      expect(events.emit).toHaveBeenCalledWith(
+        AUTH_EVENTS.PLATFORM_ADMIN_COMPANY_ACCESS_DENIED,
+        expect.objectContaining({ actorUserId: 'admin-1', companyId: 'company-1' }),
+      );
+    });
+
+    it('D-010: no registra el intento si el actor denegado no es Platform Admin', async () => {
+      membershipsRepository.findById.mockResolvedValue({
+        id: 'membership-1',
+        userId: 'user-2',
+        companyId: 'company-1',
+        isOwner: false,
+      } as never);
+      membershipsRepository.findActiveByUserAndCompany.mockResolvedValue(null);
+      usersRepository.findById.mockResolvedValue({ isPlatformAdmin: false } as never);
+
+      await expect(service.revoke('membership-1', 'user-1', CONTEXT)).rejects.toThrow();
+
+      expect(events.emit).not.toHaveBeenCalled();
     });
   });
 
