@@ -28,6 +28,7 @@ interface NavItem {
 function buildNav(companyId: string): NavItem[] {
   return [
     { label: 'Inicio', href: `/${companyId}/inicio` },
+    { label: 'Documentos', href: `/${companyId}/documentos`, permission: 'document.read' },
     { label: 'Empresas', href: '/empresas', permission: 'company.read' },
   ];
 }
