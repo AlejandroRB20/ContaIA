@@ -380,7 +380,7 @@ Cada archivo fue **leído completo e inspeccionado individualmente** antes de a�
 | `.claude/settings.local.json`    | C     | Preferencia de una máquina. Añadido a `.gitignore`; verificado que Git ya no lo ve aun estando presente en disco           |
 | `.claude/skills/**` (9 archivos) | B     | Procedimientos de **construcción**, no de gobierno. Ninguna de las doce garantías del sustrato depende de ellos. Ver §13.3 |
 | `.claude/worktrees/**`           | C     | Worktrees efímeros de Claude Code                                                                                          |
-| `docs/AI_OS/**` (11 archivos)    | B     | `H5` sigue pendiente. Ver §10 y §13.4                                                                                      |
+| `docs/AI_OS/**` (11 archivos)    | B     | H5-B RESUELTA/APLICADA; ver §10 y §13.6                                                                                    |
 
 ### 13.3 Divergencia declarada frente a la clasificación de §2
 
