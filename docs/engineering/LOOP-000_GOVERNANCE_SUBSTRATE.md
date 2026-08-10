@@ -2,15 +2,15 @@
 
 ## Control del documento
 
-| Campo              | Valor                                                                                                                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Versión            | 0.2                                                                                                                                                                                        |
-| Estado             | **PARCIALMENTE IMPLEMENTADA.** `H3`/`H7` ratificadas y `LOOP-000` autorizado: el sustrato compartido queda versionado (§13). `H5` (`docs/AI_OS/`) sigue pendiente; `LOOP-001` no iniciada. |
-| Fecha de creación  | 2026-08-08                                                                                                                                                                                 |
-| Propietario lógico | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                             |
-| Tarjeta            | `LOOP-000`, prerrequisito bloqueante de [`AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md`](AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md) §17                                                       |
-| Base de análisis   | `HEAD dac9428` · arquitectura `8f6fa6b` · Claude-02 `7bdf159` · Claude-03 `2e128c7`                                                                                                        |
-| Alcance            | Qué debe versionarse para que un worktree autónomo opere con gobierno, y qué ubicación canónica adopta el motor. **No** modifica código de producto.                                       |
+| Campo              | Valor                                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versión            | 0.3                                                                                                                                                                                                                                                                                                                                          |
+| Estado             | **IMPLEMENTADA · PENDIENTE DE REAUDITORÍA.** `H3` y `H7` **RATIFICADAS**; `H5` **RESUELTA como `H5-B`** (§10). El sustrato compartido queda versionado (§13). Auditoría independiente `READ ONLY` sobre `7471806`: **REQUIERE CAMBIOS** — dos hallazgos cerrados en §14. `LOOP-001` permanece `BLOCKED · PENDIENTE DE REAUDITORÍA LOOP-000`. |
+| Fecha de creación  | 2026-08-08                                                                                                                                                                                                                                                                                                                                   |
+| Propietario lógico | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                                                                                                                                                                               |
+| Tarjeta            | `LOOP-000`, prerrequisito bloqueante de [`AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md`](AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md) §17                                                                                                                                                                                                         |
+| Base de análisis   | `HEAD dac9428` · arquitectura `8f6fa6b` · Claude-02 `7bdf159` · Claude-03 `2e128c7`                                                                                                                                                                                                                                                          |
+| Alcance            | Qué debe versionarse para que un worktree autónomo opere con gobierno, y qué ubicación canónica adopta el motor. **No** modifica código de producto.                                                                                                                                                                                         |
 
 > **Secciones §1–§12: análisis y diseño, redactados antes de la aprobación humana.** Describen el estado del repositorio cuando `git ls-files .claude` devolvía un solo archivo y ninguna migración estaba aplicada. Se conservan sin reescribir, como registro de la evidencia original.
 >
@@ -301,6 +301,8 @@ Ningún módulo se marca `REMOVE`. Las dos implementaciones son en gran medida *
 | H6  | Normalización de severidad a `CRÍTICO`                                         | Toca el vocabulario canónico de hallazgos                             |
 | H7  | Ratificar la arquitectura `8f6fa6b` y este documento                           | Prerrequisito de todo lo anterior                                     |
 
+**Estado tras la resolución humana del 2026-08-10:** `H3` y `H7` **RATIFICADAS**; `H5` **RESUELTA — `H5-B`** (§10). `H1`, `H2`, `H4` y `H6` ya fueron aplicadas como parte de la implementación registrada en §13. La tabla de arriba se conserva sin reescribir como registro del análisis original.
+
 ---
 
 ## 10. Pregunta abierta — `docs/AI_OS/`
@@ -310,6 +312,19 @@ Once documentos que se autodescriben como «punto de entrada documental para las
 Ninguna transición del Loop Engine depende de ellos: clase **B**. La decisión no bloquea `LOOP-000`, pero conviene resolverla, porque hoy el AI OS se cita como autoridad sin ser canónico según la regla 3 de `00-governance.md`.
 
 Tres opciones, sin preselección: **(a)** versionarlo completo; **(b)** declararlo explícitamente local por diseño y anotarlo en su `README.md`; **(c)** versionar sólo `AI_RULES.md` y `04_AI_MODELS.md` (los dos con contenido normativo) y dejar el resto local.
+
+### Resolución — `H5-B` (2026-08-10)
+
+**RESUELTA.** El responsable de producto adoptó la opción **(b)**: `docs/AI_OS/**` permanece **local y no canónico**. No se versiona ninguno de sus once archivos.
+
+Fundamento, verificado contra el repositorio:
+
+1. Ninguna transición del Loop Engine depende de `docs/AI_OS/**` (clase B, confirmado en §2).
+2. Sigue sin estar versionado (`git ls-files docs/AI_OS` → 0 archivos antes y después de `LOOP-000`).
+3. `.claude/agents/documentation-engineer.md`, ya versionado por `LOOP-000`, **prohíbe explícitamente** elevar `docs/AI_OS/` a autoridad canónica: _"Elevar los contenidos no versionados en `docs/AI_OS/` o prototipos locales a autoridad canónica"_ está en su lista de acciones prohibidas.
+4. Las fuentes de autoridad siguen siendo exclusivamente las ya versionadas: `AI_PLAYBOOK.md`, `CLAUDE.md`, `DOCUMENTATION_STYLE_GUIDE.md`, `brain/DECISIONS.md` y el checklist de la EWO activa.
+
+Esta resolución **no** anota el `README.md` de `docs/AI_OS/` — anotarlo sería editar ese árbol documental, fuera del alcance autorizado de esta misión (§5, Tarea 5). La anotación queda como trabajo pendiente, no bloqueante para `LOOP-001`.
 
 ---
 
@@ -387,13 +402,33 @@ Verificado sobre un worktree creado desde el commit candidato, **sin copiar nada
 
 ### 13.6 Estado de las migraciones
 
-| Migración                          | Estado                                                                                                                                                                                                                            |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M1 — versionar `.claude/rules/**`  | **APLICADA**                                                                                                                                                                                                                      |
-| M2 — versionar `.claude/agents/**` | **APLICADA**                                                                                                                                                                                                                      |
-| M3 — versionar `.claude/skills/**` | **NO APLICADA** — reclasificada a B (§13.3)                                                                                                                                                                                       |
-| M4 — versionar `nightly-queue.md`  | **APLICADA**                                                                                                                                                                                                                      |
-| M5 — versionar `settings.json`     | **APLICADA** — autorizada por el gate humano                                                                                                                                                                                      |
-| M6 — `.gitignore`                  | **APLICADA PARCIALMENTE** — sólo `settings.local.json` y el `state/` del motor. `.worktrees/` y `.audit-worktrees/` **no** se tocan: esa entrada ya existe sin confirmar en el árbol principal y absorberla mezclaría iniciativas |
-| M7 — destino de `docs/AI_OS/**`    | **PENDIENTE** — `H5`                                                                                                                                                                                                              |
-| M8–M10 — reconciliación del motor  | **PENDIENTE** — `LOOP-001`                                                                                                                                                                                                        |
+| Migración                          | Estado                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M1 — versionar `.claude/rules/**`  | **APLICADA**                                                                                                                                                                                                                                                                                                                               |
+| M2 — versionar `.claude/agents/**` | **APLICADA**                                                                                                                                                                                                                                                                                                                               |
+| M3 — versionar `.claude/skills/**` | **NO APLICADA** — reclasificada a B (§13.3)                                                                                                                                                                                                                                                                                                |
+| M4 — versionar `nightly-queue.md`  | **APLICADA**                                                                                                                                                                                                                                                                                                                               |
+| M5 — versionar `settings.json`     | **APLICADA** — autorizada por el gate humano                                                                                                                                                                                                                                                                                               |
+| M6 — `.gitignore`                  | **APLICADA** — `settings.local.json`, `.claude/automation/loop-engine/state/` y, tras el cierre de hallazgos de §14, `.claude/worktrees/`. `.worktrees/` (sin punto, distinto de `.claude/worktrees/`) y `.audit-worktrees/` **no** se tocan: esa entrada ya existe sin confirmar en el árbol principal y absorberla mezclaría iniciativas |
+| M7 — destino de `docs/AI_OS/**`    | **APLICADA — `H5-B`** (§10)                                                                                                                                                                                                                                                                                                                |
+| M8–M10 — reconciliación del motor  | **PENDIENTE** — `LOOP-001`, bloqueada hasta reauditoría de `LOOP-000` (§14)                                                                                                                                                                                                                                                                |
+
+---
+
+## 14. Cierre de hallazgos de auditoría independiente (2026-08-10)
+
+Auditoría `READ ONLY` de Codex sobre el candidato `7471806894869b775b31280e7ea6431f8259a3a7`: veredicto **`REQUIERE CAMBIOS`**. Los gates técnicos A–I (staging archivo por archivo, ausencia de secretos, portabilidad, no-bulk-add, alcance) **pasaron**. Dos hallazgos activos, ninguno técnico:
+
+### MEDIO — Arquitectura seguía marcada `PROPUESTA — PENDIENTE DE RATIFICACIÓN`
+
+**Ubicación:** encabezado de `AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md`, y §20 puntos 1–2.
+**Problema:** el responsable de producto ya había aprobado `H7` (ratificación) y `H3` (ubicación canónica), pero el documento seguía leyéndose como si la ejecución no estuviera autorizada por falta de ratificación.
+**Corrección aplicada:** encabezado actualizado a `RATIFICADA` con fecha, autoridad y alcance exacto de la ratificación; §20 marca los puntos 1 y 2 como resueltos con tachado, preservando el texto original como historial. **La advertencia de seguridad real se conserva**: cada tarjeta de implementación (`LOOP-001` en adelante) sigue exigiendo su propio commit candidato y su propia auditoría `READ ONLY` — la ratificación del diseño no la sustituye.
+
+### BAJO — `.claude/worktrees/` sólo ignorado localmente
+
+**Ubicación:** `.gitignore` del repositorio.
+**Problema:** la exclusión de `.claude/worktrees/` (worktrees efímeros de Claude Code) vivía únicamente en `.git/info/exclude`, que no viaja con el repositorio ni con un clon nuevo.
+**Corrección aplicada:** entrada añadida al `.gitignore` **versionado**. Verificado con `git check-ignore -v` en un worktree fresco creado desde el candidato: la ruta resuelve contra el `.gitignore` del árbol, no contra `.git/info/exclude` local — ver reporte de la misión, sección "`.gitignore` portability".
+
+**Nada más estaba activo.** No se tocó `.claude/rules/**`, `.claude/agents/**`, `.claude/settings.json` ni `.claude/automation/**` en esta misión: sólo `.gitignore` y los dos documentos.

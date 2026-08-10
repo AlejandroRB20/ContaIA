@@ -5,15 +5,31 @@
 | Campo                       | Valor                                                                                                                                                                                                                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Versión                     | 0.2                                                                                                                                                                                                                                                                       |
-| Estado                      | **PROPUESTA — PENDIENTE DE RATIFICACIÓN.** No autoriza implementación, ejecución autónoma ni cambio de estado de ninguna EWO.                                                                                                                                             |
+| Estado                      | **RATIFICADA.** Ver "Ratificación" abajo.                                                                                                                                                                                                                                 |
 | Fecha de creación           | 2026-08-08                                                                                                                                                                                                                                                                |
+| Fecha de ratificación       | 2026-08-10                                                                                                                                                                                                                                                                |
 | Propietario lógico          | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                                                                                                            |
 | Alcance                     | Motor de ejecución de tarjetas de ingeniería del repositorio. **No es** arquitectura del producto ContaIA ni de la IA que consumen los usuarios finales.                                                                                                                  |
 | Documentos relacionados     | [`AI_PLAYBOOK.md`](../../AI_PLAYBOOK.md), [`CLAUDE.md`](../../CLAUDE.md), [`DOCUMENTATION_STYLE_GUIDE.md`](../../DOCUMENTATION_STYLE_GUIDE.md), [`AI_CONTEXT.md`](../../AI_CONTEXT.md), [`brain/DECISIONS.md`](../../brain/DECISIONS.md)                                  |
 | Identificador de Work Order | **No asignado.** Asignar un `EWO-NNN` es decisión humana; este documento no lo reclama.                                                                                                                                                                                   |
 | Corrección v0.2             | Ruta canónica del motor, ubicación de worktrees y regla del auditor contradictorio, verificadas contra las implementaciones reales `7bdf159` y `2e128c7`. Detalle y matriz de reconciliación: [`LOOP-000_GOVERNANCE_SUBSTRATE.md`](LOOP-000_GOVERNANCE_SUBSTRATE.md) §12. |
 
-> **Este documento no cambia el estado de ninguna tarea, EWO, decisión o auditoría.** Describe un motor propuesto. Mientras siga en `PROPUESTA`, ningún agente puede ejecutar el ciclo aquí descrito.
+### Ratificación
+
+**Estado: RATIFICADA** por aprobación humana del responsable de producto de ContaIA, el 2026-08-10.
+
+Alcance exacto de la ratificación:
+
+- La arquitectura Autonomous Loop Engine v0.2 (este documento, `8f6fa6b` corregido por `a5c8e54`).
+- Ubicación canónica única del motor: `.claude/automation/loop-engine/` (`H3`).
+- Ubicación de los worktrees de tarea: `.worktrees/loop/<task_id>`; **prohibido** `.claude/worktrees/` para la ejecución del Loop Engine (§9).
+- La separación constructor/QA de §11, sin excepción.
+- Los gates humanos de §13, sin excepción.
+- La regla de no-auto-`PASSED` (§3.1) y de no-auto-integración (§14): el motor se detiene siempre en `READY_FOR_INTEGRATION`.
+
+**Lo que la ratificación NO autoriza:** ningún código del motor está implementado ni ejecutándose. La ratificación aprueba el **diseño**; la implementación sigue el orden de tarjetas de §19, cada una con su propio commit candidato y su propia auditoría independiente. `LOOP-000` quedó implementada como sustrato de gobierno (`7471806`, `docs/engineering/LOOP-000_GOVERNANCE_SUBSTRATE.md` §13); `LOOP-001` en adelante permanecen `BLOCKED` hasta que `LOOP-000` supere reauditoría — ver ese documento para el estado exacto.
+
+> **Este documento no cambia el estado de ninguna tarea de EWO, decisión `D-XXX` ni auditoría de producto.** La ratificación autoriza el diseño del motor; cada tarjeta de implementación (`LOOP-001` en adelante) sigue exigiendo su propio commit candidato y su propia auditoría `READ ONLY` antes de poder ejecutarse — la ratificación de la arquitectura no sustituye esas auditorías.
 
 ---
 
@@ -733,11 +749,13 @@ Estrictamente secuencial. Paralelizar contradiría §10: todas comparten `.claud
 
 ## 20. Qué exige este documento antes de implementarse
 
-1. **Ratificación humana** de este documento (pasa de `PROPUESTA` a `ACEPTADA`).
-2. **Autorización de `LOOP-000`**, que cambia el perímetro de permisos versionado.
-3. **Decisión sobre `docs/AI_OS/`**: versionarlo o declararlo local por diseño. Hoy es ambiguo.
-4. **Actualización de `DOCUMENTATION_STYLE_GUIDE.md` §3** para registrar la familia de estados del Loop Engine (§3.1).
-5. **Asignación de un `EWO-NNN`**, si el responsable de producto decide tratarlo como Work Order formal.
-6. **Registro en `brain/DECISIONS.md`** como decisión `D-XXX` si se ratifica, dado que altera cómo se ejecuta el trabajo de ingeniería.
+Estado de cada punto tras la ratificación del 2026-08-10:
 
-Ninguno de los seis puntos lo puede ejecutar un agente por su cuenta.
+1. ~~**Ratificación humana** de este documento (pasa de `PROPUESTA` a `ACEPTADA`).~~ **RESUELTO** — ver "Ratificación" en el encabezado.
+2. ~~**Autorización de `LOOP-000`**, que cambia el perímetro de permisos versionado.~~ **RESUELTO** — `LOOP-000` implementada en `7471806`; pendiente de reauditoría, no de autorización.
+3. **Decisión sobre `docs/AI_OS/`**: **RESUELTA — `H5-B`.** `docs/AI_OS/**` permanece **local y no canónico**, deliberadamente sin versionar. No participa en ninguna transición del Loop Engine. Detalle: [`LOOP-000_GOVERNANCE_SUBSTRATE.md`](LOOP-000_GOVERNANCE_SUBSTRATE.md) §10.
+4. **Actualización de `DOCUMENTATION_STYLE_GUIDE.md` §3** para registrar la familia de estados del Loop Engine (§3.1). **Pendiente** — no se ha ejecutado; no bloquea `LOOP-001`.
+5. **Asignación de un `EWO-NNN`**, si el responsable de producto decide tratarlo como Work Order formal. **Pendiente**, a discreción del responsable de producto.
+6. **Registro en `brain/DECISIONS.md`** como decisión `D-XXX` si se ratifica, dado que altera cómo se ejecuta el trabajo de ingeniería. **Pendiente** — la ratificación de este documento no sustituye ese registro; sigue siendo una acción humana separada.
+
+Los puntos 4–6 no bloquean el inicio de `LOOP-001`, que sigue condicionado a la reauditoría de `LOOP-000` (ver [`LOOP-000_GOVERNANCE_SUBSTRATE.md`](LOOP-000_GOVERNANCE_SUBSTRATE.md)). Ninguno de los seis puntos lo puede ejecutar un agente por su cuenta.
