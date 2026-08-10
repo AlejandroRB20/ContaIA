@@ -1,0 +1,23 @@
+{
+  "worktree": {
+    "baseRef": "head"
+  },
+  "permissions": {
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(git worktree remove *)",
+      "Bash(pnpm run db:migrate *)",
+      "Bash(pnpm --filter @contaia/database run migrate *)",
+      "Bash(prisma migrate *)",
+      "Bash(npx prisma migrate *)"
+    ],
+    "deny": [
+      "Bash(git merge *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)"
+    ]
+  },
+  "disableBypassPermissionsMode": "disable"
+}

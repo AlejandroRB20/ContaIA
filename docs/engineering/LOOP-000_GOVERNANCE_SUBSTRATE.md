@@ -2,17 +2,19 @@
 
 ## Control del documento
 
-| Campo              | Valor                                                                                                                                                |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Versión            | 0.1                                                                                                                                                  |
-| Estado             | **PROPUESTA — PENDIENTE DE RATIFICACIÓN.** Ninguna migración ejecutada. Este documento planifica; no versiona nada.                                  |
-| Fecha de creación  | 2026-08-08                                                                                                                                           |
-| Propietario lógico | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                       |
-| Tarjeta            | `LOOP-000`, prerrequisito bloqueante de [`AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md`](AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md) §17                 |
-| Base de análisis   | `HEAD dac9428` · arquitectura `8f6fa6b` · Claude-02 `7bdf159` · Claude-03 `2e128c7`                                                                  |
-| Alcance            | Qué debe versionarse para que un worktree autónomo opere con gobierno, y qué ubicación canónica adopta el motor. **No** modifica código de producto. |
+| Campo              | Valor                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Versión            | 0.2                                                                                                                                                                                        |
+| Estado             | **PARCIALMENTE IMPLEMENTADA.** `H3`/`H7` ratificadas y `LOOP-000` autorizado: el sustrato compartido queda versionado (§13). `H5` (`docs/AI_OS/`) sigue pendiente; `LOOP-001` no iniciada. |
+| Fecha de creación  | 2026-08-08                                                                                                                                                                                 |
+| Propietario lógico | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                             |
+| Tarjeta            | `LOOP-000`, prerrequisito bloqueante de [`AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md`](AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE.md) §17                                                       |
+| Base de análisis   | `HEAD dac9428` · arquitectura `8f6fa6b` · Claude-02 `7bdf159` · Claude-03 `2e128c7`                                                                                                        |
+| Alcance            | Qué debe versionarse para que un worktree autónomo opere con gobierno, y qué ubicación canónica adopta el motor. **No** modifica código de producto.                                       |
 
-> **Nada de lo aquí propuesto está aplicado.** `git ls-files .claude` sigue devolviendo un solo archivo. Este documento entrega la matriz y se detiene, conforme al gate humano de §7.
+> **Secciones §1–§12: análisis y diseño, redactados antes de la aprobación humana.** Describen el estado del repositorio cuando `git ls-files .claude` devolvía un solo archivo y ninguna migración estaba aplicada. Se conservan sin reescribir, como registro de la evidencia original.
+>
+> **Sección §13: registro de implementación.** Recoge lo que realmente se ejecutó tras la aprobación de `H3`, `H7` y `LOOP-000`, incluidas las divergencias declaradas frente al diseño. Ante cualquier duda sobre el estado vigente, **prevalece §13**.
 
 ---
 
@@ -337,3 +339,61 @@ Este documento corrige `8f6fa6b` en dos puntos verificados contra implementació
 Se incorpora además una mejora aportada por Claude-03 que la arquitectura no había previsto: **un veredicto `PASSED` acompañado de hallazgos aún bloqueantes es una inconsistencia del auditor y escala a `BLOCKED_ARCHITECTURE`**, nunca a integración.
 
 El resto de la arquitectura se mantiene sin cambios.
+
+---
+
+## 13. Registro de implementación de `LOOP-000` (2026-08-10)
+
+**Autorización humana aplicada:** `H3` (ubicación canónica `.claude/automation/loop-engine/`), `H7` (ratificación de la arquitectura v0.2) y autorización expresa de implementar `LOOP-000`, con la restricción explícita de versionar **únicamente el sustrato compartido realmente necesario y seguro** — no `.claude/` de forma indiscriminada.
+
+### 13.1 Archivos versionados (16)
+
+Cada archivo fue **leído completo e inspeccionado individualmente** antes de añadirse. En ningún momento se ejecutó `git add .claude`.
+
+| Grupo                 | Archivos                                                                                                                                                                           | Garantía que aporta                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `.claude/rules/`      | `00-governance.md`, `10-multitenancy-security.md`, `20-fiscal-data-safety.md`, `30-quality-scope.md`, `40-parallel-work.md`                                                        | Gobierno, seguridad Git, trabajo paralelo, ownership, gates fiscales, prohibición de debilitar pruebas |
+| `.claude/agents/`     | `contaia-orchestrator`, `qa-engineer`, `principal-architect`, `security-reviewer`, `fiscal-accounting-reviewer`, `backend-engineer`, `frontend-engineer`, `documentation-engineer` | Contrato de misión por rol, QA independiente, modelo de severidades, condiciones de parada             |
+| `.claude/automation/` | `nightly-queue.md`                                                                                                                                                                 | Cola, regla de selección y límites de ejecución nocturna                                               |
+| Configuración         | `.claude/settings.json`                                                                                                                                                            | `deny` de `git merge` / `git reset --hard` / `git clean`; `ask` de commit/push/rebase/migraciones      |
+| Exclusiones           | `.gitignore` (modificado)                                                                                                                                                          | Mantiene fuera `settings.local.json` y el `state/` del motor                                           |
+
+### 13.2 Excluido deliberadamente
+
+| Ruta                             | Clase | Motivo                                                                                                                     |
+| -------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/settings.local.json`    | C     | Preferencia de una máquina. Añadido a `.gitignore`; verificado que Git ya no lo ve aun estando presente en disco           |
+| `.claude/skills/**` (9 archivos) | B     | Procedimientos de **construcción**, no de gobierno. Ninguna de las doce garantías del sustrato depende de ellos. Ver §13.3 |
+| `.claude/worktrees/**`           | C     | Worktrees efímeros de Claude Code                                                                                          |
+| `docs/AI_OS/**` (11 archivos)    | B     | `H5` sigue pendiente. Ver §10 y §13.4                                                                                      |
+
+### 13.3 Divergencia declarada frente a la clasificación de §2
+
+`.claude/skills/contaia-fiscal-safety/references/fiscal-source-policy.md` estaba clasificado **A** en §2. Tras leerlo completo se comprueba que son 13 líneas que **complementan** —no sustituyen— la garantía que ya aporta `.claude/rules/20-fiscal-data-safety.md`, que sí queda versionado. La garantía de gobierno («ninguna regla fiscal sin fuente oficial vigente y revisión humana») se conserva íntegra sin él.
+
+Se reclasifica a **B** y se excluye, aplicando la restricción humana de versionar sólo lo necesario. **La divergencia se declara aquí en vez de aplicarse en silencio**; revertirla es un `git add` de un archivo si el responsable de producto prefiere lo contrario.
+
+La frontera adoptada es: **gobierno se versiona; procedimiento de construcción no.** Las reglas, los agentes, la cola y los permisos dicen _quién puede actuar, qué está prohibido y qué está denegado_; las skills dicen _cómo construir bien_. `LOOP-000` cubre lo primero.
+
+### 13.4 `verifySubstrate` — no implementado en `LOOP-000`, y por qué
+
+§5 propone una verificación de existencia. **No se implementa aquí**, por una razón concreta: su ubicación natural es el motor canónico `.claude/automation/loop-engine/`, que todavía no existe — se crea en `LOOP-001` durante la reconciliación. Escribirlo ahora obligaría a inventar una estructura paralela que `LOOP-001` tendría que desmontar, y contradiría la instrucción de no anticipar la reconciliación de los motores.
+
+Queda como **precondición explícita de `LOOP-001`**, con el contrato ya fijado en §5: comprobar existencia, fallar con error claro, bloquear la ejecución autónoma; nunca copiar, crear ni reparar. Git es quien entrega el gobierno.
+
+### 13.5 Evidencia de worktree limpio
+
+Verificado sobre un worktree creado desde el commit candidato, **sin copiar nada a mano**: los 15 archivos de gobierno llegan por Git; `settings.local.json` no aparece; no hay estado de ejecución; no hay secretos ni configuración personal. Detalle en el reporte de la misión.
+
+### 13.6 Estado de las migraciones
+
+| Migración                          | Estado                                                                                                                                                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1 — versionar `.claude/rules/**`  | **APLICADA**                                                                                                                                                                                                                      |
+| M2 — versionar `.claude/agents/**` | **APLICADA**                                                                                                                                                                                                                      |
+| M3 — versionar `.claude/skills/**` | **NO APLICADA** — reclasificada a B (§13.3)                                                                                                                                                                                       |
+| M4 — versionar `nightly-queue.md`  | **APLICADA**                                                                                                                                                                                                                      |
+| M5 — versionar `settings.json`     | **APLICADA** — autorizada por el gate humano                                                                                                                                                                                      |
+| M6 — `.gitignore`                  | **APLICADA PARCIALMENTE** — sólo `settings.local.json` y el `state/` del motor. `.worktrees/` y `.audit-worktrees/` **no** se tocan: esa entrada ya existe sin confirmar en el árbol principal y absorberla mezclaría iniciativas |
+| M7 — destino de `docs/AI_OS/**`    | **PENDIENTE** — `H5`                                                                                                                                                                                                              |
+| M8–M10 — reconciliación del motor  | **PENDIENTE** — `LOOP-001`                                                                                                                                                                                                        |
