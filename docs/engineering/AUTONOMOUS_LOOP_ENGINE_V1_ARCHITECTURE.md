@@ -2,15 +2,16 @@
 
 ## Control del documento
 
-| Campo                       | Valor                                                                                                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Versión                     | 0.1                                                                                                                                                                                                                                      |
-| Estado                      | **PROPUESTA — PENDIENTE DE RATIFICACIÓN.** No autoriza implementación, ejecución autónoma ni cambio de estado de ninguna EWO.                                                                                                            |
-| Fecha de creación           | 2026-08-08                                                                                                                                                                                                                               |
-| Propietario lógico          | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                                                                           |
-| Alcance                     | Motor de ejecución de tarjetas de ingeniería del repositorio. **No es** arquitectura del producto ContaIA ni de la IA que consumen los usuarios finales.                                                                                 |
-| Documentos relacionados     | [`AI_PLAYBOOK.md`](../../AI_PLAYBOOK.md), [`CLAUDE.md`](../../CLAUDE.md), [`DOCUMENTATION_STYLE_GUIDE.md`](../../DOCUMENTATION_STYLE_GUIDE.md), [`AI_CONTEXT.md`](../../AI_CONTEXT.md), [`brain/DECISIONS.md`](../../brain/DECISIONS.md) |
-| Identificador de Work Order | **No asignado.** Asignar un `EWO-NNN` es decisión humana; este documento no lo reclama.                                                                                                                                                  |
+| Campo                       | Valor                                                                                                                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versión                     | 0.2                                                                                                                                                                                                                                                                       |
+| Estado                      | **PROPUESTA — PENDIENTE DE RATIFICACIÓN.** No autoriza implementación, ejecución autónoma ni cambio de estado de ninguna EWO.                                                                                                                                             |
+| Fecha de creación           | 2026-08-08                                                                                                                                                                                                                                                                |
+| Propietario lógico          | Responsable de producto de ContaIA (Alejandro Reyes Bocanegra)                                                                                                                                                                                                            |
+| Alcance                     | Motor de ejecución de tarjetas de ingeniería del repositorio. **No es** arquitectura del producto ContaIA ni de la IA que consumen los usuarios finales.                                                                                                                  |
+| Documentos relacionados     | [`AI_PLAYBOOK.md`](../../AI_PLAYBOOK.md), [`CLAUDE.md`](../../CLAUDE.md), [`DOCUMENTATION_STYLE_GUIDE.md`](../../DOCUMENTATION_STYLE_GUIDE.md), [`AI_CONTEXT.md`](../../AI_CONTEXT.md), [`brain/DECISIONS.md`](../../brain/DECISIONS.md)                                  |
+| Identificador de Work Order | **No asignado.** Asignar un `EWO-NNN` es decisión humana; este documento no lo reclama.                                                                                                                                                                                   |
+| Corrección v0.2             | Ruta canónica del motor, ubicación de worktrees y regla del auditor contradictorio, verificadas contra las implementaciones reales `7bdf159` y `2e128c7`. Detalle y matriz de reconciliación: [`LOOP-000_GOVERNANCE_SUBSTRATE.md`](LOOP-000_GOVERNANCE_SUBSTRATE.md) §12. |
 
 > **Este documento no cambia el estado de ninguna tarea, EWO, decisión o auditoría.** Describe un motor propuesto. Mientras siga en `PROPUESTA`, ningún agente puede ejecutar el ciclo aquí descrito.
 
@@ -235,7 +236,7 @@ MAX_QA_REPAIR_ITERATIONS: 2 # QA_FAILED → REPAIRING → READY_FOR_QA → QA
 
 Formato: **YAML front-matter + cuerpo Markdown** — el mismo patrón que ya usan `.claude/agents/*.md`. No se introduce un formato nuevo.
 
-Ubicación: `.claude/automation/loop/contracts/<task_id>.md` (runtime, no versionado).
+Ubicación: `.claude/automation/loop-engine/contracts/<task_id>.md` (runtime, no versionado).
 
 ```yaml
 ---
@@ -249,7 +250,7 @@ agent_role: backend-engineer       # debe existir en .claude/agents/
 
 base_commit: dac9428272177b475d6adb400182daeba4e5ad64   # SHA completo, inmutable
 branch: loop/e5-s3-t10-checksum    # prefijo reservado loop/
-worktree: .worktrees/loop-e5-s3-t10-checksum
+worktree: .worktrees/loop/e5-s3-t10-checksum
 
 allowed_write:                     # lista blanca; todo lo demás es de solo lectura
   - apps/api/src/modules/xml-processing/**
@@ -301,7 +302,7 @@ De facto en uso, **no documentada** hasta ahora: `CONTAIA-<ÁMBITO>-<ACCIÓN>` e
 
 ## 7. Contrato de resultado (salida)
 
-Mismo formato, escrito por el agente a `.claude/automation/loop/results/<task_id>.<iteration>.md`.
+Mismo formato, escrito por el agente a `.claude/automation/loop-engine/results/<task_id>.<iteration>.md`.
 
 ```yaml
 ---
@@ -354,16 +355,22 @@ declarado invalida el resultado.
 **Sin base de datos.** Log append-only en JSONL más un archivo de estado por tarjeta.
 
 ```text
-.claude/automation/loop/
+.claude/automation/loop-engine/
+├── lib/**, cli.mjs, test/**      # VERSIONADO — código del motor
+├── README.md                     # VERSIONADO — documentación operativa
 ├── queue.yaml                    # VERSIONADO — tarjetas y dependencias
-├── contracts/<task_id>.md        # runtime
-├── results/<task_id>.<n>.md      # runtime
-├── state/<task_id>.json          # runtime — estado y contadores actuales
-├── locks/<task_id>.lock.json     # runtime — ownership (§9)
-└── events.jsonl                  # runtime — log append-only de transiciones
+└── state/                        # IGNORADO — todo lo de aquí es efímero
+    ├── contracts/<task_id>.md
+    ├── results/<task_id>.<n>.md
+    ├── <task_id>.json            # estado y contadores actuales
+    ├── locks/<task_id>.lock.json # ownership (§9)
+    └── events.jsonl              # log append-only de transiciones
 ```
 
-Todo `.claude/automation/loop/` excepto `queue.yaml` se ignora en Git: es estado de ejecución, no historia del proyecto. La historia del proyecto sigue siendo `CHANGELOG.md` y los `_FINAL_AUDIT.md`.
+**La frontera es `state/`, no el directorio entero:** el código del motor y las
+definiciones de tarjeta se versionan; todo lo que vive bajo `state/` es estado de
+ejecución y se ignora. La historia del proyecto sigue siendo `CHANGELOG.md` y los
+`_FINAL_AUDIT.md`, nunca `events.jsonl`.
 
 Evento (una línea JSON por transición):
 
@@ -391,7 +398,14 @@ Append-only, nunca reescrito. `state/<task_id>.json` es una proyección derivabl
 
 **Invariante: 1 tarjeta = 1 worktree = 1 rama = 1 agente dueño.**
 
-Lock en `.claude/automation/loop/locks/<task_id>.lock.json`, adquirido por **creación exclusiva** del archivo (`O_EXCL`): si ya existe, la adquisición falla. Es la primitiva atómica disponible sin infraestructura nueva.
+Lock en `.claude/automation/loop-engine/state/locks/<task_id>.lock.json`, adquirido por **creación exclusiva** del archivo (`O_EXCL`): si ya existe, la adquisición falla. Es la primitiva atómica disponible sin infraestructura nueva.
+
+**Ubicación de los worktrees de tarea: `.worktrees/loop/<task_id>`.** Queda
+**prohibido** usar `.claude/worktrees/`: ese directorio aloja los worktrees
+efímeros que Claude Code crea y destruye por su cuenta (y ya está en
+`.gitignore` como tal), de modo que un worktree de tarea allí podría ser
+reciclado por un proceso ajeno al motor. Ver
+[`LOOP-000_GOVERNANCE_SUBSTRATE.md`](LOOP-000_GOVERNANCE_SUBSTRATE.md) §6.2.
 
 ```json
 {
@@ -399,7 +413,7 @@ Lock en `.claude/automation/loop/locks/<task_id>.lock.json`, adquirido por **cre
   "task_id": "LOOP-E5S3T10-001",
   "agent_id": "CLAUDE-01",
   "agent_role": "backend-engineer",
-  "worktree": ".worktrees/loop-e5-s3-t10-checksum",
+  "worktree": ".worktrees/loop/e5-s3-t10-checksum",
   "branch": "loop/e5-s3-t10-checksum",
   "base_commit": "dac9428272177b475d6adb400182daeba4e5ad64",
   "created_at": "2026-08-08T13:31:07Z",
@@ -466,6 +480,11 @@ IMPLEMENTING → TESTING → READY_FOR_QA
 3. El auditor es `READ ONLY`: sin `Edit`/`Write`, sin commits, sin corregir lo que audita.
 4. El auditor **no puede emitir `PASSED`** en el sentido canónico. Emite `PASS`/`FAIL` de ciclo; el `PASSED` de EWO sigue siendo exclusivo del veredicto de Codex más cierre administrativo humano (`AI_PLAYBOOK.md` reglas 1 y 6).
 5. El silencio del auditor nunca promueve. Ausencia de veredicto → `RECOVERY`, no aprobación.
+6. **Un auditor que se contradice no promueve.** Un veredicto `PASSED` acompañado
+   de hallazgos aún bloqueantes (`CRÍTICO`/`ALTO`, o `MEDIO`/`BAJO` no
+   autorizados por el contrato) es una inconsistencia del propio auditor: escala
+   a `BLOCKED_ARCHITECTURE`, nunca a `READY_FOR_INTEGRATION`. Regla aportada por
+   la implementación de Claude-03 (`2e128c7`) y adoptada aquí.
 
 ---
 
@@ -518,7 +537,7 @@ task_id: LOOP-E5S3T10-001
 source_commit: 7f3a91c... # candidato a integrar
 base_commit: dac9428... # base sobre la que se construyó
 branch: loop/e5-s3-t10-checksum
-worktree: .worktrees/loop-e5-s3-t10-checksum
+worktree: .worktrees/loop/e5-s3-t10-checksum
 
 changed_files: [...] # name-status completo
 test_evidence:
@@ -650,7 +669,7 @@ Ninguna autoriza ejecución: dependen de la ratificación de este documento.
 ### `LOOP-001` — Esquema de cola y contratos · **`CLAUDE-02`** · `risk_class: STANDARD`
 
 - **Objetivo:** `queue.yaml` versionado + esquemas de contrato de agente y de resultado (§6, §7) + `.gitignore` del runtime.
-- **`allowed_write`:** `.claude/automation/loop/**`, `.gitignore`.
+- **`allowed_write`:** `.claude/automation/loop-engine/**`, `.gitignore`.
 - **Aceptación:** las 7 tarjetas de `nightly-queue.md` se expresan en `queue.yaml` **sin cambiar su estado ni su dependencia**; los esquemas validan los ejemplos de §6 y §7.
 - **Dependencias:** `LOOP-000`.
 
@@ -708,7 +727,7 @@ LOOP-001 → LOOP-002 → LOOP-003 → LOOP-004     (CLAUDE-02)
 LOOP-005 → LOOP-006 → LOOP-007 → LOOP-008     (CLAUDE-03)
 ```
 
-Estrictamente secuencial. Paralelizar contradiría §10: todas comparten `.claude/automation/loop/**`.
+Estrictamente secuencial. Paralelizar contradiría §10: todas comparten `.claude/automation/loop-engine/**`.
 
 ---
 
