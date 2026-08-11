@@ -3,7 +3,7 @@ import { acquireLock, readLock, releaseLock, refreshHeartbeat, LockHeldError } f
 import { loadQueue } from './queue.mjs';
 import { listTasks, getOrCreateTaskState, mutateTaskState } from './store.mjs';
 import { assertTransition, isTerminal } from './state-machine.mjs';
-import { appendEvent } from './events.mjs';
+import { commitTransaction } from './transaction.mjs';
 import { evaluateConcurrency } from './concurrency.mjs';
 import { assertSubstrate } from './substrate.mjs';
 import {
@@ -80,12 +80,18 @@ function hasStateAuthority(task, agentId, to) {
 }
 
 /**
- * Único punto de escritura de `state`. Valida la transición (legalidad,
- * gate humano, posesión de lock, límites), persiste y registra el evento.
+ * PREPARE — valida una transición y calcula, **sin escribir nada**, los
+ * campos de estado que cambian y el evento que los documenta.
+ *
+ * Separar el cálculo de la escritura es lo que permite que una operación de
+ * varios saltos (la sesión de QA) se persista como una sola transacción, en
+ * vez de salto a salto con rollback por truncado del log.
+ *
+ * @returns {{from: string, changes: object, event: object, actor: object}}
  */
-export function transitionTask({ taskId, to, actor, commit, reason, blockedReason, limits }) {
+export function prepareTransition({ task: current, to, actor, commit, reason, blockedReason, limits }) {
   const who = normalizeActor(actor);
-  const current = getOrCreateTaskState(taskId);
+  const taskId = current.task_id;
 
   if (isTerminal(current.state)) {
     throw new DispatchError(
@@ -109,29 +115,56 @@ export function transitionTask({ taskId, to, actor, commit, reason, blockedReaso
 
   const validated = assertTransition(current, to, actorWithLock, limits);
 
-  const updated = mutateTaskState(taskId, (task) => ({
-    ...task,
+  const changes = {
     state: to,
     repair_iteration: validated.repairIteration,
     qa_iteration: validated.qaIteration,
-    candidate_commit: commit ?? task.candidate_commit,
+    candidate_commit: commit ?? current.candidate_commit,
     blocked_reason: to.startsWith('BLOCKED') ? blockedReason : null,
-  }));
+  };
 
-  appendEvent({
+  const event = {
     task_id: taskId,
-    mission_id: updated.mission_id,
+    mission_id: current.mission_id,
     agent_id: who.id,
     actor_type: who.type,
     from_state: validated.from,
     to_state: to,
-    repair_iteration: updated.repair_iteration,
-    qa_iteration: updated.qa_iteration,
+    repair_iteration: changes.repair_iteration,
+    qa_iteration: changes.qa_iteration,
     commit: commit ?? null,
-    blocked_reason: updated.blocked_reason,
+    blocked_reason: changes.blocked_reason,
     note: reason ?? null,
+  };
+
+  return { from: validated.from, changes, event, actor: who };
+}
+
+/**
+ * Único punto de escritura de `state`. Valida la transición (legalidad,
+ * gate humano, posesión de lock, límites) y la persiste junto a su evento
+ * como una sola transacción.
+ */
+export function transitionTask({ taskId, to, actor, commit, reason, blockedReason, limits }) {
+  const current = getOrCreateTaskState(taskId);
+  const prepared = prepareTransition({
+    task: current,
+    to,
+    actor,
+    commit,
+    reason,
+    blockedReason,
+    limits,
   });
 
+  const { task: updated } = commitTransaction({
+    taskId,
+    from: prepared.from,
+    changes: prepared.changes,
+    events: [prepared.event],
+  });
+
+  const who = prepared.actor;
   if (who.type === 'agent' && holdsLock(taskId, who.id)) {
     try {
       refreshHeartbeat(taskLockFile(taskId), who.id);

@@ -57,6 +57,15 @@ export function eventsFile() {
   return path.join(stateDir(), 'events.jsonl');
 }
 
+/**
+ * Exclusión mutua **global** del event log. `events.jsonl` es un recurso
+ * compartido por todas las tarjetas: un lock por `task_id` no lo protege,
+ * y ese fue exactamente el hallazgo ALTO de la reauditoría de `LOOP-001`.
+ */
+export function eventLogLockFile() {
+  return path.join(stateDir(), 'events.lock');
+}
+
 export function worktreeOwnershipFile() {
   return path.join(stateDir(), 'worktree-ownership.json');
 }

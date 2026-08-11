@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import { qaSessionLockFile, taskLockFile, eventsFile } from './paths.mjs';
+import { qaSessionLockFile, taskLockFile } from './paths.mjs';
 import { withLock, readLock } from './lock.mjs';
-import { getOrCreateTaskState, mutateTaskState, writeTaskState } from './store.mjs';
-import { appendEvent } from './events.mjs';
+import { getOrCreateTaskState } from './store.mjs';
+import { commitTransaction } from './transaction.mjs';
 import {
   validateHandoff,
   validateAuditResult,
@@ -10,7 +9,7 @@ import {
   NonIndependentAuditorError,
 } from './qa-contract.mjs';
 import { createLoopState, beginQa, submitQaResult } from './qa-loop.mjs';
-import { transitionTask } from './dispatcher.mjs';
+import { prepareTransition } from './dispatcher.mjs';
 
 /**
  * Sesión de QA **persistente**.
@@ -33,10 +32,17 @@ import { transitionTask } from './dispatcher.mjs';
  * Todo lo que puede fallar por contrato —handoff ausente, commit que no
  * corresponde, auditor no independiente, veredicto inválido, transición
  * prohibida— falla **antes** de la primera escritura, porque el ciclo se
- * calcula puro. Para el resto (un fallo de E/S a media persistencia) la
- * sección crítica restaura el estado previo y deshace únicamente los
- * eventos escritos dentro de ella: nunca queda estado sin evento, evento
- * sin estado ni handoff consumido a medias.
+ * calcula puro.
+ *
+ * La persistencia va después, en una sola transacción: los saltos se
+ * preparan en memoria con `prepareTransition` y se entregan a
+ * `commitTransaction`, que escribe primero el estado y luego **todos** los
+ * eventos de una vez, bajo el lock global del log.
+ *
+ * La versión anterior persistía salto a salto y, al fallar, truncaba
+ * `events.jsonl` al tamaño previo. Como el log es global y el lock era por
+ * `task_id`, eso borraba eventos válidos de otras tarjetas — hallazgo ALTO
+ * de la reauditoría. Aquí ya no se trunca nada: ver `transaction.mjs`.
  */
 
 export class QaSessionError extends Error {
@@ -131,25 +137,30 @@ export function submitHandoff({ taskId, implementerId, handoff, auditorId = null
 
   const record = toRecord(taskId, task, implementerId, auditorId, handoff);
 
-  const updated = mutateTaskState(taskId, (t) => ({
-    ...t,
-    qa_handoff: record,
-    qa_owner: null,
-    qa_result: null,
-    candidate_commit: t.candidate_commit ?? record.candidate_commit,
-  }));
-
   // No es una transición: la tarjeta sigue en READY_FOR_QA. Se registra
-  // igualmente porque la evidencia entregada es parte de la traza.
-  appendEvent({
-    task_id: taskId,
-    mission_id: record.mission_id,
-    agent_id: implementerId,
-    actor_type: 'agent',
-    from_state: 'READY_FOR_QA',
-    to_state: 'READY_FOR_QA',
-    commit: record.candidate_commit,
-    note: 'qa_handoff entregado',
+  // igualmente porque la evidencia entregada es parte de la traza, y se
+  // hace por la misma vía transaccional que todo lo demás.
+  const { task: updated } = commitTransaction({
+    taskId,
+    from: 'READY_FOR_QA',
+    changes: {
+      qa_handoff: record,
+      qa_owner: null,
+      qa_result: null,
+      candidate_commit: task.candidate_commit ?? record.candidate_commit,
+    },
+    events: [
+      {
+        task_id: taskId,
+        mission_id: record.mission_id,
+        agent_id: implementerId,
+        actor_type: 'agent',
+        from_state: 'READY_FOR_QA',
+        to_state: 'READY_FOR_QA',
+        commit: record.candidate_commit,
+        note: 'qa_handoff entregado',
+      },
+    ],
   });
 
   return { task: updated, handoff: record };
@@ -166,15 +177,6 @@ function limitsFor(hop, next) {
     return { maxQa: Number.MAX_SAFE_INTEGER };
   }
   return undefined;
-}
-
-function regularFileSize(file) {
-  try {
-    const stat = fs.statSync(file);
-    return stat.isFile() ? stat.size : null;
-  } catch (err) {
-    return err.code === 'ENOENT' ? 0 : null;
-  }
 }
 
 /**
@@ -237,50 +239,43 @@ export function runQa({ taskId, auditorId, auditResult }) {
     // Cálculo puro primero: un veredicto imposible falla sin escribir nada.
     const loop = submitQaResult(beginQa(createLoopState(taskId, handoff, task)), auditResult);
 
-    const eventsPath = eventsFile();
-    const sizeBefore = regularFileSize(eventsPath);
-    try {
-      mutateTaskState(taskId, (t) => ({ ...t, qa_owner: auditorId }));
+    // PREPARE — todos los saltos se validan y se pliegan en memoria. Si
+    // alguno es ilegal, la excepción llega aquí sin haber escrito nada.
+    let proyectada = task;
+    const changes = { qa_owner: auditorId };
+    const events = [];
 
-      loop.history.forEach((hop, index) => {
-        transitionTask({
-          taskId,
-          to: hop.to,
-          actor: { type: 'agent', id: auditorId },
-          reason: hop.reason ?? 'qa',
-          blockedReason: hop.blocked_reason,
-          limits: limitsFor(hop, loop.history[index + 1]),
-        });
+    loop.history.forEach((hop, index) => {
+      const prepared = prepareTransition({
+        task: proyectada,
+        to: hop.to,
+        actor: { type: 'agent', id: auditorId },
+        reason: hop.reason ?? 'qa',
+        blockedReason: hop.blocked_reason,
+        limits: limitsFor(hop, loop.history[index + 1]),
       });
+      proyectada = { ...proyectada, ...prepared.changes };
+      Object.assign(changes, prepared.changes);
+      events.push(prepared.event);
+    });
 
-      const final = mutateTaskState(taskId, (t) => ({
-        ...t,
-        qa_result: {
-          auditor_id: auditorId,
-          verdict: auditResult.verdict,
-          findings: loop.history.at(-1)?.auditResult?.findings ?? auditResult.findings ?? [],
-          final_state: loop.state,
-          decided_at: new Date().toISOString(),
-        },
-      }));
+    changes.qa_result = {
+      auditor_id: auditorId,
+      verdict: auditResult.verdict,
+      findings: loop.history.at(-1)?.auditResult?.findings ?? auditResult.findings ?? [],
+      final_state: loop.state,
+      decided_at: new Date().toISOString(),
+    };
 
-      return { task: final, state: loop.state, history: loop.history, auditorId };
-    } catch (err) {
-      // Compensación: se deshace únicamente lo escrito DENTRO de esta
-      // sección crítica. El historial previo de events.jsonl no se toca.
-      try {
-        writeTaskState(task);
-      } catch {
-        /* no había estado que restaurar */
-      }
-      if (sizeBefore !== null) {
-        try {
-          fs.truncateSync(eventsPath, sizeBefore);
-        } catch {
-          /* no hay log que truncar */
-        }
-      }
-      throw err;
-    }
+    // COMMIT — estado primero, después los eventos en una sola escritura.
+    // Nada aquí trunca ni reescribe el log global.
+    const { task: final, transactionId } = commitTransaction({
+      taskId,
+      from: 'READY_FOR_QA',
+      changes,
+      events,
+    });
+
+    return { task: final, state: loop.state, history: loop.history, auditorId, transactionId };
   });
 }

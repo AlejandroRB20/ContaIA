@@ -55,7 +55,9 @@ state/            IGNORADO   — runtime efímero; ya cubierto por el
 ```
 
 `state/` contiene `<task_id>.json` (estado y contadores), `locks/<id>.lock.json`
-(ownership), `events.jsonl` (log append-only) y `manifests/`. Nada de eso se
+(ownership), `events.jsonl` (log append-only) con su `events.lock` global,
+`manifests/` y `recovery/<task_id>.json` (evidencia de una transacción que no
+pudo deshacerse; sólo aparece si algo fue mal). Nada de eso se
 versiona: el historial del proyecto sigue siendo `CHANGELOG.md` y los
 `_FINAL_AUDIT.md`, nunca `events.jsonl`.
 
@@ -149,10 +151,45 @@ auditor:        cli.mjs qa      <id> --auditor <aud> --audit veredicto.json
 
 Todo lo que puede fallar por contrato falla **antes** de la primera
 escritura, porque el ciclo se calcula puro (`qa-loop.mjs`) y sólo después se
-persiste (`qa-session.mjs`). Si aun así falla la E/S a media persistencia,
-la sección crítica restaura el estado previo y deshace únicamente los
-eventos escritos dentro de ella: nunca queda estado sin evento, evento sin
-estado ni handoff consumido a medias.
+persiste (`qa-session.mjs`).
+
+## Transacciones: qué garantiza v1 y qué no
+
+`events.jsonl` es un recurso **global**, compartido por todas las tarjetas.
+La primera versión de la sesión de QA lo protegía con un lock por `task_id`
+y, al fallar, lo truncaba al tamaño que tenía al empezar; si otra tarjeta
+había registrado un evento válido en ese intervalo, ese evento
+desaparecía. Un log append-only no se deshace borrando historia.
+
+De ahí el diseño actual (`transaction.mjs`):
+
+```
+PREPARE   todos los saltos se validan y se pliegan en memoria, sin escribir
+COMMIT    1. estado   — si falla, no se escribe ningún evento
+          2. eventos  — una sola escritura con todo el grupo
+```
+
+Ambos pasos ocurren bajo `state/events.lock`, la **única** exclusión del log
+y la misma para todo escritor. `fs.appendFileSync` sobre el log aparece
+exactamente una vez en todo el motor, y hay pruebas que verifican ambas
+cosas sobre el código fuente.
+
+Lo que v1 **garantiza**:
+
+- nunca se pierde un evento ya persistido, propio o de otra tarjeta;
+- un fallo al escribir el estado no deja eventos de esa transacción;
+- un fallo al escribir los eventos no deja el estado adelantado: se
+  restaura sólo `state/<task_id>.json`, y el log no se toca jamás;
+- si esa restauración también falla, se lanza `RecoveryRequiredError` y se
+  deja evidencia en `state/recovery/<task_id>.json` en vez de silenciarlo;
+- los eventos de una transacción comparten `transaction_id` y entran todos
+  o ninguno, porque son una sola llamada de escritura.
+
+Lo que v1 **no** garantiza, y no conviene suponer: **no es ACID.** No hay
+journal ni commit en dos fases, no hay `fsync`, y las lecturas del log no
+toman lock. Un corte de energía a media llamada del sistema operativo puede
+dejar una línea incompleta; `readEvents()` fallaría al parsearla, que es
+ruidoso a propósito.
 
 ## Comandos
 
