@@ -482,12 +482,17 @@ IMPLEMENTING → TESTING → READY_FOR_QA
               │
               ▼
          REPAIRING ──→ READY_FOR_QA ──→ QA   (máximo 2 ciclos)
-              │
-        supera el límite
-              │
-              ▼
-     BLOCKED_ARCHITECTURE
+                                          │
+                                          ▼
+                                    QA_FAILED (2.º ciclo)
+                                          │
+                                    supera el límite
+                                          │
+                                          ▼
+                                BLOCKED_ARCHITECTURE
 ```
+
+**Ninguna flecha de este diagrama sale directamente de `QA` hacia `BLOCKED_ARCHITECTURE`.** Toda escalada a `BLOCKED_ARCHITECTURE` — por límite de ciclos o por auditor contradictorio (regla 6 abajo) — pasa primero por `QA_FAILED`, tal como exige la matriz de transiciones (§3.3): `QA` sólo admite `QA_FAILED`, `READY_FOR_INTEGRATION`, `BLOCKED`, `BLOCKED_HUMAN_DECISION` o `CANCELLED`; `QA → BLOCKED_ARCHITECTURE` está prohibida (`·`) en la matriz.
 
 **Independencia — no negociable:**
 
@@ -498,8 +503,12 @@ IMPLEMENTING → TESTING → READY_FOR_QA
 5. El silencio del auditor nunca promueve. Ausencia de veredicto → `RECOVERY`, no aprobación.
 6. **Un auditor que se contradice no promueve.** Un veredicto `PASSED` acompañado
    de hallazgos aún bloqueantes (`CRÍTICO`/`ALTO`, o `MEDIO`/`BAJO` no
-   autorizados por el contrato) es una inconsistencia del propio auditor: escala
-   a `BLOCKED_ARCHITECTURE`, nunca a `READY_FOR_INTEGRATION`. Regla aportada por
+   autorizados por el contrato) es una inconsistencia del propio auditor: **nunca**
+   a `READY_FOR_INTEGRATION`. La transición es `QA → QA_FAILED → BLOCKED_ARCHITECTURE`,
+   no un salto directo — `QA_FAILED` registra la inconsistencia detectada y
+   `BLOCKED_ARCHITECTURE` es el estado final de escalamiento; ambos pasos quedan
+   en el historial de eventos (§8), conforme a la matriz de §3.3, que no admite
+   `QA → BLOCKED_ARCHITECTURE` como transición directa. Regla aportada por
    la implementación de Claude-03 (`2e128c7`) y adoptada aquí.
 
 ---
@@ -510,7 +519,7 @@ Severidades canónicas, sin añadir ninguna: `CRÍTICO` · `ALTO` · `MEDIO` · 
 
 | Severidad | Efecto en el motor                                                                                                                                                                                                                      |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CRÍTICO` | **Nunca** `READY_FOR_INTEGRATION`. → `QA_FAILED`. Si reaparece tras 2 ciclos → `BLOCKED_ARCHITECTURE`.                                                                                                                                  |
+| `CRÍTICO` | **Nunca** `READY_FOR_INTEGRATION`. → `QA_FAILED`. Si reaparece tras 2 ciclos, escala **vía `QA_FAILED`** a `BLOCKED_ARCHITECTURE` (nunca `QA → BLOCKED_ARCHITECTURE` directo — §3.3, §11 regla 6).                                      |
 | `ALTO`    | **Nunca** `READY_FOR_INTEGRATION`. → `QA_FAILED`.                                                                                                                                                                                       |
 | `MEDIO`   | No integrar salvo decisión humana explícita registrada. → `BLOCKED_HUMAN_DECISION` con la decisión concreta que se pide.                                                                                                                |
 | `BAJO`    | Permite `READY_FOR_INTEGRATION` **si** el contrato lo autoriza (`allow_low_findings: true`, por defecto ausente). Se arrastra como observación de seguimiento, igual que las observaciones `BAJO` ya registradas en auditorías previas. |
