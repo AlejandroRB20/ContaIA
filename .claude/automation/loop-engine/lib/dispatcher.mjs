@@ -48,6 +48,38 @@ function holdsLock(taskId, agentId) {
 }
 
 /**
+ * Autoridad para transicionar una tarjeta poseída. Son **dos fuentes
+ * distintas y deliberadamente separadas** (hallazgo MEDIO de la auditoría
+ * de `LOOP-001`):
+ *
+ *   - **lock de la tarjeta** → ownership del código y del worktree. Es del
+ *     implementador y nadie se lo quita.
+ *   - **handoff de QA** → ownership del *proceso* de QA. Lo ejerce el
+ *     auditor independiente sin adquirir el lock, sin tocar el worktree y
+ *     sin poder abrir trabajo de implementación.
+ *
+ * Sin esta separación no existía flujo de QA ejecutable: la transición
+ * `READY_FOR_QA → QA` exige lock, y el lock es de quien no puede auditar.
+ */
+function hasQaAuthority(task, agentId, to) {
+  const handoff = task.qa_handoff;
+  if (!handoff) return false;
+  if (handoff.implementer_id === agentId) return false;
+  if (handoff.auditor_id && handoff.auditor_id !== agentId) return false;
+  if (task.qa_owner && task.qa_owner !== agentId) return false;
+
+  if (task.state === 'READY_FOR_QA' || task.state === 'QA') return true;
+  // Desde QA_FAILED el auditor sólo puede escalar. Abrir REPARACIÓN es
+  // trabajo de implementación y le corresponde a quien tiene el lock.
+  if (task.state === 'QA_FAILED') return to.startsWith('BLOCKED');
+  return false;
+}
+
+function hasStateAuthority(task, agentId, to) {
+  return holdsLock(task.task_id, agentId) || hasQaAuthority(task, agentId, to);
+}
+
+/**
  * Único punto de escritura de `state`. Valida la transición (legalidad,
  * gate humano, posesión de lock, límites), persiste y registra el evento.
  */
@@ -72,7 +104,7 @@ export function transitionTask({ taskId, to, actor, commit, reason, blockedReaso
 
   const actorWithLock = {
     ...who,
-    holdsLock: who.holdsLock ?? (who.type === 'agent' ? holdsLock(taskId, who.id) : true),
+    holdsLock: who.holdsLock ?? (who.type === 'agent' ? hasStateAuthority(current, who.id, to) : true),
   };
 
   const validated = assertTransition(current, to, actorWithLock, limits);

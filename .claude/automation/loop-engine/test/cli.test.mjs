@@ -5,7 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { useTempState, useTempQueue, useTempRepo, taskDefinition, captureError } from './helpers.mjs';
+import {
+  useTempState,
+  useTempQueue,
+  useTempRepo,
+  taskDefinition,
+  commitFiles,
+  captureError,
+} from './helpers.mjs';
 
 const CLI = fileURLToPath(new URL('../cli.mjs', import.meta.url));
 
@@ -105,8 +112,15 @@ test('validate falla cuando el sustrato no está', (t) => {
   assert.match(`${err.stdout ?? ''}${err.stderr ?? ''}`, /sustrato: FALTA/);
 });
 
-test('readiness genera manifest sólo si todo está en verde, y no integra', (t) => {
+/**
+ * Flujo completo por CLI: el implementador construye y entrega evidencia,
+ * el auditor independiente audita y persiste, y sólo entonces el gate de
+ * integración evalúa contra Git real.
+ */
+test('handoff + qa + readiness: flujo real, con evidencia Git y sin integrar', (t) => {
   const repo = setup(t);
+  const candidate = commitFiles(repo.dir, { 'src/a.ts': 'candidato\n' });
+
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-cli-io-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -116,7 +130,7 @@ test('readiness genera manifest sólo si todo está en verde, y no integra', (t)
     handoffFile,
     JSON.stringify({
       implementerId: 'CLAUDE-02',
-      candidateCommit: repo.baseCommit,
+      candidateCommit: candidate,
       baseCommit: repo.baseCommit,
       changedFiles: ['src/a.ts'],
       tests: { passed: true },
@@ -129,17 +143,41 @@ test('readiness genera manifest sólo si todo está en verde, y no integra', (t)
     JSON.stringify({ auditorId: 'CODEX-01', verdict: 'PASSED', findings: [] }),
   );
 
-  const out = runCli([
-    'readiness',
-    'LOOP-TEST-001',
-    '--handoff',
-    handoffFile,
-    '--audit',
-    auditFile,
-    '--write',
+  runCli(['claim', '--agent', 'CLAUDE-02']);
+  runCli(['transition', 'LOOP-TEST-001', '--to', 'TESTING', '--agent', 'CLAUDE-02']);
+  runCli([
+    'transition', 'LOOP-TEST-001', '--to', 'READY_FOR_QA',
+    '--agent', 'CLAUDE-02', '--commit', candidate,
   ]);
+
+  const entregado = runCli([
+    'handoff', 'LOOP-TEST-001', '--agent', 'CLAUDE-02', '--file', handoffFile,
+  ]);
+  assert.match(entregado, /"implementer_id": "CLAUDE-02"/);
+
+  // El auditor no posee el lock y aun así puede auditar: es el handoff, no
+  // el robo del claim, lo que le da autoridad.
+  const auditado = JSON.parse(
+    runCli(['qa', 'LOOP-TEST-001', '--auditor', 'CODEX-01', '--audit', auditFile]),
+  );
+  assert.equal(auditado.state, 'READY_FOR_INTEGRATION');
+  assert.equal(auditado.qa_owner, 'CODEX-01');
+
+  const out = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--write']);
   assert.match(out, /"ready": true/);
+  assert.match(out, /"candidate_commit_verified": true/);
   assert.match(out, /El motor NO integra/);
+});
+
+test('qa exige un auditor declarado', (t) => {
+  setup(t);
+  assert.throws(() => runCli(['qa', 'LOOP-TEST-001']));
+});
+
+test('readiness sin QA persistido no evalúa nada', (t) => {
+  setup(t);
+  const err = captureError(() => runCli(['readiness', 'LOOP-TEST-001']));
+  assert.match(`${err.stdout ?? ''}${err.stderr ?? ''}`, /no tiene handoff de QA persistido/);
 });
 
 test('un comando desconocido sale con código distinto de 0', (t) => {

@@ -24,6 +24,7 @@ export * from './stale-base.mjs';
 export * from './qa-contract.mjs';
 export * from './finding-gate.mjs';
 export * from './qa-loop.mjs';
+export * from './qa-session.mjs';
 export * from './integration-readiness.mjs';
 export * from './recovery.mjs';
 export * from './dispatcher.mjs';

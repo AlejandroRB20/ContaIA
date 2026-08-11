@@ -43,6 +43,16 @@ export function stateMutationLockFile() {
   return path.join(stateDir(), 'state.lock');
 }
 
+/**
+ * Sección crítica de una sesión de QA. Es el **mismo** primitivo de
+ * `lock.mjs` sobre otra ruta, no un segundo subsistema: `withLock` no es
+ * reentrante y la sesión de QA envuelve varias mutaciones que ya toman
+ * `stateMutationLockFile()` por dentro.
+ */
+export function qaSessionLockFile(taskId) {
+  return path.join(locksDir(), `${taskId}.qa.lock`);
+}
+
 export function eventsFile() {
   return path.join(stateDir(), 'events.jsonl');
 }

@@ -49,7 +49,7 @@ repositorio y su `package.json` insinuaba un paquete fuera de
 queue.yaml        VERSIONADO — definiciones de tarjeta (intención)
 cli.mjs           VERSIONADO — interfaz de línea de comandos
 lib/              VERSIONADO — el motor
-test/             VERSIONADO — 100 pruebas (node:test)
+test/             VERSIONADO — suite completa (node:test)
 state/            IGNORADO   — runtime efímero; ya cubierto por el
                               .gitignore raíz que versionó LOOP-000
 ```
@@ -113,6 +113,47 @@ entiende del todo no debe ampliar el alcance por accidente.
 `forbidden_scope` gana siempre sobre `allowed_write`, y un `allowed_write`
 ausente no autoriza nada.
 
+En el gate de integración esos globs **no se evalúan contra lo que el
+constructor declara**, sino contra el diff real que devuelve
+`git diff --name-only base..candidato`. Lo declarado se compara aparte: si
+difiere, bloquea.
+
+## QA: dos ownerships, no uno
+
+`READY_FOR_QA → QA` exige poseer la tarjeta, y quien la posee es el
+implementador — que por definición no puede auditarse. Sin separar los dos
+ownerships no había flujo de QA ejecutable:
+
+| Ownership          | Quién                    | Sobre qué                                  |
+| ------------------ | ------------------------ | ------------------------------------------ |
+| Lock de la tarjeta | implementador            | código, worktree, commit candidato         |
+| Handoff de QA      | auditor independiente    | proceso de QA y su traza en `state/`       |
+
+El auditor **nunca adquiere el lock** y nunca escribe en el worktree. Su
+autoridad se limita a `READY_FOR_QA`, `QA` y —sólo para escalar— a salir de
+`QA_FAILED` hacia un `BLOCKED*`. Abrir `REPARACIÓN` sigue siendo del
+implementador.
+
+Que el veredicto se persista en `state/` no rompe el «QA READ ONLY»: el
+auditor no toca código, worktree, commit ni documentación de producto.
+Dejar constancia del proceso es justamente lo que faltaba.
+
+El flujo real:
+
+```
+implementador:  … → TESTING → READY_FOR_QA
+implementador:  cli.mjs handoff <id> --agent <impl> --file evidencia.json [--auditor <id>]
+auditor:        cli.mjs qa      <id> --auditor <aud> --audit veredicto.json
+                → persiste READY_FOR_QA → QA → {READY_FOR_INTEGRATION | QA_FAILED | BLOCKED*}
+```
+
+Todo lo que puede fallar por contrato falla **antes** de la primera
+escritura, porque el ciclo se calcula puro (`qa-loop.mjs`) y sólo después se
+persiste (`qa-session.mjs`). Si aun así falla la E/S a media persistencia,
+la sección crítica restaura el estado previo y deshace únicamente los
+eventos escritos dentro de ella: nunca queda estado sin evento, evento sin
+estado ni handoff consumido a medias.
+
 ## Comandos
 
 ```
@@ -124,8 +165,9 @@ node cli.mjs block <task_id> --reason <texto> [--to BLOCKED|BLOCKED_ARCHITECTURE
 node cli.mjs release <task_id> --agent <id>
 node cli.mjs resume <task_id> --human <id>          # exige --human
 node cli.mjs validate [--worktree <ruta>] [--role <agent_role>]
-node cli.mjs qa <task_id> --handoff <f.json> --audit <f.json>
-node cli.mjs readiness <task_id> --handoff <f.json> --audit <f.json> [--write]
+node cli.mjs handoff <task_id> --agent <implementer_id> --file <f.json> [--auditor <id>]
+node cli.mjs qa <task_id> --auditor <auditor_id> --audit <f.json>
+node cli.mjs readiness <task_id> [--repo <ruta>] [--target <ref>] [--write]
 ```
 
 `release` distingue el momento: desde `CLAIMED` devuelve la tarjeta a `READY`
@@ -142,7 +184,9 @@ Variables de entorno para pruebas: `LOOP_ENGINE_STATE_DIR`,
 node --test 'test/*.test.mjs'
 ```
 
-Sin dependencias nuevas y sin registrar el motor en `pnpm-workspace.yaml`:
+Se ejecuta la suite completa; aquí no se declara un número de pruebas,
+porque una cifra escrita a mano queda obsoleta en la primera tarjeta que
+añada casos. Sin dependencias nuevas y sin registrar el motor en `pnpm-workspace.yaml`:
 corre con Node nativo.
 
 ## Limitaciones conocidas de v1

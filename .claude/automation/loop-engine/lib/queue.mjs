@@ -49,6 +49,9 @@ const RUNTIME_FIELDS = Object.freeze([
   'branch',
   'candidate_commit',
   'blocked_reason',
+  'qa_handoff',
+  'qa_owner',
+  'qa_result',
 ]);
 
 export { DEFINITION_FIELDS, RUNTIME_FIELDS };
@@ -203,5 +206,10 @@ export function instantiate(definition) {
     branch: null,
     candidate_commit: null,
     blocked_reason: null,
+
+    // sesión de QA (ownership de proceso, separado del lock de código)
+    qa_handoff: null,
+    qa_owner: null,
+    qa_result: null,
   };
 }

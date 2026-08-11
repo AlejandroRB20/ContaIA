@@ -85,6 +85,22 @@ export function useTempRepo(t, { withSubstrate = true } = {}) {
   return { dir, baseCommit };
 }
 
+/**
+ * Commit real dentro del repositorio temporal. Las pruebas del gate de
+ * integración necesitan commits que Git pueda verificar de verdad: un SHA
+ * inventado es justo lo que el gate debe rechazar.
+ */
+export function commitFiles(repoDir, files, message = 'candidato') {
+  for (const [relative, content] of Object.entries(files)) {
+    const target = path.join(repoDir, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, 'utf8');
+  }
+  execFileSync('git', ['add', '-A'], { cwd: repoDir, stdio: 'pipe' });
+  execFileSync('git', ['commit', '--quiet', '-m', message], { cwd: repoDir, stdio: 'pipe' });
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoDir }).toString().trim();
+}
+
 /** Escribe el sustrato mínimo de gobierno que `verifySubstrate` exige. */
 export function writeSubstrate(root) {
   fs.mkdirSync(path.join(root, '.claude', 'rules'), { recursive: true });

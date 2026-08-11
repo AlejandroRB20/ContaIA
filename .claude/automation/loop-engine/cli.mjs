@@ -11,7 +11,8 @@
  *   release    devuelve una tarjeta poseída a READY
  *   resume     desbloquea (EXIGE --human)
  *   validate   valida queue.yaml y el sustrato de gobierno
- *   qa         registra el resultado de una auditoría independiente
+ *   handoff    el implementador entrega su evidencia en READY_FOR_QA
+ *   qa         audita de forma independiente y PERSISTE el resultado
  *   readiness  evalúa READY_FOR_INTEGRATION y genera el manifest
  */
 import fs from 'node:fs';
@@ -23,8 +24,7 @@ import { dispatch, transitionTask, block, release, resume } from './lib/dispatch
 import { eventsForTask } from './lib/events.mjs';
 import { verifySubstrate } from './lib/substrate.mjs';
 import { inspectTask, findRecoverableClaims } from './lib/recovery.mjs';
-import { validateHandoff, validateAuditResult } from './lib/qa-contract.mjs';
-import { createLoopState, beginQa, submitQaResult } from './lib/qa-loop.mjs';
+import { submitHandoff, runQa, handoffFromRecord } from './lib/qa-session.mjs';
 import { evaluateIntegrationReadiness } from './lib/integration-readiness.mjs';
 import { manifestsDir } from './lib/paths.mjs';
 
@@ -187,29 +187,69 @@ const COMMANDS = {
     return { queue, substrate, orphans };
   },
 
+  /** El implementador entrega su evidencia; exige poseer el lock. */
+  handoff(flags, positional) {
+    const taskId = requireTaskId(flags, positional);
+    if (!flags.agent) throw new Error('handoff requiere --agent <implementer_id>');
+    const result = submitHandoff({
+      taskId,
+      implementerId: flags.agent,
+      handoff: readJsonFlag(flags.file, '--file'),
+      auditorId: typeof flags.auditor === 'string' ? flags.auditor : null,
+    });
+    console.log(JSON.stringify(result.handoff, null, 2));
+    return result;
+  },
+
+  /**
+   * Auditoría independiente **persistente**: carga el estado, valida el
+   * handoff entregado, valida la independencia del auditor y escribe la
+   * entrada a QA, el resultado y la transición posterior.
+   */
   qa(flags, positional) {
     const taskId = requireTaskId(flags, positional);
-    const handoff = readJsonFlag(flags.handoff, '--handoff');
-    const audit = readJsonFlag(flags.audit, '--audit');
-
-    const handoffCheck = validateHandoff(handoff);
-    if (!handoffCheck.valid) throw new Error(`handoff inválido:\n  - ${handoffCheck.errors.join('\n  - ')}`);
-    const auditCheck = validateAuditResult(audit);
-    if (!auditCheck.valid) throw new Error(`auditResult inválido:\n  - ${auditCheck.errors.join('\n  - ')}`);
-
-    const task = getOrCreateTaskState(taskId);
-    const loop = submitQaResult(beginQa(createLoopState(taskId, handoff, task)), audit);
-    console.log(JSON.stringify({ state: loop.state, history: loop.history }, null, 2));
-    return loop;
+    if (!flags.auditor) {
+      throw new Error('qa requiere --auditor <auditor_id>, independiente del implementador');
+    }
+    const result = runQa({
+      taskId,
+      auditorId: flags.auditor,
+      auditResult: readJsonFlag(flags.audit, '--audit'),
+    });
+    console.log(
+      JSON.stringify(
+        {
+          state: result.state,
+          qa_owner: result.auditorId,
+          history: result.history.map((h) => ({ from: h.from, to: h.to })),
+        },
+        null,
+        2,
+      ),
+    );
+    return result;
   },
 
   readiness(flags, positional) {
     const taskId = requireTaskId(flags, positional);
-    const handoff = readJsonFlag(flags.handoff, '--handoff');
-    const audit = readJsonFlag(flags.audit, '--audit');
     const task = getOrCreateTaskState(taskId);
 
-    const result = evaluateIntegrationReadiness(handoff, audit, task);
+    if (!task.qa_handoff) throw new Error(`"${taskId}" no tiene handoff de QA persistido`);
+    if (!task.qa_result) throw new Error(`"${taskId}" no tiene resultado de QA: ejecutar \`qa\` primero`);
+
+    const result = evaluateIntegrationReadiness(
+      handoffFromRecord(task.qa_handoff),
+      {
+        auditorId: task.qa_result.auditor_id,
+        verdict: task.qa_result.verdict,
+        findings: task.qa_result.findings,
+      },
+      task,
+      {
+        repoPath: typeof flags.repo === 'string' ? flags.repo : undefined,
+        targetRef: typeof flags.target === 'string' ? flags.target : undefined,
+      },
+    );
     console.log(JSON.stringify(result, null, 2));
 
     if (result.ready && flags.write) {
