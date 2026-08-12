@@ -42,6 +42,10 @@ repositorio y su `package.json` insinuaba un paquete fuera de
    Liberar exige `confirmed: true` y coincidencia de dueño.
 8. **No ignora hallazgos.** `CRÍTICO`/`ALTO` bloquean sin excepción; `MEDIO`
    exige decisión humana; `BAJO` sólo pasa con autorización explícita.
+9. **No se auto-repara.** Una recuperación pendiente bloquea la tarjeta hasta
+   que una persona la resuelva con `--confirmed`; no caduca ni se limpia sola.
+10. **No decide sobre estado no confirmado.** Mientras una transacción no esté
+    respaldada por el event log, ninguna operación decisoria la consume.
 
 ## Estructura
 
@@ -165,12 +169,14 @@ De ahí el diseño actual (`transaction.mjs`):
 
 ```
 PREPARE   todos los saltos se validan y se pliegan en memoria, sin escribir
-COMMIT    1. estado   — si falla, no se escribe ningún evento
-          2. eventos  — una sola escritura con todo el grupo
+LOCKS     lock global del log y, dentro, el lock de estado
+STATE     estado nuevo MARCADO `transaction_pending`
+EVENTS    una sola escritura con todo el grupo
+CONFIRM   se retira la marca: el estado ya está respaldado por el log
 ```
 
-Ambos pasos ocurren bajo `state/events.lock`, la **única** exclusión del log
-y la misma para todo escritor. `fs.appendFileSync` sobre el log aparece
+Todos los pasos ocurren bajo `state/events.lock`, la **única** exclusión del
+log y la misma para todo escritor. `fs.appendFileSync` sobre el log aparece
 exactamente una vez en todo el motor, y hay pruebas que verifican ambas
 cosas sobre el código fuente.
 
@@ -183,13 +189,92 @@ Lo que v1 **garantiza**:
 - si esa restauración también falla, se lanza `RecoveryRequiredError` y se
   deja evidencia en `state/recovery/<task_id>.json` en vez de silenciarlo;
 - los eventos de una transacción comparten `transaction_id` y entran todos
-  o ninguno, porque son una sola llamada de escritura.
+  o ninguno, porque son una sola llamada de escritura;
+- **mientras el estado no esté respaldado por el log, ninguna operación
+  decisoria puede consumirlo** (ver la marca, abajo).
 
 Lo que v1 **no** garantiza, y no conviene suponer: **no es ACID.** No hay
 journal ni commit en dos fases, no hay `fsync`, y las lecturas del log no
 toman lock. Un corte de energía a media llamada del sistema operativo puede
 dejar una línea incompleta; `readEvents()` fallaría al parsearla, que es
-ruidoso a propósito.
+ruidoso a propósito. Tampoco hay aislamiento de instantánea: la ventana entre
+STATE y EVENTS **existe**, sólo que ya no es silenciosa.
+
+### La marca `transaction_pending`
+
+Entre STATE y EVENTS el estado en disco va por delante del log. Antes eso no
+se señalaba, así que un lector concurrente (`status`, `list`, `readiness`, el
+dispatcher) podía **decidir** sobre un estado que un instante después se
+restauraba — hallazgo MEDIO de la reauditoría.
+
+Ahora el intervalo es local y verificable: `state/<task_id>.json` lleva
+`transaction_pending` mientras dura, y `lib/guard.mjs` lo convierte en
+fail-closed. Eliminarlo exigiría un journal; hacerlo explícito no.
+
+| Consumidor                                    | Comportamiento                     |
+| --------------------------------------------- | ---------------------------------- |
+| `transition` · `block` · `release` · `resume`  | bloquea (`PENDING_TRANSACTION`)    |
+| `claim` / dispatcher                           | la tarjeta no es elegible          |
+| `handoff` · `qa`                               | bloquea                            |
+| `readiness`                                    | bloquea                            |
+| `status` · `list`                              | **informa**, nunca promueve        |
+
+Si la marca no puede retirarse en CONFIRM, la transacción fue correcta pero
+no pudimos cerrarla: se deja evidencia de recuperación y la tarjeta queda
+bloqueada. Una limpieza fallida nunca se da por buena.
+
+## Recuperación: bloqueante y con resolución humana
+
+`state/recovery/<task_id>.json` no es un aviso, es un **bloqueo**. Su sola
+presencia hace que la tarjeta no admita ninguna operación que la promueva
+(`RECOVERY_REQUIRED`). Antes la evidencia se escribía y nadie la consultaba
+— hallazgo ALTO de la reauditoría: la tarjeta seguía avanzando sobre un
+estado que el propio motor había declarado irrecuperable.
+
+**No hay auto-heal.** Nada caduca, nada se resuelve solo y ninguna ruta del
+motor levanta el bloqueo como efecto lateral. Salir exige una persona:
+
+```
+node cli.mjs resolve-recovery <task_id> --human <id> --reason <texto> --confirmed \
+                              [--disposition block_human_decision|restore_snapshot]
+```
+
+Dos disposiciones, ninguna elegida por el motor:
+
+- `block_human_decision` (por defecto) — el motor **no infiere** el estado
+  correcto: la tarjeta va a `BLOCKED_HUMAN_DECISION` y decide una persona.
+- `restore_snapshot` — sólo procede si la evidencia conserva el estado previo
+  **y** el log confirma que los eventos de esa transacción nunca llegaron.
+  Entonces restaurar no es adivinar: es reconciliar el estado con la única
+  fuente de verdad. Si el log lo contradice, se rechaza.
+
+La evidencia nunca se destruye: se archiva en `state/recovery/resolved/` con
+quién, cuándo, por qué y con qué disposición, y la resolución queda además en
+`events.jsonl` como acto humano.
+
+## Locks bajo contención en Windows
+
+`acquireLock` usa `O_EXCL` (`'wx'`), una sola syscall atómica. Bajo contención
+real Windows devuelve dos códigos distintos, y confundirlos era el tercer
+hallazgo de la reauditoría. Medido en Windows 11 · Node 24, 6 procesos × 4000
+adquisiciones sobre la misma ruta:
+
+```
+open:EEXIST  21332      lock ocupado por otro proceso
+open:EPERM    1857      ventana delete-pending de NTFS (~8 %)
+```
+
+`EPERM` aparece cuando un proceso llama a `unlink` mientras otro hace
+`CreateFile`: Win32 devuelve `ERROR_ACCESS_DENIED` y libuv lo traduce a
+`EPERM`. No es un error permanente ni un lock legible — es contención.
+
+El criterio es deliberadamente **estrecho**: sólo se reintenta el `EPERM` que
+ocurre al crear/abrir el lock y con el directorio contenedor escribible.
+`withLock` lo reintenta con presupuesto acotado y backoff lineal con techo de
+100 ms; agotarlo **falla** (`TransientLockError`), nunca devuelve éxito.
+Cualquier otro código (`ENOENT`, `EACCES`, `EROFS`, `EMFILE`…) se propaga en el
+primer intento. `EEXIST` sigue siendo `LockHeldError`, y nadie borra un lock
+ajeno.
 
 ## Comandos
 
@@ -205,6 +290,7 @@ node cli.mjs validate [--worktree <ruta>] [--role <agent_role>]
 node cli.mjs handoff <task_id> --agent <implementer_id> --file <f.json> [--auditor <id>]
 node cli.mjs qa <task_id> --auditor <auditor_id> --audit <f.json>
 node cli.mjs readiness <task_id> [--repo <ruta>] [--target <ref>] [--write]
+node cli.mjs resolve-recovery <task_id> --human <id> --reason <t> --confirmed [--disposition <d>]
 ```
 
 `release` distingue el momento: desde `CLAIMED` devuelve la tarjeta a `READY`

@@ -16,6 +16,7 @@ export * from './store.mjs';
 export * from './lock.mjs';
 export * from './events.mjs';
 export * from './transaction.mjs';
+export * from './guard.mjs';
 export * from './substrate.mjs';
 export * from './worktree.mjs';
 export * from './concurrency.mjs';

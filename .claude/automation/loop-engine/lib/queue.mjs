@@ -52,6 +52,7 @@ const RUNTIME_FIELDS = Object.freeze([
   'qa_handoff',
   'qa_owner',
   'qa_result',
+  'transaction_pending',
 ]);
 
 export { DEFINITION_FIELDS, RUNTIME_FIELDS };

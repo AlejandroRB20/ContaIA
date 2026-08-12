@@ -33,6 +33,54 @@ export class ForeignLockError extends Error {
   }
 }
 
+/**
+ * Contención **transitoria** al adquirir: la ruta existe pero el sistema de
+ * archivos aún no deja abrirla en exclusiva. No es un lock legible ni un
+ * error permanente; es una condición que se reintenta.
+ *
+ * Conserva el `cause` original para que un EPERM que resulte ser permanente
+ * siga siendo diagnosticable — no se reinterpreta como éxito jamás.
+ */
+export class TransientLockError extends Error {
+  constructor(lockPath, cause) {
+    super(
+      `No se pudo abrir ${lockPath} en exclusiva por contención transitoria del sistema de ` +
+        `archivos (${cause.code}). Se reintenta un número acotado de veces.`,
+    );
+    this.name = 'TransientLockError';
+    this.code = 'LOCK_CONTENTION_TRANSIENT';
+    this.lockPath = lockPath;
+    this.cause = cause;
+  }
+}
+
+/**
+ * ¿`EPERM` compatible con contención y no con un error permanente?
+ *
+ * Medido en Windows 11 (Node 24) con 6 procesos × 4000 adquisiciones sobre
+ * la misma ruta: **21332 `EEXIST` y 1857 `EPERM`**, todos en `open(…,'wx')`
+ * y ninguno al liberar. Es la ventana *delete-pending* de NTFS: un proceso
+ * llama a `unlink` mientras otro hace `CreateFile`, y Win32 devuelve
+ * `ERROR_ACCESS_DENIED`, que libuv traduce a `EPERM`.
+ *
+ * El criterio es deliberadamente estrecho — sólo se trata así el `EPERM` que
+ * ocurre **al crear/abrir el lock**, y sólo si la ruta ya está ocupada o
+ * acaba de estarlo, que es lo que distingue la contención de un permiso
+ * denegado de verdad. Cualquier otro código (`ENOENT` sin directorio padre,
+ * `EACCES`, `EROFS`, `EMFILE`…) se propaga intacto.
+ */
+function isTransientAcquireError(err, lockPath) {
+  if (err.code !== 'EPERM') return false;
+  // El directorio contenedor debe existir y ser escribible: si no, el EPERM
+  // es estructural y no una carrera con otro escritor.
+  try {
+    fs.accessSync(path.dirname(lockPath), fs.constants.W_OK);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 export function acquireLock(lockPath, payload) {
   fs.mkdirSync(path.dirname(lockPath), { recursive: true });
   let fd;
@@ -41,6 +89,9 @@ export function acquireLock(lockPath, payload) {
   } catch (err) {
     if (err.code === 'EEXIST') {
       throw new LockHeldError(lockPath, readLock(lockPath)?.agent_id);
+    }
+    if (isTransientAcquireError(err, lockPath)) {
+      throw new TransientLockError(lockPath, err);
     }
     throw err;
   }
@@ -97,6 +148,15 @@ export function releaseLock(lockPath, { agentId, confirmed } = {}) {
  * Sección crítica breve (leer-modificar-escribir de estado). A diferencia
  * del lock de posesión de tarjeta, éste sí reintenta: es contención
  * esperada entre procesos, no un conflicto de autoridad.
+ *
+ * Reintenta exactamente dos condiciones, ambas de contención:
+ *
+ *   - `LockHeldError` (`EEXIST`) — otro proceso lo tiene ahora mismo.
+ *   - `TransientLockError` (`EPERM`) — ventana *delete-pending* de NTFS.
+ *
+ * Todo lo demás se propaga en el primer intento. El presupuesto es acotado
+ * (`retries`), nunca hay bucle infinito y **agotar los reintentos falla**:
+ * un `EPERM` persistente termina lanzando, no devolviendo éxito.
  */
 export function withLock(lockPath, fn, { retries = 50, retryDelayMs = 20 } = {}) {
   let attempt = 0;
@@ -105,9 +165,12 @@ export function withLock(lockPath, fn, { retries = 50, retryDelayMs = 20 } = {})
       acquireLock(lockPath, { purpose: 'critical-section', pid_hint: process.pid });
       break;
     } catch (err) {
-      if (!(err instanceof LockHeldError) || attempt >= retries) throw err;
+      const contention = err instanceof LockHeldError || err instanceof TransientLockError;
+      if (!contention || attempt >= retries) throw err;
       attempt += 1;
-      sleepSync(retryDelayMs);
+      // Backoff lineal con techo: la ventana delete-pending dura poco y
+      // esperar más de 100 ms por intento sólo alarga la sección crítica.
+      sleepSync(Math.min(retryDelayMs * attempt, 100));
     }
   }
   try {

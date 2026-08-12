@@ -5,6 +5,7 @@ import { listTasks, getOrCreateTaskState, mutateTaskState } from './store.mjs';
 import { assertTransition, isTerminal } from './state-machine.mjs';
 import { commitTransaction } from './transaction.mjs';
 import { evaluateConcurrency } from './concurrency.mjs';
+import { assertOperable, describeTaskConditions } from './guard.mjs';
 import { assertSubstrate } from './substrate.mjs';
 import {
   ensureWorktree,
@@ -144,9 +145,15 @@ export function prepareTransition({ task: current, to, actor, commit, reason, bl
  * Único punto de escritura de `state`. Valida la transición (legalidad,
  * gate humano, posesión de lock, límites) y la persiste junto a su evento
  * como una sola transacción.
+ *
+ * Ser el único punto de escritura lo convierte también en el punto natural
+ * de la guarda: `transition`, `block`, `release`, `resume`, el `claim` y el
+ * arranque automático del dispatcher pasan todos por aquí, así que una sola
+ * llamada a `assertOperable` los cubre a todos sin dispersar la regla.
  */
 export function transitionTask({ taskId, to, actor, commit, reason, blockedReason, limits }) {
   const current = getOrCreateTaskState(taskId);
+  assertOperable(taskId, current);
   const prepared = prepareTransition({
     task: current,
     to,
@@ -266,6 +273,18 @@ export function dispatch({
   let selected = null;
 
   for (const task of ready) {
+    // Fail-closed antes que nada: una tarjeta con recuperación pendiente o
+    // con una transacción sin confirmar no es despachable, aunque su
+    // `state` diga `READY`. Se registra el motivo; no se silencia.
+    const conditions = describeTaskConditions(task.task_id, task);
+    if (!conditions.operable) {
+      skipped.push({
+        task_id: task.task_id,
+        reason: 'not-operable',
+        conditions: conditions.conditions,
+      });
+      continue;
+    }
     if (readLock(taskLockFile(task.task_id))) {
       skipped.push({ task_id: task.task_id, reason: 'lock-present' });
       continue;

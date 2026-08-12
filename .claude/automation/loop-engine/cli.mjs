@@ -14,6 +14,8 @@
  *   handoff    el implementador entrega su evidencia en READY_FOR_QA
  *   qa         audita de forma independiente y PERSISTE el resultado
  *   readiness  evalúa READY_FOR_INTEGRATION y genera el manifest
+ *
+ *   resolve-recovery  resolución HUMANA de una recuperación pendiente
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,9 +25,10 @@ import { listTasks, getOrCreateTaskState } from './lib/store.mjs';
 import { dispatch, transitionTask, block, release, resume } from './lib/dispatcher.mjs';
 import { eventsForTask } from './lib/events.mjs';
 import { verifySubstrate } from './lib/substrate.mjs';
-import { inspectTask, findRecoverableClaims } from './lib/recovery.mjs';
-import { submitHandoff, runQa, handoffFromRecord } from './lib/qa-session.mjs';
-import { evaluateIntegrationReadiness } from './lib/integration-readiness.mjs';
+import { inspectTask, findRecoverableClaims, resolveRecovery } from './lib/recovery.mjs';
+import { describeTaskConditions } from './lib/guard.mjs';
+import { submitHandoff, runQa } from './lib/qa-session.mjs';
+import { evaluateTaskReadiness } from './lib/integration-readiness.mjs';
 import { manifestsDir } from './lib/paths.mjs';
 
 function parseFlags(args) {
@@ -72,8 +75,12 @@ const COMMANDS = {
     const tasks = listTasks();
     const filtered = flags.state ? tasks.filter((t) => t.state === flags.state) : tasks;
     for (const t of filtered) {
+      // Informativo, no decisorio: la condición se muestra junto al estado
+      // para que nadie lea `READY` y suponga que la tarjeta es operable.
+      const { conditions } = describeTaskConditions(t.task_id, t);
+      const marca = conditions.length > 0 ? `\t[${conditions.join(',')}]` : '';
       console.log(
-        `${t.task_id}\t${t.state}\t${t.risk_class}\towner=${t.owner ?? '-'}\t${t.title}`,
+        `${t.task_id}\t${t.state}\t${t.risk_class}\towner=${t.owner ?? '-'}\t${t.title}${marca}`,
       );
     }
     return filtered;
@@ -83,6 +90,20 @@ const COMMANDS = {
     const taskId = requireTaskId(flags, positional);
     const task = getOrCreateTaskState(taskId);
     console.log(JSON.stringify(task, null, 2));
+
+    // `status` informa y no promueve: muestra la condición sin lanzar.
+    const conditions = describeTaskConditions(taskId, task);
+    if (!conditions.operable) {
+      console.log('--- condiciones bloqueantes ---');
+      console.log(conditions.conditions.join(', '));
+      console.log(
+        'La tarjeta NO admite operaciones que la promuevan. ' +
+          (conditions.recovery
+            ? 'Resolver con `resolve-recovery --human <id> --reason <texto> --confirmed`.'
+            : 'Hay una transacción sin confirmar: el estado aún no está respaldado por el log.'),
+      );
+    }
+
     console.log('--- recuperación ---');
     console.log(JSON.stringify(inspectTask(task), null, 2));
     console.log('--- eventos ---');
@@ -232,24 +253,11 @@ const COMMANDS = {
 
   readiness(flags, positional) {
     const taskId = requireTaskId(flags, positional);
-    const task = getOrCreateTaskState(taskId);
-
-    if (!task.qa_handoff) throw new Error(`"${taskId}" no tiene handoff de QA persistido`);
-    if (!task.qa_result) throw new Error(`"${taskId}" no tiene resultado de QA: ejecutar \`qa\` primero`);
-
-    const result = evaluateIntegrationReadiness(
-      handoffFromRecord(task.qa_handoff),
-      {
-        auditorId: task.qa_result.auditor_id,
-        verdict: task.qa_result.verdict,
-        findings: task.qa_result.findings,
-      },
-      task,
-      {
-        repoPath: typeof flags.repo === 'string' ? flags.repo : undefined,
-        targetRef: typeof flags.target === 'string' ? flags.target : undefined,
-      },
-    );
+    const result = evaluateTaskReadiness({
+      taskId,
+      repoPath: typeof flags.repo === 'string' ? flags.repo : undefined,
+      targetRef: typeof flags.target === 'string' ? flags.target : undefined,
+    });
     console.log(JSON.stringify(result, null, 2));
 
     if (result.ready && flags.write) {
@@ -260,6 +268,41 @@ const COMMANDS = {
       console.log(`manifest escrito: ${file}`);
       console.log('El motor NO integra. La integración es un gate humano.');
     }
+    return result;
+  },
+
+  /**
+   * Resolución humana de una recuperación pendiente. Exige `--human`,
+   * `--reason` y `--confirmed`: no hay forma de levantar el bloqueo por
+   * omisión, y ninguna otra ruta del motor lo levanta como efecto lateral.
+   */
+  'resolve-recovery': (flags, positional) => {
+    const taskId = requireTaskId(flags, positional);
+    if (!flags.human) {
+      throw new Error(
+        'resolve-recovery exige --human <id>: la recuperación es un gate humano. ' +
+          'El motor no se auto-repara.',
+      );
+    }
+    if (!flags.confirmed) {
+      throw new Error(
+        'resolve-recovery exige --confirmed. Revisar antes la evidencia con `status <task_id>`.',
+      );
+    }
+    if (typeof flags.reason !== 'string') {
+      throw new Error('resolve-recovery exige --reason <texto>: por qué se considera resuelta.');
+    }
+
+    const result = resolveRecovery({
+      taskId,
+      resolvedBy: typeof flags.human === 'string' ? flags.human : 'HUMAN',
+      reason: flags.reason,
+      confirmed: true,
+      disposition: typeof flags.disposition === 'string' ? flags.disposition : undefined,
+    });
+    console.log(JSON.stringify(result.resolution, null, 2));
+    console.log(`evidencia archivada (no borrada): ${result.archived}`);
+    console.log(`estado resultante: ${result.task.state}`);
     return result;
   },
 };

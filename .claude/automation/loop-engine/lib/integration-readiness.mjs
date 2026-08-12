@@ -2,6 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { evaluateFindings } from './finding-gate.mjs';
 import { checkWriteScope, normalizePath } from './glob.mjs';
 import { repoRoot } from './paths.mjs';
+import { getOrCreateTaskState } from './store.mjs';
+import { assertOperable } from './guard.mjs';
+import { handoffFromRecord } from './qa-session.mjs';
 
 /**
  * Único punto que decide si un candidato puede declararse
@@ -256,6 +259,36 @@ export function evaluateIntegrationReadiness(
       generated_at: new Date().toISOString(),
     },
   };
+}
+
+/**
+ * Readiness **de una tarjeta del motor**, no de un handoff suelto.
+ *
+ * `evaluateIntegrationReadiness` es puro y no conoce `task_id`: no puede
+ * saber si el estado que se le pasa está confirmado. Esta capa es la que sí
+ * lo sabe, y por eso es aquí donde vive la guarda. Declarar
+ * `READY_FOR_INTEGRATION` es la decisión más consecuente del motor —
+ * produce el manifest sobre el que una persona integra— así que no puede
+ * calcularse sobre un estado sin respaldo en el log ni sobre una tarjeta con
+ * recuperación pendiente.
+ */
+export function evaluateTaskReadiness({ taskId, repoPath, targetRef }) {
+  const task = getOrCreateTaskState(taskId);
+  assertOperable(taskId, task);
+
+  if (!task.qa_handoff) throw new Error(`"${taskId}" no tiene handoff de QA persistido`);
+  if (!task.qa_result) throw new Error(`"${taskId}" no tiene resultado de QA: ejecutar \`qa\` primero`);
+
+  return evaluateIntegrationReadiness(
+    handoffFromRecord(task.qa_handoff),
+    {
+      auditorId: task.qa_result.auditor_id,
+      verdict: task.qa_result.verdict,
+      findings: task.qa_result.findings,
+    },
+    task,
+    { repoPath, targetRef },
+  );
 }
 
 /**

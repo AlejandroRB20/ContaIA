@@ -53,6 +53,24 @@ export function qaSessionLockFile(taskId) {
   return path.join(locksDir(), `${taskId}.qa.lock`);
 }
 
+/**
+ * Evidencia durable de recuperación. Un archivo aquí significa que la
+ * tarjeta **no es operable** hasta que una persona lo resuelva
+ * explícitamente (`guard.mjs`). El motor nunca lo borra por su cuenta.
+ */
+export function recoveryDir() {
+  return path.join(stateDir(), 'recovery');
+}
+
+export function recoveryFile(taskId) {
+  return path.join(recoveryDir(), `${taskId}.json`);
+}
+
+/** Archivo histórico de recuperaciones ya resueltas. Nunca se purga. */
+export function resolvedRecoveryDir() {
+  return path.join(recoveryDir(), 'resolved');
+}
+
 export function eventsFile() {
   return path.join(stateDir(), 'events.jsonl');
 }

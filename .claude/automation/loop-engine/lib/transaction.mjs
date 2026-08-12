@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { stateDir, stateMutationLockFile } from './paths.mjs';
+import { recoveryFile, stateMutationLockFile } from './paths.mjs';
 import { withLock } from './lock.mjs';
 import { getOrCreateTaskState, writeTaskState } from './store.mjs';
 import { withEventLogLock, appendRecordsHoldingEventLock, toEventRecord } from './events.mjs';
@@ -20,20 +20,44 @@ import { withEventLogLock, appendRecordsHoldingEventLock, toEventRecord } from '
  * El arreglo no es mover el `truncate` bajo otro lock: es **no truncar
  * nunca**. Un log append-only no se deshace borrando historia.
  *
- * ## Orden de commit (§ recomendación de la misión)
+ * ## Orden de commit
  *
  *   PREPARE  — todo se calcula y se valida en memoria, sin escribir.
- *   1. estado — si falla, **no se escribe ningún evento**.
- *   2. eventos — una sola escritura con todo el grupo.
+ *   LOCKS    — lock global del log, y dentro de él el lock de estado.
+ *   STATE    — estado nuevo **marcado** `transaction_pending`.
+ *   EVENTS   — una sola escritura con todo el grupo.
+ *   CONFIRM  — se retira la marca: el estado queda respaldado por el log.
  *
- * Si (2) falla se restaura únicamente `state/<task_id>.json`; el log global
- * no se toca jamás. Si esa restauración también falla, se deja evidencia en
- * `state/recovery/<task_id>.json` y se lanza `RecoveryRequiredError`.
+ * ## La marca `transaction_pending` — hallazgo MEDIO de la reauditoría
+ *
+ * Entre STATE y EVENTS el estado en disco va por delante del log. La versión
+ * anterior no lo señalaba, así que un lector concurrente (`status`, `list`,
+ * `readiness`, el dispatcher) podía **decidir** sobre un estado que un
+ * instante después se restauraba.
+ *
+ * Ahora ese intervalo es explícito y local: `state/<task_id>.json` lleva
+ * `transaction_pending` mientras dura. `guard.mjs` lo convierte en
+ * fail-closed para toda operación decisoria; las lecturas informativas
+ * pueden mostrarlo como `PENDING_TRANSACTION` sin actuar. La ventana no se
+ * elimina —eso exigiría un journal— pero deja de ser **silenciosa**, que es
+ * lo que la hacía peligrosa.
+ *
+ * ## Rutas de fallo
+ *
+ *   - falla STATE  → no se escribe ningún evento; nada que deshacer.
+ *   - falla EVENTS → se restaura el estado previo (sin marca). El log global
+ *                    **no se trunca jamás**.
+ *   - falla la restauración → evidencia en `state/recovery/<task_id>.json`,
+ *                    la marca **permanece** y se lanza `RecoveryRequiredError`.
+ *   - falla CONFIRM → los eventos ya están escritos y son válidos, pero la
+ *                    marca no pudo retirarse. Se deja evidencia y la tarjeta
+ *                    queda bloqueada: preferimos exigir una revisión humana
+ *                    antes que declarar confirmado lo que no pudimos cerrar.
  *
  * ## Garantía que ofrece v1 — y la que no
  *
- * **No es ACID.** No hay journal ni fsync de dos fases. Lo que sí garantiza,
- * y está cubierto por pruebas:
+ * **No es ACID.** No hay journal, ni fsync de dos fases, ni aislamiento de
+ * snapshot. Lo que sí garantiza, y está cubierto por pruebas:
  *
  *   - nunca se pierde un evento ya persistido, de esta tarjeta o de otra;
  *   - un fallo al escribir el estado no deja eventos de esa transacción;
@@ -42,10 +66,14 @@ import { withEventLogLock, appendRecordsHoldingEventLock, toEventRecord } from '
  *     de silenciarse;
  *   - los eventos de una transacción entran todos o ninguno, porque son una
  *     única llamada de escritura bajo el lock global;
- *   - una escritura concurrente de otra tarjeta no se corrompe ni se pierde.
+ *   - una escritura concurrente de otra tarjeta no se corrompe ni se pierde;
+ *   - mientras el estado no esté respaldado por el log, ninguna operación
+ *     decisoria puede consumirlo.
  *
- * Lo que **no** garantiza: durabilidad ante corte de energía a media
- * llamada del sistema operativo, ni aislamiento de lecturas sin lock.
+ * Lo que **no** garantiza: durabilidad ante corte de energía a media llamada
+ * del sistema operativo (un proceso muerto entre STATE y EVENTS deja la
+ * marca puesta, que es fail-closed pero exige resolución humana), ni
+ * aislamiento de lecturas que no pasen por la guarda.
  */
 
 export class StaleTransactionError extends Error {
@@ -62,8 +90,9 @@ export class StaleTransactionError extends Error {
 export class RecoveryRequiredError extends Error {
   constructor(taskId, detail) {
     super(
-      `"${taskId}" quedó con el estado adelantado y sin poder restaurarse: ${detail}. ` +
-        'El event log NO se ha tocado. Requiere intervención humana.',
+      `"${taskId}" quedó con la transacción sin cerrar y el motor no pudo dejarla consistente: ` +
+        `${detail}. El event log NO se ha truncado ni reescrito. La tarjeta queda bloqueada ` +
+        'hasta una resolución humana explícita.',
     );
     this.name = 'RecoveryRequiredError';
     this.code = 'RECOVERY_REQUIRED';
@@ -71,11 +100,11 @@ export class RecoveryRequiredError extends Error {
   }
 }
 
-function recoveryFile(taskId) {
-  return path.join(stateDir(), 'recovery', `${taskId}.json`);
-}
-
-/** Evidencia en disco: el proceso puede morir antes de que nadie lea el error. */
+/**
+ * Evidencia en disco: el proceso puede morir antes de que nadie lea el
+ * error. Su sola presencia bloquea la tarjeta (`guard.mjs`) hasta que una
+ * persona la resuelva; el motor nunca la borra.
+ */
 function preserveEvidence(taskId, evidence) {
   try {
     const file = recoveryFile(taskId);
@@ -85,6 +114,17 @@ function preserveEvidence(taskId, evidence) {
   } catch {
     return null;
   }
+}
+
+/** Retira la marca de transacción sin confirmar. Bajo el lock de estado. */
+function confirmTransaction(taskId, transactionId) {
+  withLock(stateMutationLockFile(), () => {
+    const current = getOrCreateTaskState(taskId);
+    if (current.transaction_pending?.transaction_id !== transactionId) return;
+    const confirmed = { ...current };
+    delete confirmed.transaction_pending;
+    writeTaskState(confirmed);
+  });
 }
 
 /**
@@ -99,23 +139,38 @@ export function commitTransaction({ taskId, from, changes, events = [] }) {
   const records = events.map((event) => toEventRecord(event, transactionId));
 
   return withEventLogLock(() => {
-    // 1. Estado. Se relee dentro del lock y se aborta si derivó: la
-    //    validación se hizo contra `from` y no vale para otro estado.
+    // STATE. Se relee dentro del lock y se aborta si derivó: la validación
+    // se hizo contra `from` y no vale para otro estado. El estado nuevo se
+    // escribe MARCADO: hasta que los eventos estén, no es consumible.
     const { next, snapshot } = withLock(stateMutationLockFile(), () => {
       const fresh = getOrCreateTaskState(taskId);
       if (from !== undefined && fresh.state !== from) {
         throw new StaleTransactionError(taskId, from, fresh.state);
       }
-      const updated = { ...fresh, ...changes };
+      const updated = {
+        ...fresh,
+        ...changes,
+        transaction_pending: {
+          transaction_id: transactionId,
+          from: fresh.state,
+          to: changes.state ?? fresh.state,
+          event_count: records.length,
+          started_at: new Date().toISOString(),
+        },
+      };
       writeTaskState(updated);
-      return { next: updated, snapshot: fresh };
+      // El snapshot de restauración nunca lleva marca: es el estado previo.
+      const clean = { ...fresh };
+      delete clean.transaction_pending;
+      return { next: updated, snapshot: clean };
     });
 
-    // 2. Eventos. Una sola escritura: entran todos o ninguno.
+    // EVENTS. Una sola escritura: entran todos o ninguno.
     try {
       appendRecordsHoldingEventLock(records);
     } catch (appendError) {
-      // El log NO se trunca ni se reescribe. Se deshace sólo el estado.
+      // El log NO se trunca ni se reescribe. Se deshace sólo el estado, y
+      // con él la marca: el intervalo no confirmado se cierra al revertir.
       try {
         withLock(stateMutationLockFile(), () => writeTaskState(snapshot));
       } catch (restoreError) {
@@ -126,13 +181,36 @@ export function commitTransaction({ taskId, from, changes, events = [] }) {
           transaction_id: transactionId,
           state_snapshot: snapshot,
           pending_events: records,
+          events_written: false,
           at: new Date().toISOString(),
         });
+        // La marca permanece: el estado en disco sigue sin respaldo.
         throw new RecoveryRequiredError(taskId, restoreError.message);
       }
       throw appendError;
     }
 
-    return { task: next, transactionId, records };
+    // CONFIRM. Los eventos ya son durables; sólo falta retirar la marca.
+    // Si esto falla, la transacción fue correcta pero no pudimos cerrarla:
+    // se deja evidencia y la tarjeta queda bloqueada en vez de aparentar
+    // normalidad. Ninguna limpieza fallida se da por buena.
+    try {
+      confirmTransaction(taskId, transactionId);
+    } catch (confirmError) {
+      preserveEvidence(taskId, {
+        reason: 'los eventos se escribieron pero la marca transaction_pending no pudo retirarse',
+        confirm_error: confirmError.message,
+        transaction_id: transactionId,
+        state_snapshot: snapshot,
+        pending_events: records,
+        events_written: true,
+        at: new Date().toISOString(),
+      });
+      throw new RecoveryRequiredError(taskId, confirmError.message);
+    }
+
+    const confirmed = { ...next };
+    delete confirmed.transaction_pending;
+    return { task: confirmed, transactionId, records };
   });
 }

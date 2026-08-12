@@ -9,6 +9,7 @@ import {
   NonIndependentAuditorError,
 } from './qa-contract.mjs';
 import { createLoopState, beginQa, submitQaResult } from './qa-loop.mjs';
+import { assertOperable } from './guard.mjs';
 import { prepareTransition } from './dispatcher.mjs';
 
 /**
@@ -102,6 +103,7 @@ export function submitHandoff({ taskId, implementerId, handoff, auditorId = null
   if (!implementerId) throw new QaSessionError('implementerId es obligatorio.', 'IMPLEMENTER_REQUIRED');
 
   const task = getOrCreateTaskState(taskId);
+  assertOperable(taskId, task);
   if (task.state !== 'READY_FOR_QA') {
     throw new QaSessionError(
       `El handoff de QA sólo se entrega en READY_FOR_QA; "${taskId}" está en ${task.state}.`,
@@ -189,6 +191,9 @@ export function runQa({ taskId, auditorId, auditResult }) {
 
   return withLock(qaSessionLockFile(taskId), () => {
     const task = getOrCreateTaskState(taskId);
+    // Auditar un estado no confirmado, o una tarjeta con recuperación
+    // pendiente, produciría un veredicto sobre algo que puede no existir.
+    assertOperable(taskId, task);
 
     if (task.state !== 'READY_FOR_QA') {
       throw new QaSessionError(
