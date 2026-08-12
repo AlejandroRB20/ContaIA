@@ -3,7 +3,7 @@
  * Verifica que las funciones construyan las rutas correctas y propaguen
  * errores de red o de API sin modificar contratos ni inventar estados.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 // Mockear el módulo http antes de importar el cliente
 vi.mock('@/lib/http', () => ({
@@ -114,7 +114,7 @@ describe('confirmUpload', () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('uploadBinaryToStorage', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(global, 'fetch');

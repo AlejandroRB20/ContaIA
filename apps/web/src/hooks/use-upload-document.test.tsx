@@ -35,7 +35,7 @@ describe('useUploadDocument', () => {
       status: 'PENDING_UPLOAD',
     });
     mockUploadBinary.mockResolvedValue(undefined);
-    mockConfirm.mockResolvedValue({} as unknown as documentsClient.DocumentDto);
+    mockConfirm.mockResolvedValue({} as unknown as documentsClient.DocumentDetail);
   });
 
   const wrapper = ({ children }: { children: ReactNode }) => (

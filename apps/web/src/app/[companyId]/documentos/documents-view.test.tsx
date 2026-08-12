@@ -26,6 +26,9 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({ companyId: 'company-1' }),
 }));
 
+/** Forma del estado del store (vía `getState()`, sin exportar `SessionState` desde producción). */
+type SessionStoreState = ReturnType<typeof sessionStore.useSessionStore.getState>;
+
 describe('DocumentsView', () => {
   let queryClient: QueryClient;
 
@@ -54,7 +57,7 @@ describe('DocumentsView', () => {
   describe('RBAC (document.upload)', () => {
     it('muestra el dropzone si el usuario tiene document.upload', () => {
       vi.mocked(sessionStore.useSessionStore).mockImplementation((selector) =>
-        selector({ permissions: ['document.upload'] } as unknown as sessionStore.SessionState),
+        selector({ permissions: ['document.upload'] } as unknown as SessionStoreState),
       );
       render(<DocumentsView />, { wrapper });
       expect(screen.getByText('Cargar documento')).toBeDefined();
@@ -63,7 +66,7 @@ describe('DocumentsView', () => {
 
     it('oculta el dropzone y muestra mensaje si el usuario NO tiene document.upload', () => {
       vi.mocked(sessionStore.useSessionStore).mockImplementation((selector) =>
-        selector({ permissions: ['document.read'] } as unknown as sessionStore.SessionState),
+        selector({ permissions: ['document.read'] } as unknown as SessionStoreState),
       );
       render(<DocumentsView />, { wrapper });
       expect(screen.queryByText('Cargar documento')).toBeNull();
@@ -76,7 +79,7 @@ describe('DocumentsView', () => {
 
     it('oculta el dropzone si no hay ningun permiso', () => {
       vi.mocked(sessionStore.useSessionStore).mockImplementation((selector) =>
-        selector({ permissions: [] } as unknown as sessionStore.SessionState),
+        selector({ permissions: [] } as unknown as SessionStoreState),
       );
       render(<DocumentsView />, { wrapper });
       expect(screen.queryByText('Cargar documento')).toBeNull();
