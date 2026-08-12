@@ -137,5 +137,9 @@ export function describeTaskConditions(taskId, task) {
     conditions,
     recovery,
     transaction_pending: pending,
+    // Una resolución que registró su evento pero no llegó a archivarse. Sigue
+    // bloqueando, y quien reintente debe saber que el evento ya existe para
+    // no leer la traza duplicada como dos resoluciones distintas.
+    recovery_resolution_incomplete: recovery?.resolution_event_appended != null,
   };
 }

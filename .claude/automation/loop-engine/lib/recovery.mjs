@@ -173,6 +173,31 @@ function archiveEvidence(taskId, evidence, resolution) {
  *      `state/recovery/resolved/` con quién, cuándo y por qué, y la
  *      resolución queda además en el log de eventos como acto humano.
  *
+ * ## Orden de resolución — y por qué es este
+ *
+ *   VALIDATE   confirmación humana, actor, razón, disposición, recovery activa
+ *   PREPARE    se lee la evidencia y se comprueba si el log la contradice
+ *   STATE      se aplica la disposición bajo el lock de estado
+ *   APPEND     se registra el evento de resolución en `events.jsonl`
+ *   ARCHIVE    sólo ahora se archiva la evidencia y se retira el bloqueo
+ *
+ * La versión anterior archivaba y borraba **antes** de escribir el evento.
+ * Un `appendEvents` fallido dejaba entonces la tarjeta operable, sin traza de
+ * quién la había desbloqueado, y con un archivo en `resolved/` afirmando un
+ * éxito que nunca ocurrió — hallazgo MEDIO de la reauditoría. La regla que lo
+ * corrige es una sola: **una recuperación no está resuelta hasta que su
+ * evidencia obligatoria está persistida.** Mientras el append no se confirme,
+ * `RECOVERY_REQUIRED` sigue bloqueando.
+ *
+ * Las dos rutas de fallo son fail-closed y ninguna miente:
+ *
+ *   - falla APPEND  → no se toca nada. `RESOLUTION_EVENT_NOT_PERSISTED`.
+ *   - falla ARCHIVE → el evento ya es durable y **no se borra** (el log es
+ *                     append-only y jamás se trunca); la evidencia queda
+ *                     marcada con `resolution_event_appended` y sigue
+ *                     bloqueando. `RESOLUTION_INCOMPLETE`. Un reintento humano
+ *                     de la misma resolución reconcilia sin duplicar el evento.
+ *
  * @param {object} params
  * @param {string} params.taskId
  * @param {string} params.resolvedBy identidad humana que resuelve
@@ -265,6 +290,58 @@ export function resolveRecovery({
     return { from: current.state, to: blocked.state, task: blocked };
   });
 
+  // APPEND — la resolución no existe hasta que el log la registra.
+  //
+  // Este orden es el arreglo del hallazgo MEDIO de la reauditoría: antes se
+  // archivaba y se borraba la evidencia ANTES de escribir el evento, así que
+  // un `appendEvents` fallido dejaba la tarjeta operable, sin traza de quién
+  // la había desbloqueado y con un archivo en `resolved/` que afirmaba un
+  // éxito que nunca ocurrió. Si el append falla ahora, no se toca nada: la
+  // evidencia sigue activa y `assertOperable` sigue lanzando.
+  let appended = evidence?.resolution_event_appended ?? null;
+  if (!appended) {
+    let record;
+    try {
+      [record] = appendEvents([
+        {
+          task_id: taskId,
+          mission_id: applied.task.mission_id ?? null,
+          agent_id: resolvedBy,
+          actor_type: 'human',
+          from_state: applied.from,
+          to_state: applied.to,
+          blocked_reason: applied.task.blocked_reason ?? null,
+          note: `recovery resuelta (${disposition}): ${reason}`,
+        },
+      ]);
+    } catch (appendError) {
+      throw new RecoveryResolutionError(
+        `La resolución de "${taskId}" no pudo registrarse en events.jsonl ` +
+          `(${appendError.message}). La recuperación sigue ACTIVA y la tarjeta sigue ` +
+          'bloqueada: una resolución sin evidencia auditable no es una resolución. ' +
+          'Reintentar cuando el log vuelva a ser escribible.',
+        'RESOLUTION_EVENT_NOT_PERSISTED',
+      );
+    }
+    appended = { transaction_id: record.transaction_id, ts: record.ts };
+
+    // Marca de reconciliación: si el archivado falla a continuación, o el
+    // proceso muere aquí, un reintento humano sabrá que el evento ya está y
+    // no duplicará la traza. Es best-effort — si no puede escribirse, el
+    // reintento simplemente registra un segundo evento, que también es cierto.
+    try {
+      fs.writeFileSync(
+        recoveryFile(taskId),
+        `${JSON.stringify({ ...evidence, resolution_event_appended: appended }, null, 2)}\n`,
+        'utf8',
+      );
+    } catch {
+      /* la evidencia original sigue en su sitio y sigue bloqueando */
+    }
+  }
+
+  // La resolución se cierra con el enlace a su evento: lo que se archiva y lo
+  // que se devuelve son el mismo objeto, sin versiones divergentes.
   const resolution = {
     resolved_by: resolvedBy,
     reason,
@@ -274,23 +351,30 @@ export function resolveRecovery({
     from_state: applied.from,
     to_state: applied.to,
     resolved_at: new Date().toISOString(),
+    event: appended,
   };
 
-  const archived = archiveEvidence(taskId, evidence ?? {}, resolution);
-  fs.rmSync(recoveryFile(taskId));
+  // ARCHIVE — sólo con el evento ya confirmado se retira el bloqueo.
+  let archived;
+  try {
+    archived = archiveEvidence(
+      taskId,
+      { ...(evidence ?? {}), resolution_event_appended: appended },
+      resolution,
+    );
+    fs.rmSync(recoveryFile(taskId));
+  } catch (archiveError) {
+    // El evento ya es durable y NO se borra: el log es append-only y jamás se
+    // trunca. Lo que no pudo completarse es el archivado, así que la tarjeta
+    // permanece bloqueada en vez de quedar en un estado que se contradice.
+    throw new RecoveryResolutionError(
+      `El evento de resolución de "${taskId}" SÍ quedó registrado ` +
+        `(transaction_id=${appended.transaction_id}), pero la evidencia no pudo archivarse ` +
+        `ni desactivarse (${archiveError.message}). La tarjeta sigue bloqueada. ` +
+        'Reintentar la misma resolución: el evento no se duplicará.',
+      'RESOLUTION_INCOMPLETE',
+    );
+  }
 
-  appendEvents([
-    {
-      task_id: taskId,
-      mission_id: applied.task.mission_id ?? null,
-      agent_id: resolvedBy,
-      actor_type: 'human',
-      from_state: applied.from,
-      to_state: applied.to,
-      blocked_reason: applied.task.blocked_reason ?? null,
-      note: `recovery resuelta (${disposition}): ${reason} · evidencia archivada en ${archived}`,
-    },
-  ]);
-
-  return { task: applied.task, resolution, archived };
+  return { task: applied.task, resolution: { ...resolution, event: appended }, archived };
 }

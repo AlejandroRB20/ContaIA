@@ -239,6 +239,31 @@ node cli.mjs resolve-recovery <task_id> --human <id> --reason <texto> --confirme
                               [--disposition block_human_decision|restore_snapshot]
 ```
 
+El orden es parte del contrato, no un detalle:
+
+```
+VALIDATE   confirmación humana, actor, razón, disposición, recovery activa
+PREPARE    se lee la evidencia y se comprueba si el log la contradice
+STATE      se aplica la disposición bajo el lock de estado
+APPEND     se registra el evento de resolución en events.jsonl
+ARCHIVE    sólo ahora se archiva la evidencia y se retira el bloqueo
+```
+
+**Una recuperación no está resuelta hasta que su evidencia obligatoria está
+persistida.** Antes se archivaba y se borraba *antes* de escribir el evento, y
+un `appendEvents` fallido dejaba la tarjeta operable, sin traza de quién la
+había desbloqueado y con un archivo en `resolved/` que afirmaba un éxito que
+nunca ocurrió. Las dos rutas de fallo son fail-closed:
+
+| Falla     | Qué pasa                                                                   |
+| --------- | -------------------------------------------------------------------------- |
+| `APPEND`  | no se toca nada; recovery sigue activa. `RESOLUTION_EVENT_NOT_PERSISTED`    |
+| `ARCHIVE` | el evento ya es durable y **no se borra**; recovery sigue activa y queda marcada con `resolution_event_appended`. `RESOLUTION_INCOMPLETE` |
+
+En el segundo caso `status` lo reporta como resolución **incompleta**, y
+reintentar la misma resolución reconcilia sin duplicar la traza. `events.jsonl`
+nunca se trunca.
+
 Dos disposiciones, ninguna elegida por el motor:
 
 - `block_human_decision` (por defecto) — el motor **no infiere** el estado

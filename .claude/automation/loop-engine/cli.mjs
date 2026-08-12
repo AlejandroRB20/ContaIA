@@ -102,6 +102,14 @@ const COMMANDS = {
             ? 'Resolver con `resolve-recovery --human <id> --reason <texto> --confirmed`.'
             : 'Hay una transacción sin confirmar: el estado aún no está respaldado por el log.'),
       );
+      if (conditions.recovery_resolution_incomplete) {
+        console.log(
+          'Resolución INCOMPLETA: el evento ya se registró ' +
+            `(transaction_id=${conditions.recovery.resolution_event_appended.transaction_id}) ` +
+            'pero la evidencia no llegó a archivarse. Reintentar la misma resolución ' +
+            'reconcilia sin duplicar la traza.',
+        );
+      }
     }
 
     console.log('--- recuperación ---');
