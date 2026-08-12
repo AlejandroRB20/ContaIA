@@ -44,6 +44,16 @@ export function stateMutationLockFile() {
 }
 
 /**
+ * Cerrojo global de migración (arquitectura §10.3, `LOOP-002`). Un único
+ * archivo — no uno por tarea — porque la sección crítica es del *recurso*
+ * (`packages/database/prisma/**`), no de una tarjeta concreta: dos
+ * migraciones nunca corren a la vez, sea cual sea su `task_id`.
+ */
+export function migrationLockFile() {
+  return path.join(locksDir(), 'migration.lock.json');
+}
+
+/**
  * Sección crítica de una sesión de QA. Es el **mismo** primitivo de
  * `lock.mjs` sobre otra ruta, no un segundo subsistema: `withLock` no es
  * reentrante y la sesión de QA envuelve varias mutaciones que ya toman

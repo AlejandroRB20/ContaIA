@@ -71,11 +71,30 @@ export const BLOCKED_REASONS = Object.freeze([
   'git_preflight_failed',
   'stale_base',
   'dependency_cycle',
+  'dependency_transitive_unmet',
+  'dependency_malformed',
   'out_of_scope_write',
   'forbidden_scope_write',
   'claim_setup_failed',
   'agent_released_mid_flight',
   'auditor_contradiction',
   'medium_finding_requires_decision',
+  'migration_lock_held',
+  'migration_lock_stale',
+  'pending_decision',
+  'shared_contract_collision',
   'unclassified',
+]);
+
+/**
+ * Estados de decisión `D-XXX` que el gate de `LOOP-002` (§10.4) acepta como
+ * "no pendiente". Copiados literalmente del texto de la arquitectura
+ * ratificada — el motor no inventa un vocabulario propio de estados de
+ * decisión, y no los deriva leyendo `brain/DECISION_INDEX.md`: los recibe
+ * como evidencia explícita (`decision-gate.mjs`).
+ */
+export const ACCEPTED_DECISION_STATES = Object.freeze([
+  'ACEPTADA',
+  'Aprobada y vigente',
+  'IMPLEMENTADA · PASSED',
 ]);

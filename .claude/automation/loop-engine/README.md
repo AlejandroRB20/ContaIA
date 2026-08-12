@@ -314,9 +314,18 @@ node cli.mjs resume <task_id> --human <id>          # exige --human
 node cli.mjs validate [--worktree <ruta>] [--role <agent_role>]
 node cli.mjs handoff <task_id> --agent <implementer_id> --file <f.json> [--auditor <id>]
 node cli.mjs qa <task_id> --auditor <auditor_id> --audit <f.json>
-node cli.mjs readiness <task_id> [--repo <ruta>] [--target <ref>] [--write]
+node cli.mjs readiness <task_id> [--repo <ruta>] [--target <ref>] [--write] [--decisions <f.json>]
 node cli.mjs resolve-recovery <task_id> --human <id> --reason <t> --confirmed [--disposition <d>]
+node cli.mjs migration-lock-status
+node cli.mjs resolve-migration-lock --human <id> --reason <t> --confirmed
 ```
+
+`claim` y `readiness` aceptan `--decisions <archivo.json>`: evidencia
+explícita de estado de decisión `D-XXX` en la forma
+`{ "D-014": { "status": "ACEPTADA" } }` (§10.4). El motor nunca la deriva
+leyendo `brain/DECISION_INDEX.md` ni infiriéndola de que exista código en
+una rama — sin el archivo, cualquier `decision_refs` declarado bloquea por
+ausencia de evidencia, no por aprobación asumida.
 
 `release` distingue el momento: desde `CLAIMED` devuelve la tarjeta a `READY`
 (no se construyó nada); desde `IMPLEMENTING` en adelante va a `BLOCKED`, porque
@@ -337,12 +346,54 @@ porque una cifra escrita a mano queda obsoleta en la primera tarjeta que
 añada casos. Sin dependencias nuevas y sin registrar el motor en `pnpm-workspace.yaml`:
 corre con Node nativo.
 
+## Gates avanzados de concurrencia (`LOOP-002`)
+
+Completa las cinco comprobaciones de §10 sobre la base certificada de
+`LOOP-001`, sin rediseñarla:
+
+1. **Dependencia transitiva** (`transitiveDependencyClosure` en
+   `concurrency.mjs`). No basta con que el padre directo esté satisfecho: si
+   A depende de B y B de C, un C sin cerrar bloquea a A aunque B ya lo esté.
+   Recorre el grafo completo con protección de ciclos (`visited`) y **falla
+   cerrado ante DAG malformado** — un `task_id` referenciado que no existe en
+   la cola cuenta como no satisfecho, nunca se ignora.
+2. **Cerrojo de migración** (`migration-lock.mjs`). Un único archivo global
+   (`state/locks/migration.lock.json`, no uno por tarea), con el mismo
+   primitivo `acquireLock`/`releaseLock` de `lock.mjs`. Nadie libera el
+   cerrojo de otra tarjeta, y uno vencido **sigue bloqueando** — vencido
+   nunca es sinónimo de libre; liberarlo exige
+   `resolve-migration-lock --confirmed`, un gate humano explícito.
+3. **Gate de decisión `D-XXX`** (`decision-gate.mjs`). El motor recibe
+   `decisionEvidence` como parámetro explícito — nunca lee
+   `brain/DECISION_INDEX.md` ni infiere aprobación de que el código exista en
+   una rama. Sin evidencia para un `decision_refs` declarado, bloquea; con
+   evidencia, sólo las tres formas canónicas de la arquitectura
+   (`ACEPTADA`, `Aprobada y vigente`, `IMPLEMENTADA · PASSED`) permiten.
+4. **Colisión de contrato compartido** (`contracts.mjs`). Contract-driven,
+   no adivinanza por nombre de archivo: compara los `allowed_write`
+   declarados de una tarjeta contra el `reads_contract` declarado de la
+   otra (bidireccional), exactamente como especifica la arquitectura §10.5.
+   Detecta colisión aunque los `allowed_write` de ambas no se toquen en
+   absoluto — es el caso que un colisionador de rutas puro no ve.
+
+`queue.yaml` gana un campo de definición opcional y versionado,
+`decision_refs` (`DEFINITION_FIELDS_VERSION = 2`), aditivo: una tarjeta `v1`
+sin él sigue siendo válida y se comporta exactamente igual que antes. Un
+`decision_refs` malformado (que no calce `D-NNN`/`D-NNN.N`) se rechaza en la
+validación de `queue.yaml`, no se ignora en silencio.
+
+`conflict_prediction`, en el manifest de `readiness`, se extiende con las
+siete dimensiones — `file_collision`, `glob_overlap`,
+`shared_contract_collision`, `dependency_conflict`, `stale_base`,
+`migration_lock`, `pending_decision` — calculadas sobre la cola real cuando
+se provee (`tasks`); sin ella se reportan `calculable: false`, nunca se
+omiten en silencio. Como el resto de `conflict_prediction`, son
+**informativas**: no bloquean `ready` por sí solas — la elegibilidad para
+*trabajar* una tarjeta ya la decide `evaluateConcurrency` antes del
+despacho, no el manifest de integración.
+
 ## Limitaciones conocidas de v1
 
-- Las comprobaciones de concurrencia §10.4 (`D-XXX` no aceptada) y §10.5
-  (contrato compartido) están **declaradas pero no implementadas**: devuelven
-  `status: 'NOT_IMPLEMENTED'` para no confundirse con "comprobado y correcto".
-  Corresponden a tarjetas posteriores.
 - El lector de YAML cubre sólo el subconjunto que `queue.yaml` necesita y falla
   ruidosamente ante el resto (anclas, escalares de bloque, estilo de flujo).
 - `events.jsonl` no rota ni se compacta.

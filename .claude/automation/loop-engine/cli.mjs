@@ -16,6 +16,7 @@
  *   readiness  evalúa READY_FOR_INTEGRATION y genera el manifest
  *
  *   resolve-recovery  resolución HUMANA de una recuperación pendiente
+ *   resolve-migration-lock  resolución HUMANA de un cerrojo de migración
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,6 +31,7 @@ import { describeTaskConditions } from './lib/guard.mjs';
 import { submitHandoff, runQa } from './lib/qa-session.mjs';
 import { evaluateTaskReadiness } from './lib/integration-readiness.mjs';
 import { manifestsDir } from './lib/paths.mjs';
+import { classifyMigrationLock, releaseMigrationLock } from './lib/migration-lock.mjs';
 
 function parseFlags(args) {
   const flags = {};
@@ -130,6 +132,8 @@ const COMMANDS = {
       missionId: flags.mission,
       autoStartImplementing: !flags['no-auto-start'],
       verifyWorktreeSubstrate: !flags['skip-substrate'],
+      decisionEvidence:
+        typeof flags.decisions === 'string' ? readJsonFlag(flags.decisions, '--decisions') : undefined,
     });
     console.log(JSON.stringify(result, null, 2));
     return result;
@@ -265,6 +269,11 @@ const COMMANDS = {
       taskId,
       repoPath: typeof flags.repo === 'string' ? flags.repo : undefined,
       targetRef: typeof flags.target === 'string' ? flags.target : undefined,
+      // Evidencia explícita de D-XXX (§10.4) — nunca derivada por el motor.
+      // Sin --decisions, cualquier decision_refs declarado bloquea por
+      // ausencia de evidencia, fail-closed.
+      decisionEvidence:
+        typeof flags.decisions === 'string' ? readJsonFlag(flags.decisions, '--decisions') : undefined,
     });
     console.log(JSON.stringify(result, null, 2));
 
@@ -312,6 +321,50 @@ const COMMANDS = {
     console.log(`evidencia archivada (no borrada): ${result.archived}`);
     console.log(`estado resultante: ${result.task.state}`);
     return result;
+  },
+
+  /** Sólo lectura: muestra el cerrojo de migración y si está vencido. */
+  'migration-lock-status'() {
+    const { status, lock } = classifyMigrationLock();
+    console.log(JSON.stringify({ status, lock }, null, 2));
+    if (status === 'STALE_HEARTBEAT' || status === 'TIMED_OUT') {
+      console.log(
+        'Cerrojo vencido, pero NO liberado automáticamente (arquitectura §9.5/§9.6). ' +
+          'Resolver con `resolve-migration-lock --human <id> --reason <texto> --confirmed`.',
+      );
+    }
+    return { status, lock };
+  },
+
+  /**
+   * Resolución humana del cerrojo de migración. Igual que
+   * `resolve-recovery`: exige `--human`, `--reason` y `--confirmed`. No hay
+   * caducidad automática — un cerrojo vencido sigue bloqueando hasta que
+   * una persona lo libera explícitamente, sepa o no de quién era.
+   */
+  'resolve-migration-lock': (flags) => {
+    if (!flags.human) {
+      throw new Error(
+        'resolve-migration-lock exige --human <id>: liberar un cerrojo de migración es un ' +
+          'gate humano. El motor no lo caduca ni lo libera por su cuenta.',
+      );
+    }
+    if (!flags.confirmed) {
+      throw new Error(
+        'resolve-migration-lock exige --confirmed. Revisar antes con `migration-lock-status`.',
+      );
+    }
+    if (typeof flags.reason !== 'string') {
+      throw new Error('resolve-migration-lock exige --reason <texto>: por qué se libera.');
+    }
+    const before = classifyMigrationLock();
+    if (!before.lock) throw new Error('No hay cerrojo de migración activo: nada que resolver.');
+
+    releaseMigrationLock({ agentId: before.lock.agent_id, confirmed: true });
+    console.log(
+      `Cerrojo de migración de "${before.lock.task_id}" liberado por ${flags.human}: ${flags.reason}`,
+    );
+    return { released: before.lock, resolvedBy: flags.human, reason: flags.reason };
   },
 };
 

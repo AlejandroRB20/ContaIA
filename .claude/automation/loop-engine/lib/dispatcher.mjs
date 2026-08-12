@@ -4,7 +4,8 @@ import { loadQueue } from './queue.mjs';
 import { listTasks, getOrCreateTaskState, mutateTaskState } from './store.mjs';
 import { assertTransition, isTerminal } from './state-machine.mjs';
 import { commitTransaction } from './transaction.mjs';
-import { evaluateConcurrency } from './concurrency.mjs';
+import { evaluateConcurrency, touchesMigrationSurface } from './concurrency.mjs';
+import { acquireMigrationLock, readMigrationLock, releaseMigrationLock } from './migration-lock.mjs';
 import { assertOperable, describeTaskConditions } from './guard.mjs';
 import { assertSubstrate } from './substrate.mjs';
 import {
@@ -46,6 +47,22 @@ function normalizeActor(actor) {
 function holdsLock(taskId, agentId) {
   const lock = readLock(taskLockFile(taskId));
   return lock !== null && lock.agent_id === agentId;
+}
+
+/**
+ * Libera el cerrojo de migración **sólo si es propio**. Nunca borra el de
+ * otra tarjeta (arquitectura §9.6, extendida a `migration-lock.mjs`): un
+ * lock vencido de un agente distinto no se toca aquí, sigue exigiendo
+ * `releaseMigrationLock` explícita de una persona.
+ */
+function releaseOwnMigrationLock(taskId, agentId) {
+  const lock = readMigrationLock();
+  if (!lock || lock.task_id !== taskId || lock.agent_id !== agentId) return;
+  try {
+    releaseMigrationLock({ agentId, confirmed: true });
+  } catch {
+    /* ya liberado, o ganado por otro proceso entre la lectura y el release */
+  }
 }
 
 /**
@@ -225,6 +242,7 @@ function rollbackClaim(taskId, agentId, cause) {
   } catch {
     /* puede no haberse registrado todavía */
   }
+  releaseOwnMigrationLock(taskId, agentId);
 
   try {
     transitionTask({
@@ -260,6 +278,7 @@ export function dispatch({
   autoStartImplementing = true,
   verifyWorktreeSubstrate = true,
   limits,
+  decisionEvidence,
 } = {}) {
   if (!agentId) throw new DispatchError('agent_id es obligatorio.');
 
@@ -289,7 +308,7 @@ export function dispatch({
       skipped.push({ task_id: task.task_id, reason: 'lock-present' });
       continue;
     }
-    const concurrency = evaluateConcurrency(task, tasks);
+    const concurrency = evaluateConcurrency(task, tasks, { decisionEvidence });
     if (!concurrency.eligible) {
       skipped.push({ task_id: task.task_id, reason: 'concurrency', conflicts: concurrency.conflicts });
       continue;
@@ -328,6 +347,16 @@ export function dispatch({
       worktree: worktree.dir,
       branch: worktree.branch,
     });
+
+    // Cerrojo de migración (§10.3): se adquiere en el mismo punto que el
+    // ownership de worktree, con el mismo destino en caso de fallo — el
+    // catch de más abajo hace rollback de todo lo adquirido hasta aquí,
+    // migración incluida. `evaluateConcurrency` ya debió excluir a esta
+    // tarjeta si el cerrojo estaba ocupado; esto es la adquisición real,
+    // no una segunda comprobación.
+    if (touchesMigrationSurface(claimed)) {
+      acquireMigrationLock({ taskId: claimed.task_id, agentId, missionId: claimed.mission_id });
+    }
 
     // Fail-closed: sin gobierno en el worktree no se entrega el contrato.
     if (verifyWorktreeSubstrate) {
@@ -415,6 +444,11 @@ export function release({ taskId, agentId, reason, confirmed = true }) {
     } catch {
       /* ownership ya liberada */
     }
+    // Igual que el worktree: sólo se libera en rollback limpio desde CLAIMED.
+    // Un release a medio vuelo dejaría el cerrojo en manos de otra tarjeta
+    // mientras la migración puede seguir sin terminar — se conserva y exige
+    // la misma resolución humana que un cerrojo vencido.
+    releaseOwnMigrationLock(taskId, agentId);
   }
 
   return mutateTaskState(taskId, (t) => ({ ...t, owner: null }));

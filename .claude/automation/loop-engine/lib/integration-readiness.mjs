@@ -2,9 +2,20 @@ import { execFileSync } from 'node:child_process';
 import { evaluateFindings } from './finding-gate.mjs';
 import { checkWriteScope, normalizePath } from './glob.mjs';
 import { repoRoot } from './paths.mjs';
-import { getOrCreateTaskState } from './store.mjs';
+import { getOrCreateTaskState, listTasks } from './store.mjs';
 import { assertOperable } from './guard.mjs';
 import { handoffFromRecord } from './qa-session.mjs';
+import { detectCollisions } from './file-collision.mjs';
+import { evaluateStaleBase } from './stale-base.mjs';
+import {
+  fileOverlapConflicts,
+  transitiveDependencyClosure,
+  dependencyCycle,
+  migrationLockConflicts,
+  activeTasks,
+} from './concurrency.mjs';
+import { decisionGateConflicts } from './decision-gate.mjs';
+import { sharedContractConflicts } from './contracts.mjs';
 
 /**
  * Único punto que decide si un candidato puede declararse
@@ -104,18 +115,78 @@ function sameFileSet(a, b) {
 }
 
 /**
+ * Dimensiones de `LOOP-002` para `conflict_prediction` (§10, extendido por
+ * la misión de gates avanzados). **Informativas, como el resto de
+ * `conflict_prediction`** — ninguna bloquea `ready` por sí sola; la
+ * elegibilidad para *trabajar* una tarjeta ya la decide `evaluateConcurrency`
+ * antes del despacho (§10). Aquí es evidencia para la persona que decide la
+ * integración, igual que `predicted_conflicts` del diff de Git.
+ *
+ * Se calcula sólo si se provee `tasks` (el resto de la cola); sin ella no
+ * hay con qué comparar, y se reporta así explícitamente en vez de fingir
+ * "sin conflictos".
+ */
+function evaluateGateConflictPrediction({ task, tasks, decisionEvidence, targetHeadCommit, taskContract }) {
+  if (!Array.isArray(tasks)) {
+    return {
+      calculable: false,
+      reason: 'no se proveyó `tasks` (la cola completa) para evaluar los gates de LOOP-002',
+    };
+  }
+
+  const others = tasks.filter((t) => t.task_id !== task.task_id);
+  const activeOthers = activeTasks(others);
+
+  const fileCollision = fileOverlapConflicts(task, tasks);
+  const globOverlap = detectCollisions(
+    activeTasks(tasks).map((t) => ({ task_id: t.task_id, allowed_write: t.allowed_write })),
+  );
+  const sharedContract = sharedContractConflicts(task, activeOthers);
+  const closure = transitiveDependencyClosure(task, tasks);
+  const cycle = dependencyCycle(task, tasks);
+  const migration = migrationLockConflicts(task, tasks);
+  const decision = decisionGateConflicts(task, decisionEvidence);
+  const staleBase = evaluateStaleBase({
+    recordedBaseCommit: task.base_commit,
+    targetHeadCommit,
+    taskContract,
+  });
+
+  return {
+    calculable: true,
+    file_collision: { detected: fileCollision.length > 0, conflicts: fileCollision },
+    glob_overlap: { detected: globOverlap.length > 0, collisions: globOverlap },
+    shared_contract_collision: { detected: sharedContract.length > 0, conflicts: sharedContract },
+    dependency_conflict: {
+      detected: closure.unmet.length > 0 || closure.malformed.length > 0 || cycle !== null,
+      unmet: closure.unmet,
+      malformed: closure.malformed,
+      cycle,
+    },
+    stale_base: staleBase,
+    migration_lock: { detected: migration.length > 0, conflicts: migration },
+    pending_decision: { detected: decision.length > 0, conflicts: decision },
+  };
+}
+
+/**
  * @param {object} handoff evidencia declarada por el constructor
  * @param {object} auditResult veredicto de la auditoría independiente
  * @param {object} taskContract contrato de la tarjeta (`allowed_write`, …)
- * @param {{repoPath?: string, targetRef?: string}} [git] repositorio real a
- *   verificar. Por defecto el del motor: omitirlo no relaja nada, sólo
- *   apunta al repositorio de trabajo.
+ * @param {{repoPath?: string, targetRef?: string, tasks?: object[],
+ *   decisionEvidence?: Record<string, {status: string}>}} [opts]
+ *   `repoPath`/`targetRef`: repositorio real a verificar (por defecto el
+ *   del motor). `tasks`: el resto de la cola, para las dimensiones de
+ *   `LOOP-002` de `conflict_prediction` — opcional; sin ella esas
+ *   dimensiones se reportan `calculable: false`, nunca se omiten en
+ *   silencio. `decisionEvidence`: evidencia explícita de `D-XXX` (§10.4),
+ *   nunca inferida por el motor.
  */
 export function evaluateIntegrationReadiness(
   handoff,
   auditResult,
   taskContract = {},
-  { repoPath = repoRoot(), targetRef = 'HEAD' } = {},
+  { repoPath = repoRoot(), targetRef = 'HEAD', tasks, decisionEvidence } = {},
 ) {
   const reasons = [];
   const blockers = [];
@@ -198,16 +269,25 @@ export function evaluateIntegrationReadiness(
   }
 
   // --- 5. predicción de conflicto sobre el repositorio real ----------------
-  // Fail-closed: un manifest READY nunca lleva `conflict_prediction: null`.
+  // Fail-closed: un manifest READY nunca lleva `conflict_prediction: null`,
+  // ni con las dimensiones de Git ni con las de LOOP-002 a medio calcular.
   let prediction = null;
   if (evidence.ok) {
     try {
-      prediction = predictConflicts({
+      const gitPrediction = predictConflicts({
         repoPath,
         baseCommit: handoff.baseCommit,
         targetRef,
         changedFiles: evidence.changedFiles,
       });
+      const gates = evaluateGateConflictPrediction({
+        task: taskContract,
+        tasks,
+        decisionEvidence,
+        targetHeadCommit: gitPrediction.target_head,
+        taskContract,
+      });
+      prediction = { ...gitPrediction, ...gates };
     } catch (err) {
       fail('CONFLICT_PREDICTION_FAILED', `no se pudo calcular la predicción de conflicto: ${err.message}`);
     }
@@ -272,7 +352,7 @@ export function evaluateIntegrationReadiness(
  * calcularse sobre un estado sin respaldo en el log ni sobre una tarjeta con
  * recuperación pendiente.
  */
-export function evaluateTaskReadiness({ taskId, repoPath, targetRef }) {
+export function evaluateTaskReadiness({ taskId, repoPath, targetRef, decisionEvidence }) {
   const task = getOrCreateTaskState(taskId);
   assertOperable(taskId, task);
 
@@ -287,7 +367,7 @@ export function evaluateTaskReadiness({ taskId, repoPath, targetRef }) {
       findings: task.qa_result.findings,
     },
     task,
-    { repoPath, targetRef },
+    { repoPath, targetRef, tasks: listTasks(), decisionEvidence },
   );
 }
 

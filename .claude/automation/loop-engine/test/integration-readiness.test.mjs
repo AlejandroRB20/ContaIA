@@ -338,3 +338,90 @@ test('superficies disjuntas pueden correr en paralelo', () => {
   assert.deepEqual(detectCollisions(claims), []);
   assert.equal(canRunInParallel(claims), true);
 });
+
+// --- LOOP-002: conflict_prediction extendido --------------------------------
+
+test('19. conflict_prediction completo incluye las siete dimensiones de LOOP-002', (t) => {
+  const s = scenario(t);
+  const other = {
+    task_id: 'OTRA',
+    state: 'IMPLEMENTING',
+    allowed_write: ['apps/web/**'],
+    dependencies: [],
+    decision_refs: [],
+    reads_contract: [],
+  };
+  const tasks = [{ ...s.contract, state: 'READY_FOR_QA', dependencies: [], decision_refs: [] }, other];
+
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    tasks,
+  });
+
+  assert.equal(result.ready, true);
+  const cp = result.manifest.conflict_prediction;
+  assert.equal(cp.calculable, true);
+  for (const key of [
+    'file_collision',
+    'glob_overlap',
+    'shared_contract_collision',
+    'dependency_conflict',
+    'stale_base',
+    'migration_lock',
+    'pending_decision',
+  ]) {
+    assert.ok(key in cp, `falta la dimensión "${key}"`);
+  }
+  // Ninguna dimensión debería detectar nada: OTRA no comparte alcance.
+  assert.equal(cp.file_collision.detected, false);
+  assert.equal(cp.shared_contract_collision.detected, false);
+  assert.equal(cp.dependency_conflict.detected, false);
+  assert.equal(cp.migration_lock.detected, false);
+  assert.equal(cp.pending_decision.detected, false);
+});
+
+test('conflict_prediction detecta una dependencia sin cerrar en las tareas hermanas', (t) => {
+  const s = scenario(t);
+  const withDep = { ...s.contract, dependencies: ['B'] };
+  const tasks = [withDep, { task_id: 'B', state: 'IMPLEMENTING', dependencies: [] }];
+
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), withDep, { ...s.git, tasks });
+  assert.equal(result.ready, true, 'dependency_conflict es informativo, no bloquea ready');
+  assert.equal(result.manifest.conflict_prediction.dependency_conflict.detected, true);
+  assert.deepEqual(result.manifest.conflict_prediction.dependency_conflict.unmet, ['B']);
+});
+
+test('conflict_prediction detecta D-XXX pendiente sin bloquear ready', (t) => {
+  const s = scenario(t);
+  const withDecision = { ...s.contract, decision_refs: ['D-014'] };
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), withDecision, {
+    ...s.git,
+    tasks: [withDecision],
+    decisionEvidence: {},
+  });
+  assert.equal(result.ready, true);
+  assert.equal(result.manifest.conflict_prediction.pending_decision.detected, true);
+  assert.equal(result.manifest.conflict_prediction.pending_decision.conflicts[0].decision_id, 'D-014');
+});
+
+test('sin `tasks`, las dimensiones de LOOP-002 se reportan no calculables, no se omiten en silencio', (t) => {
+  const s = scenario(t);
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
+  assert.equal(result.ready, true);
+  assert.equal(result.manifest.conflict_prediction.calculable, false);
+  assert.ok(result.manifest.conflict_prediction.reason.includes('tasks'));
+});
+
+// --- 20. fallo de cálculo de conflict_prediction = manifest null ------------
+
+test('20. si predictConflicts falla (target inexistente), manifest es null pese a tener tasks', (t) => {
+  const s = scenario(t);
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    repoPath: s.repo.dir,
+    targetRef: 'refs/heads/no-existe',
+    tasks: [s.contract],
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(result.blockers.some((b) => b.code === 'CONFLICT_PREDICTION_FAILED'));
+});

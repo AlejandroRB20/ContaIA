@@ -123,6 +123,24 @@ test('dependencia en READY_FOR_INTEGRATION sí desbloquea', (t) => {
   assert.equal(result.task.task_id, 'LOOP-TEST-001');
 });
 
+// --- LOOP-002: una decisión D-XXX pendiente impide el despacho --------------
+
+test('decision_refs pendiente impide el despacho, sin evidencia', (t) => {
+  setup(t, [taskDefinition({ decision_refs: ['D-014'] })]);
+  const result = dispatch({ agentId: 'CLAUDE-02' });
+  assert.equal(result.dispatched, false);
+  assert.ok(result.skipped.some((s) => s.reason === 'concurrency'));
+});
+
+test('decision_refs con evidencia aprobada, provista explícitamente, desbloquea', (t) => {
+  setup(t, [taskDefinition({ decision_refs: ['D-010'] })]);
+  const result = dispatch({
+    agentId: 'CLAUDE-02',
+    decisionEvidence: { 'D-010': { status: 'IMPLEMENTADA · PASSED' } },
+  });
+  assert.equal(result.dispatched, true);
+});
+
 // --- 5/6. ownership y release -----------------------------------------------
 
 test('release desde CLAIMED: rollback limpio a READY, lock y ownership liberados', (t) => {

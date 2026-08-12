@@ -37,7 +37,21 @@ const DEFINITION_FIELDS = Object.freeze([
   'allow_rebase',
   'reads_contract',
   'max_repairs',
+  'decision_refs', // v2 (LOOP-002) — ver DEFINITION_FIELDS_VERSION abajo
 ]);
+
+/**
+ * Versión del contrato de definición. `1` es el esquema de `LOOP-001`; `2`
+ * añade `decision_refs` (§10.4) de forma **aditiva y opcional** — una
+ * tarjeta `v1` sin ese campo sigue siendo válida y se comporta exactamente
+ * igual que antes (`decision_refs` vacío no bloquea nada). Ninguna tarjeta
+ * existente se reinterpreta: la ausencia del campo nuevo nunca se lee como
+ * "todas las decisiones aprobadas", se lee como "sin decisiones declaradas".
+ */
+export const DEFINITION_FIELDS_VERSION = 2;
+
+/** `D-010`, `D-002.1`, … — el mismo formato que usa `brain/DECISIONS.md`. */
+const DECISION_ID_PATTERN = /^D-\d+(\.\d+)?$/;
 
 /** Campos que sólo existen en runtime; jamás se escriben en `queue.yaml`. */
 const RUNTIME_FIELDS = Object.freeze([
@@ -109,9 +123,32 @@ export function validateDefinition(definition, index) {
     errors.push(`${where}: risk_class "${definition.risk_class}" no es canónica (${RISK_CLASSES.join(', ')})`);
   }
 
-  for (const field of ['allowed_write', 'forbidden_scope', 'dependencies', 'test_commands', 'reads_contract']) {
+  for (const field of [
+    'allowed_write',
+    'forbidden_scope',
+    'dependencies',
+    'test_commands',
+    'reads_contract',
+    'decision_refs',
+  ]) {
     if (definition[field] !== undefined && definition[field] !== null && !Array.isArray(definition[field])) {
       errors.push(`${where}: "${field}" debe ser una lista`);
+    }
+  }
+
+  // `decision_refs` es v2 (LOOP-002): forma malformada se rechaza en vez de
+  // reinterpretarse. Un ID que no calza el patrón nunca podrá tener
+  // evidencia real en `decisionEvidence` (§10.4), así que dejarlo pasar
+  // sólo produciría un bloqueo permanente indistinguible de un error de
+  // motor — mejor rechazarlo en el borde, con el error visible en su sitio.
+  if (Array.isArray(definition.decision_refs)) {
+    for (const ref of definition.decision_refs) {
+      if (typeof ref !== 'string' || !DECISION_ID_PATTERN.test(ref)) {
+        errors.push(
+          `${where}: "decision_refs" contiene "${ref}", que no tiene forma de decisión válida ` +
+            '(se espera "D-NNN" o "D-NNN.N", como en brain/DECISIONS.md)',
+        );
+      }
     }
   }
 
@@ -191,6 +228,7 @@ export function instantiate(definition) {
     dependencies: definition.dependencies ?? [],
     test_commands: definition.test_commands ?? [],
     reads_contract: definition.reads_contract ?? [],
+    decision_refs: definition.decision_refs ?? [],
     agent_role: definition.agent_role ?? null,
     qa_required: definition.qa_required ?? true,
     human_gate_required: definition.human_gate_required ?? false,

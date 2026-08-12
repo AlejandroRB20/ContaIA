@@ -169,6 +169,58 @@ test('handoff + qa + readiness: flujo real, con evidencia Git y sin integrar', (
   assert.match(out, /El motor NO integra/);
 });
 
+test('readiness --decisions alimenta evidencia de D-XXX al conflict_prediction', (t) => {
+  const repo = setup(t, [taskDefinition({ decision_refs: ['D-014'] })]);
+  const candidate = commitFiles(repo.dir, { 'src/a.ts': 'candidato\n' });
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-cli-decisions-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const handoffFile = path.join(dir, 'handoff.json');
+  const auditFile = path.join(dir, 'audit.json');
+  const decisionsFile = path.join(dir, 'decisions.json');
+  fs.writeFileSync(
+    handoffFile,
+    JSON.stringify({
+      implementerId: 'CLAUDE-02',
+      candidateCommit: candidate,
+      baseCommit: repo.baseCommit,
+      changedFiles: ['src/a.ts'],
+      tests: { passed: true },
+      typecheck: { passed: true },
+      lint: { passed: true },
+    }),
+  );
+  fs.writeFileSync(auditFile, JSON.stringify({ auditorId: 'CODEX-01', verdict: 'PASSED', findings: [] }));
+
+  // El propio claim necesita evidencia de D-014 para no quedar bloqueado
+  // por el gate de decisión (§10.4) — un task_id con decision_refs pendiente
+  // nunca es despachable, evidencia aparte para la lectura de readiness.
+  const claimDecisionsFile = path.join(dir, 'claim-decisions.json');
+  fs.writeFileSync(claimDecisionsFile, JSON.stringify({ 'D-014': { status: 'ACEPTADA' } }));
+  runCli(['claim', '--agent', 'CLAUDE-02', '--decisions', claimDecisionsFile]);
+  runCli(['transition', 'LOOP-TEST-001', '--to', 'TESTING', '--agent', 'CLAUDE-02']);
+  runCli([
+    'transition', 'LOOP-TEST-001', '--to', 'READY_FOR_QA',
+    '--agent', 'CLAUDE-02', '--commit', candidate,
+  ]);
+  runCli(['handoff', 'LOOP-TEST-001', '--agent', 'CLAUDE-02', '--file', handoffFile]);
+  runCli(['qa', 'LOOP-TEST-001', '--auditor', 'CODEX-01', '--audit', auditFile]);
+
+  // El claim ya superó el gate, pero `readiness` no reutiliza esa evidencia
+  // — sin --decisions propio, D-014 se reporta pendiente aquí también.
+  const sinEvidencia = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir]);
+  assert.match(sinEvidencia, /"decision_id": "D-014"/);
+  assert.match(sinEvidencia, /"status": "MISSING_EVIDENCE"/);
+
+  // Con --decisions: D-014 aprobada, ya no aparece como conflicto.
+  fs.writeFileSync(decisionsFile, JSON.stringify({ 'D-014': { status: 'ACEPTADA' } }));
+  const conEvidencia = runCli([
+    'readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--decisions', decisionsFile,
+  ]);
+  assert.match(conEvidencia, /"pending_decision":\s*{\s*"detected": false/);
+});
+
 test('qa exige un auditor declarado', (t) => {
   setup(t);
   assert.throws(() => runCli(['qa', 'LOOP-TEST-001']));
@@ -183,4 +235,36 @@ test('readiness sin QA persistido no evalúa nada', (t) => {
 test('un comando desconocido sale con código distinto de 0', (t) => {
   setup(t);
   assert.throws(() => runCli(['no-existe']));
+});
+
+// --- LOOP-002: cerrojo de migración por CLI ---------------------------------
+
+test('migration-lock-status sin cerrojo informa NO_LOCK', (t) => {
+  setup(t);
+  const out = runCli(['migration-lock-status']);
+  assert.match(out, /"status": "NO_LOCK"/);
+});
+
+test('resolve-migration-lock exige --human, --confirmed y --reason', (t) => {
+  setup(t);
+  assert.throws(() => runCli(['resolve-migration-lock']));
+  assert.throws(() => runCli(['resolve-migration-lock', '--human', 'ALEJANDRO']));
+  assert.throws(() =>
+    runCli(['resolve-migration-lock', '--human', 'ALEJANDRO', '--confirmed']),
+  );
+});
+
+test('resolve-migration-lock sin cerrojo activo falla con mensaje claro', (t) => {
+  setup(t);
+  const err = captureError(() =>
+    runCli([
+      'resolve-migration-lock',
+      '--human',
+      'ALEJANDRO',
+      '--confirmed',
+      '--reason',
+      'nada que resolver',
+    ]),
+  );
+  assert.match(`${err.stdout ?? ''}${err.stderr ?? ''}`, /No hay cerrojo de migración activo/);
 });

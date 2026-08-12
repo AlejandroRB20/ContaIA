@@ -218,12 +218,12 @@ test('el límite de concurrencia de v1 es 2', () => {
   assert.ok(result.conflicts.some((c) => c.check === 'MAX_CONCURRENCY'));
 });
 
-test('las comprobaciones §10.4 y §10.5 se declaran NOT_IMPLEMENTED, no como superadas', () => {
+// Las comprobaciones §10.4 (D-XXX pendiente) y §10.5 (contrato compartido),
+// declaradas NOT_IMPLEMENTED en LOOP-001, están implementadas en LOOP-002 —
+// ver concurrency.test.mjs, decision-gate.test.mjs y contracts.test.mjs.
+test('sin decision_refs ni reads_contract declarados, una tarjeta sola es elegible', () => {
   const task = runtimeTask({ task_id: 'A', allowed_write: ['a/**'] });
   const result = evaluateConcurrency(task, [task]);
   assert.equal(result.eligible, true);
-  assert.equal(result.notImplemented.length, 2);
-  for (const check of result.notImplemented) {
-    assert.equal(check.status, 'NOT_IMPLEMENTED');
-  }
+  assert.deepEqual(result.conflicts, []);
 });
