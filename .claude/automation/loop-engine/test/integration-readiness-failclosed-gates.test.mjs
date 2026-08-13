@@ -53,6 +53,89 @@ function scenario(t, { taskOverrides = {}, files = { 'src/a.ts': 'candidato\n' }
 
 const blockerCodes = (result) => result.blockers.map((b) => b.code);
 
+// --- 0. contexto de gates ausente/insuficiente: NO EVALUABLE ≠ PASSED -------
+//
+// `LOOP-002-REPAIR-02`: la reparación anterior conectó las cinco dimensiones
+// normativas a `ready` sólo cuando `gates.calculable === true`, y dejó
+// `calculable: false` sin bloquear — razonando que `evaluateTaskReadiness`,
+// el único punto de entrada del motor, siempre provee `tasks`. Pero
+// `evaluateIntegrationReadiness` se exporta directamente (`lib/index.mjs`
+// hace `export *`): una segunda ruta pública, sin el candado de
+// `evaluateTaskReadiness`, podía producir `ready: true` con manifest
+// completo sin haber comprobado ningún gate normativo. Esta sección cubre
+// los cuatro escenarios de contexto exigidos por la misión de reparación.
+
+test('0a. tasks === undefined bloquea: ready=false, manifest=null, blocker explícito', (t) => {
+  const s = scenario(t);
+  // Nota: `s.git` de este archivo (helpers.mjs vía scenario() local) no
+  // incluye `tasks` salvo que se añada explícitamente — este caso lo omite
+  // a propósito.
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
+
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('GATE_CONTEXT_MISSING'));
+  assert.ok(result.reasons.some((r) => r.includes('tasks')));
+});
+
+test('0b. tasks === [] bloquea: una cola vacía no es evidencia de "sin conflictos"', (t) => {
+  const s = scenario(t);
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    tasks: [],
+  });
+
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('GATE_CONTEXT_MISSING'));
+  assert.ok(result.reasons.some((r) => r.toLowerCase().includes('vacío') || r.toLowerCase().includes('vacía')));
+});
+
+test('0c. tasks no contiene la tarjeta candidata bloquea: no se sustituye silenciosamente su entrada', (t) => {
+  const s = scenario(t);
+  // Cola no vacía, con contenido real — pero ninguna entrada es la propia
+  // tarjeta candidata (`task_id` distinto en ambas).
+  const tasks = [
+    { task_id: 'OTRA-A', state: 'IMPLEMENTING', allowed_write: ['apps/web/**'] },
+    { task_id: 'OTRA-B', state: 'READY_FOR_QA', allowed_write: ['apps/api/**'] },
+  ];
+
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, { ...s.git, tasks });
+
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('GATE_CONTEXT_MISSING'));
+  assert.ok(result.reasons.some((r) => r.includes(TASK)));
+});
+
+test('0d. tasks contiene la candidata + contexto válido: continúa por la evaluación normal', (t) => {
+  const s = scenario(t);
+  // La propia tarjeta SÍ está presente en `tasks`, sola: contexto suficiente
+  // para calcular las cinco dimensiones, todas limpias.
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    tasks: [s.contract],
+  });
+
+  assert.equal(result.ready, true);
+  assert.deepEqual(result.reasons, []);
+  assert.ok(result.manifest, 'no debe bloquear por el simple hecho de que tasks sea requerido');
+  assert.equal(result.manifest.conflict_prediction.calculable, true);
+});
+
+test('0e. un task_id ausente en el propio contrato candidato no se confunde con "presente en tasks"', (t) => {
+  // Defensa adicional: si el contrato candidato no declara `task_id`, no
+  // basta con que `tasks` tenga contenido — no hay con qué identificarlo.
+  const s = scenario(t, { taskOverrides: { task_id: undefined } });
+  const tasks = [{ task_id: 'OTRA', state: 'IMPLEMENTING', allowed_write: ['apps/web/**'] }];
+
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, { ...s.git, tasks });
+
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('GATE_CONTEXT_MISSING'));
+});
+
 // --- 1. dependencia incumplida: detected=true, ready=false ------------------
 
 test('1. dependencia incumplida bloquea ready (gate normativo)', (t) => {

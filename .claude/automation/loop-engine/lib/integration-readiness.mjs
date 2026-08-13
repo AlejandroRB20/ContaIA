@@ -150,22 +150,61 @@ function sameFileSet(a, b) {
  *     `evaluateIntegrationReadiness` es quien produce el manifest sobre el
  *     que una persona integra, así que es quien debe volver a comprobarlas.
  *
- * Se calcula sólo si se provee `tasks` (el resto de la cola); sin ella no
- * hay con qué comparar, y se reporta así explícitamente (`calculable: false`)
- * en vez de fingir "sin conflictos". `evaluateTaskReadiness` — el único punto
- * de entrada real del motor — siempre provee `tasks`; la ausencia sólo es
- * alcanzable invocando esta función directamente sin ese argumento, así que
- * `calculable: false` no bloquea `ready` por sí sola (evitaría romper la API
- * pública de esta función sin necesidad, para un caso que el motor nunca
- * produce). Un cálculo que sí se intenta y falla (excepción) es distinto y
- * sigue siendo fail-closed vía `CONFLICT_PREDICTION_FAILED`, sin cambios de
- * esta reparación.
+ * Se calcula sólo si se provee `tasks` (el resto de la cola) Y esa cola
+ * reconoce a la propia tarjeta candidata; sin ambas cosas no hay con qué
+ * comparar, y se reporta así explícitamente (`calculable: false`).
+ *
+ * **Corrección de la reauditoría independiente de `LOOP-002-REPAIR-01`
+ * (hallazgo ALTO).** La reparación anterior conectó las cinco dimensiones
+ * normativas a `ready` sólo cuando `calculable: true`, y dejó
+ * deliberadamente `calculable: false` sin bloquear — con el argumento de que
+ * `evaluateTaskReadiness`, el único punto de entrada del motor, siempre
+ * provee `tasks`, así que el caso sólo era alcanzable invocando la función
+ * pública directamente. Esa distinción es exactamente el defecto: esta
+ * función SE EXPORTA (`lib/index.mjs` hace `export *`), así que "invocarla
+ * directamente sin `tasks`" no es un caso de laboratorio — es una segunda
+ * ruta pública real, sin el candado de `evaluateTaskReadiness`, capaz de
+ * producir `ready: true` con manifest completo sin haber comprobado
+ * `dependency_conflict`, `pending_decision`, `migration_lock`,
+ * `shared_contract_collision` ni `stale_base`. `NO EVALUABLE` no puede
+ * seguir tratándose como sinónimo de `PASSED`: ahora bloquea, igual que un
+ * cálculo que se intenta y falla (excepción), que ya caía en
+ * `CONFLICT_PREDICTION_FAILED` desde antes de esta reparación.
+ *
+ * Tres formas de "no hay contexto suficiente", todas fail-closed:
+ *   1. `tasks` no es un array (ausente, `null`, o cualquier otro tipo).
+ *   2. `tasks` es un array vacío — una cola vacía no es evidencia de "sin
+ *      conflictos", es ausencia de evidencia: no se reinterpreta.
+ *   3. `tasks` no está vacío pero no contiene una entrada cuyo `task_id`
+ *      coincida con el de la tarjeta candidata — no se asume que el
+ *      `taskContract` recibido por parámetro sustituye silenciosamente su
+ *      propia entrada en la cola: los cómputos de "otras tarjetas activas"
+ *      (`fileOverlapConflicts`, `migrationLockConflicts`,
+ *      `sharedContractConflicts`) sólo son confiables sobre una cola que
+ *      reconoce como propia a la tarjeta que se está evaluando.
  */
 function evaluateGateConflictPrediction({ task, tasks, decisionEvidence, targetHeadCommit, taskContract }) {
   if (!Array.isArray(tasks)) {
     return {
       calculable: false,
       reason: 'no se proveyó `tasks` (la cola completa) para evaluar los gates de LOOP-002',
+    };
+  }
+
+  if (tasks.length === 0) {
+    return {
+      calculable: false,
+      reason: '`tasks` está vacío: una cola vacía no es contexto suficiente para evaluar los gates de LOOP-002',
+    };
+  }
+
+  const candidateId = task?.task_id;
+  if (candidateId == null || !tasks.some((t) => t.task_id === candidateId)) {
+    return {
+      calculable: false,
+      reason:
+        'la tarjeta candidata no está identificada dentro de `tasks`: la cola provista no reconoce ' +
+        `"${candidateId ?? '(task_id ausente)'}" como una de sus entradas`,
     };
   }
 
@@ -211,11 +250,12 @@ function evaluateGateConflictPrediction({ task, tasks, decisionEvidence, targetH
  * @param {{repoPath?: string, targetRef?: string, tasks?: object[],
  *   decisionEvidence?: Record<string, {status: string}>}} [opts]
  *   `repoPath`/`targetRef`: repositorio real a verificar (por defecto el
- *   del motor). `tasks`: el resto de la cola, para las dimensiones de
- *   `LOOP-002` de `conflict_prediction` — opcional; sin ella esas
- *   dimensiones se reportan `calculable: false`, nunca se omiten en
- *   silencio. `decisionEvidence`: evidencia explícita de `D-XXX` (§10.4),
- *   nunca inferida por el motor.
+ *   del motor). `tasks`: el resto de la cola, contexto **obligatorio** para
+ *   las cinco dimensiones normativas de `conflict_prediction` (§10.2–§10.5).
+ *   Ausente, vacía, o sin una entrada para la propia tarjeta candidata →
+ *   `calculable: false` → bloquea `ready` (`GATE_CONTEXT_MISSING`): `NO
+ *   EVALUABLE` nunca se trata como `PASSED`. `decisionEvidence`: evidencia
+ *   explícita de `D-XXX` (§10.4), nunca inferida por el motor.
  */
 export function evaluateIntegrationReadiness(
   handoff,
@@ -330,16 +370,18 @@ export function evaluateIntegrationReadiness(
       // lo están — su detección aquí debe producir exactamente lo que
       // produciría en el resto del motor: bloqueo, no una nota al margen.
       //
-      // Sin `tasks` (`gates.calculable === false`) estas cinco dimensiones no
-      // pueden evaluarse — se reportan explícitamente así (ver docstring de
-      // `evaluateGateConflictPrediction`), pero **no bloquean por sí solo**:
-      // `evaluateTaskReadiness`, el único punto de entrada del motor, siempre
-      // provee `tasks` (`listTasks()`); la ausencia sólo ocurre al invocar
-      // `evaluateIntegrationReadiness` directamente sin ese argumento — un
-      // caso de API, no un candidato real sin cobertura. Un cálculo que sí
-      // se intenta y falla (excepción) sigue cayendo en el `catch` de abajo,
-      // que es fail-closed desde antes de esta reparación.
-      if (gates.calculable) {
+      // `gates.calculable === false` (reauditoría independiente de
+      // `LOOP-002-REPAIR-01`, hallazgo ALTO): ya NO es una rama silenciosa.
+      // `NO EVALUABLE` bloquea exactamente igual que cualquier otro gate
+      // normativo detectado — nunca se interpreta como "probablemente está
+      // bien". Ver docstring de `evaluateGateConflictPrediction` para las
+      // tres formas de "sin contexto suficiente" que produce `calculable:
+      // false`. Un cálculo que sí se intenta y falla (excepción) es un caso
+      // distinto y sigue cayendo en el `catch` de abajo, fail-closed desde
+      // antes de esta reparación.
+      if (!gates.calculable) {
+        fail('GATE_CONTEXT_MISSING', gates.reason);
+      } else {
         if (gates.dependency_conflict.detected) {
           const parts = [];
           if (gates.dependency_conflict.cycle) {

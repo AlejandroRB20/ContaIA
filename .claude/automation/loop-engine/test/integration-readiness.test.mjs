@@ -147,7 +147,11 @@ test('el alcance real bloquea aunque el constructor declare sólo lo permitido',
 
 test('un cambio anidado dentro del alcance pasa (globs, no coincidencia exacta)', (t) => {
   const s = scenario(t, { files: { 'src/deep/nested/a.ts': 'x\n' } });
-  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    targetRef: s.repo.baseCommit,
+    tasks: [s.contract],
+  });
   assert.equal(result.ready, true);
 });
 
@@ -160,16 +164,31 @@ test('conflict_prediction se calcula sobre un candidato válido', (t) => {
   const limpio = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
     repoPath: s.repo.dir,
     targetRef: s.repo.baseCommit,
+    tasks: [s.contract],
   });
   assert.equal(limpio.ready, true);
   assert.equal(limpio.manifest.conflict_prediction.predicted_conflicts, 'NONE');
 
-  // Destino ya con el candidato dentro: el solape se detecta y se informa,
-  // pero NO bloquea — quien decide la integración es una persona.
-  const solapado = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
-  assert.equal(solapado.ready, true);
-  assert.equal(solapado.manifest.conflict_prediction.predicted_conflicts, 'CERTAIN');
-  assert.deepEqual(solapado.manifest.conflict_prediction.overlap_with_candidate, ['src/a.ts']);
+  // Destino ya con el candidato dentro (`targetRef` por defecto = HEAD =
+  // el propio candidato en este repo de una sola rama): el solape
+  // git-diff es CERTAIN por construcción, pero por la misma razón
+  // `targetHeadCommit` ya no coincide con `recordedBaseCommit` — el gate
+  // normativo `stale_base` (§16, no relacionado con esta reparación) lo
+  // detecta y bloquea legítimamente. `ready: true` con `predicted_conflicts:
+  // CERTAIN` inspeccionable en el manifest era, antes de esta reparación,
+  // un efecto colateral del propio bypass que aquí se corrige (`tasks`
+  // ausente dejaba `stale_base` sin evaluar). La cobertura del cálculo
+  // informativo `predicted_conflicts: CERTAIN` en sí —sin pasar por
+  // `evaluateIntegrationReadiness`— vive en
+  // "predicción de conflicto: CERTAIN cuando el destino tocó el mismo
+  // archivo" más abajo en este mismo archivo.
+  const solapado = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    tasks: [s.contract],
+  });
+  assert.equal(solapado.ready, false);
+  assert.equal(solapado.manifest, null);
+  assert.ok(blockerCodes(solapado).includes('STALE_BASE'));
 });
 
 test('si la predicción no se puede calcular, no hay manifest', (t) => {
@@ -187,7 +206,11 @@ test('si la predicción no se puede calcular, no hay manifest', (t) => {
 
 test('manifest válido: contiene evidencia Git verificada, no declarada', (t) => {
   const s = scenario(t);
-  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
+  const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
+    ...s.git,
+    targetRef: s.repo.baseCommit,
+    tasks: [s.contract],
+  });
 
   assert.equal(result.ready, true);
   assert.deepEqual(result.reasons, []);
@@ -281,7 +304,7 @@ test('un BAJO autorizado por el contrato sí permite el manifest', (t) => {
     s.evidence,
     auditResult({ findings: [finding('BAJO')] }),
     { ...s.contract, allow_low_findings: true },
-    s.git,
+    { ...s.git, targetRef: s.repo.baseCommit, tasks: [s.contract] },
   );
   assert.equal(result.ready, true);
   assert.equal(result.manifest.qa_verdict.findings.length, 1);
@@ -423,18 +446,20 @@ test('conflict_prediction detecta D-XXX pendiente: gate normativo', (t) => {
   assert.ok(blockerCodes(result).includes('PENDING_DECISION'));
 });
 
-test('sin `tasks`, las dimensiones de LOOP-002 se reportan no calculables, no se omiten en silencio', (t) => {
+test('sin `tasks`, las dimensiones de LOOP-002 se reportan no calculables Y bloquean ready', (t) => {
   const s = scenario(t);
   const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
-  // `calculable: false` no bloquea por sí solo: `evaluateTaskReadiness`, el
-  // único punto de entrada real del motor, siempre provee `tasks`; esta rama
-  // sólo es alcanzable invocando la función pura sin ese argumento — un caso
-  // de API, no un candidato sin cobertura de gates. Ver
-  // `test/integration-readiness-failclosed-gates.test.mjs` para el caso que
-  // sí debe bloquear: un cálculo que se intenta y falla (excepción).
-  assert.equal(result.ready, true);
-  assert.equal(result.manifest.conflict_prediction.calculable, false);
-  assert.ok(result.manifest.conflict_prediction.reason.includes('tasks'));
+  // Reauditoría independiente de `LOOP-002-REPAIR-01` (hallazgo ALTO):
+  // `evaluateIntegrationReadiness` se exporta (`lib/index.mjs`), así que
+  // invocarla sin `tasks` es una ruta pública real, no un caso de
+  // laboratorio — `calculable: false` ya no puede convivir con
+  // `ready: true`. Ver `test/integration-readiness-failclosed-gates.test.mjs`
+  // para la cobertura completa de los cuatro escenarios de contexto exigidos
+  // por la misión de reparación (tasks ausente/vacío/sin la candidata/válido).
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(result.blockers.some((b) => b.code === 'GATE_CONTEXT_MISSING'));
+  assert.ok(result.reasons.some((r) => r.includes('tasks')));
 });
 
 // --- 20. fallo de cálculo de conflict_prediction = manifest null ------------
