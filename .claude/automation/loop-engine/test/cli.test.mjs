@@ -163,7 +163,11 @@ test('handoff + qa + readiness: flujo real, con evidencia Git y sin integrar', (
   assert.equal(auditado.state, 'READY_FOR_INTEGRATION');
   assert.equal(auditado.qa_owner, 'CODEX-01');
 
-  const out = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--write']);
+  // `--target` fija el destino en la base registrada: sin esto, el
+  // `targetRef` por defecto ('HEAD') apuntaría al propio commit candidato
+  // (mismo repo de una sola rama), y el gate `stale_base` (§16) lo
+  // detectaría como drift real — no lo que este flujo feliz quiere probar.
+  const out = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--target', repo.baseCommit, '--write']);
   assert.match(out, /"ready": true/);
   assert.match(out, /"candidate_commit_verified": true/);
   assert.match(out, /El motor NO integra/);
@@ -208,16 +212,24 @@ test('readiness --decisions alimenta evidencia de D-XXX al conflict_prediction',
   runCli(['qa', 'LOOP-TEST-001', '--auditor', 'CODEX-01', '--audit', auditFile]);
 
   // El claim ya superó el gate, pero `readiness` no reutiliza esa evidencia
-  // — sin --decisions propio, D-014 se reporta pendiente aquí también.
-  const sinEvidencia = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir]);
-  assert.match(sinEvidencia, /"decision_id": "D-014"/);
-  assert.match(sinEvidencia, /"status": "MISSING_EVIDENCE"/);
+  // — sin --decisions propio, D-014 se reporta pendiente aquí también. Como
+  // `pending_decision` es un gate normativo (§10.4, `BLOCKED_REASONS`),
+  // "reportar pendiente" ahora significa bloquear: `ready: false` y
+  // `manifest: null`, no una nota dentro de un manifest que igual declara
+  // `ready: true` (hallazgo ALTO de la reauditoría de LOOP-002).
+  const sinEvidencia = runCli(['readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--target', repo.baseCommit]);
+  assert.match(sinEvidencia, /"ready": false/);
+  assert.match(sinEvidencia, /"manifest": null/);
+  assert.match(sinEvidencia, /"code": "PENDING_DECISION"/);
+  assert.match(sinEvidencia, /D-014 \(MISSING_EVIDENCE\)/);
 
-  // Con --decisions: D-014 aprobada, ya no aparece como conflicto.
+  // Con --decisions: D-014 aprobada, ya no aparece como conflicto y el
+  // manifest completo vuelve a producirse.
   fs.writeFileSync(decisionsFile, JSON.stringify({ 'D-014': { status: 'ACEPTADA' } }));
   const conEvidencia = runCli([
-    'readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--decisions', decisionsFile,
+    'readiness', 'LOOP-TEST-001', '--repo', repo.dir, '--target', repo.baseCommit, '--decisions', decisionsFile,
   ]);
+  assert.match(conEvidencia, /"ready": true/);
   assert.match(conEvidencia, /"pending_decision":\s*{\s*"detected": false/);
 });
 

@@ -353,8 +353,16 @@ test('19. conflict_prediction completo incluye las siete dimensiones de LOOP-002
   };
   const tasks = [{ ...s.contract, state: 'READY_FOR_QA', dependencies: [], decision_refs: [] }, other];
 
+  // `targetRef: s.repo.baseCommit` — el destino no avanzó desde la base
+  // registrada. Sin esto, el `targetRef` por defecto ('HEAD') apuntaría al
+  // propio commit candidato (artefacto del repositorio de una sola rama que
+  // usa `useTempRepo`/`commitFiles`), y `stale_base` detectaría drift real:
+  // exactamente el gate normativo que esta reparación conecta a `ready` más
+  // abajo. Mismo patrón que ya usa "conflict_prediction se calcula sobre un
+  // candidato válido" para su caso limpio.
   const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, {
-    ...s.git,
+    repoPath: s.repo.dir,
+    targetRef: s.repo.baseCommit,
     tasks,
   });
 
@@ -372,26 +380,37 @@ test('19. conflict_prediction completo incluye las siete dimensiones de LOOP-002
   ]) {
     assert.ok(key in cp, `falta la dimensión "${key}"`);
   }
-  // Ninguna dimensión debería detectar nada: OTRA no comparte alcance.
+  // Ninguna dimensión debería detectar nada: OTRA no comparte alcance y el
+  // destino no se movió.
   assert.equal(cp.file_collision.detected, false);
   assert.equal(cp.shared_contract_collision.detected, false);
   assert.equal(cp.dependency_conflict.detected, false);
   assert.equal(cp.migration_lock.detected, false);
   assert.equal(cp.pending_decision.detected, false);
+  assert.equal(cp.stale_base.stale, false);
+  assert.equal(cp.stale_base.status, 'CURRENT');
 });
 
-test('conflict_prediction detecta una dependencia sin cerrar en las tareas hermanas', (t) => {
+// Corregidas por la reparación fail-closed de la reauditoría de LOOP-002
+// (hallazgo ALTO): `dependency_conflict` y `pending_decision` son gates
+// normativos (su `blocked_reason` vive en `BLOCKED_REASONS`, el mismo
+// vocabulario que bloquea una tarjeta en el resto del motor) — su detección
+// ya no puede convivir con `ready: true`. Cobertura completa de las cinco
+// dimensiones normativas y la distinción con las informativas vive en
+// `test/integration-readiness-failclosed-gates.test.mjs`.
+
+test('conflict_prediction detecta una dependencia sin cerrar en las tareas hermanas: gate normativo', (t) => {
   const s = scenario(t);
   const withDep = { ...s.contract, dependencies: ['B'] };
   const tasks = [withDep, { task_id: 'B', state: 'IMPLEMENTING', dependencies: [] }];
 
   const result = evaluateIntegrationReadiness(s.evidence, auditResult(), withDep, { ...s.git, tasks });
-  assert.equal(result.ready, true, 'dependency_conflict es informativo, no bloquea ready');
-  assert.equal(result.manifest.conflict_prediction.dependency_conflict.detected, true);
-  assert.deepEqual(result.manifest.conflict_prediction.dependency_conflict.unmet, ['B']);
+  assert.equal(result.ready, false, 'dependency_conflict es normativo (BLOCKED_REASONS): bloquea ready');
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('DEPENDENCY_CONFLICT'));
 });
 
-test('conflict_prediction detecta D-XXX pendiente sin bloquear ready', (t) => {
+test('conflict_prediction detecta D-XXX pendiente: gate normativo', (t) => {
   const s = scenario(t);
   const withDecision = { ...s.contract, decision_refs: ['D-014'] };
   const result = evaluateIntegrationReadiness(s.evidence, auditResult(), withDecision, {
@@ -399,14 +418,20 @@ test('conflict_prediction detecta D-XXX pendiente sin bloquear ready', (t) => {
     tasks: [withDecision],
     decisionEvidence: {},
   });
-  assert.equal(result.ready, true);
-  assert.equal(result.manifest.conflict_prediction.pending_decision.detected, true);
-  assert.equal(result.manifest.conflict_prediction.pending_decision.conflicts[0].decision_id, 'D-014');
+  assert.equal(result.ready, false);
+  assert.equal(result.manifest, null);
+  assert.ok(blockerCodes(result).includes('PENDING_DECISION'));
 });
 
 test('sin `tasks`, las dimensiones de LOOP-002 se reportan no calculables, no se omiten en silencio', (t) => {
   const s = scenario(t);
   const result = evaluateIntegrationReadiness(s.evidence, auditResult(), s.contract, s.git);
+  // `calculable: false` no bloquea por sí solo: `evaluateTaskReadiness`, el
+  // único punto de entrada real del motor, siempre provee `tasks`; esta rama
+  // sólo es alcanzable invocando la función pura sin ese argumento — un caso
+  // de API, no un candidato sin cobertura de gates. Ver
+  // `test/integration-readiness-failclosed-gates.test.mjs` para el caso que
+  // sí debe bloquear: un cálculo que se intenta y falla (excepción).
   assert.equal(result.ready, true);
   assert.equal(result.manifest.conflict_prediction.calculable, false);
   assert.ok(result.manifest.conflict_prediction.reason.includes('tasks'));

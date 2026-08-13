@@ -35,6 +35,14 @@ import { sharedContractConflicts } from './contracts.mjs';
  *      cualquier discrepancia bloquea;
  *   4. calcula `conflict_prediction` sobre el repositorio real. Si no puede
  *      calcularse, se falla cerrado.
+ *   5. dentro de `conflict_prediction`, distingue predicción informativa de
+ *      gate normativo (§10, §16): `file_collision`/`glob_overlap` advierten
+ *      sin bloquear; `dependency_conflict`, `pending_decision`,
+ *      `migration_lock`, `shared_contract_collision` y `stale_base` usan el
+ *      mismo vocabulario que `BLOCKED_REASONS` y, si están presentes,
+ *      `ready` no puede ser `true` — corrección de la reauditoría de
+ *      `LOOP-002` (hallazgo ALTO), que encontró estas cinco condiciones
+ *      calculadas correctamente pero sin conectar a `ready`.
  *
  * **El motor no integra.** Este módulo genera evidencia para que una
  * persona decida; ninguna ruta ejecuta `push`, `merge`, `rebase` ni
@@ -116,15 +124,42 @@ function sameFileSet(a, b) {
 
 /**
  * Dimensiones de `LOOP-002` para `conflict_prediction` (§10, extendido por
- * la misión de gates avanzados). **Informativas, como el resto de
- * `conflict_prediction`** — ninguna bloquea `ready` por sí sola; la
- * elegibilidad para *trabajar* una tarjeta ya la decide `evaluateConcurrency`
- * antes del despacho (§10). Aquí es evidencia para la persona que decide la
- * integración, igual que `predicted_conflicts` del diff de Git.
+ * la misión de gates avanzados).
+ *
+ * **No todas tienen la misma semántica — la reauditoría de `LOOP-002`
+ * (hallazgo ALTO) encontró que este módulo las trataba todas como
+ * informativas por igual, lo que dejaba `ready: true` conviviendo con
+ * condiciones que el propio motor tipifica como bloqueantes.**
+ *
+ *   - `file_collision` / `glob_overlap` — **informativas.** Ninguna de las
+ *     dos aparece en `BLOCKED_REASONS` (`constants.mjs`): son una advertencia
+ *     de que otra tarjeta *activa* también toca esas rutas, útil para quien
+ *     decide integrar, pero no una condición legal que impida continuar —
+ *     igual que `predicted_conflicts` del diff de Git (§14).
+ *   - `dependency_conflict`, `pending_decision`, `migration_lock`,
+ *     `shared_contract_collision`, `stale_base` — **normativas.** Sus
+ *     `blocked_reason` (`dependency_cycle`, `dependency_transitive_unmet`,
+ *     `dependency_malformed`, `pending_decision`, `migration_lock_held`,
+ *     `migration_lock_stale`, `shared_contract_collision`, `stale_base`) son
+ *     exactamente el vocabulario que `BLOCKED_REASONS` reserva para mover una
+ *     tarjeta a `BLOCKED*` en el resto del motor (§10.2–§10.5, §16). Que
+ *     `evaluateConcurrency` ya las use para decidir elegibilidad de despacho
+ *     no las vuelve opcionales aquí: una tarjeta puede haber sido elegible al
+ *     despachar y dejar de estarlo antes de integrar (el destino avanzó, un
+ *     cerrojo de migración se tomó, una decisión `D-XXX` cambió de estado).
+ *     `evaluateIntegrationReadiness` es quien produce el manifest sobre el
+ *     que una persona integra, así que es quien debe volver a comprobarlas.
  *
  * Se calcula sólo si se provee `tasks` (el resto de la cola); sin ella no
- * hay con qué comparar, y se reporta así explícitamente en vez de fingir
- * "sin conflictos".
+ * hay con qué comparar, y se reporta así explícitamente (`calculable: false`)
+ * en vez de fingir "sin conflictos". `evaluateTaskReadiness` — el único punto
+ * de entrada real del motor — siempre provee `tasks`; la ausencia sólo es
+ * alcanzable invocando esta función directamente sin ese argumento, así que
+ * `calculable: false` no bloquea `ready` por sí sola (evitaría romper la API
+ * pública de esta función sin necesidad, para un caso que el motor nunca
+ * produce). Un cálculo que sí se intenta y falla (excepción) es distinto y
+ * sigue siendo fail-closed vía `CONFLICT_PREDICTION_FAILED`, sin cambios de
+ * esta reparación.
  */
 function evaluateGateConflictPrediction({ task, tasks, decisionEvidence, targetHeadCommit, taskContract }) {
   if (!Array.isArray(tasks)) {
@@ -288,6 +323,72 @@ export function evaluateIntegrationReadiness(
         taskContract,
       });
       prediction = { ...gitPrediction, ...gates };
+
+      // --- 5b. gates normativos de LOOP-002 (§10.2–§10.5, §16) ------------
+      // `file_collision`/`glob_overlap` se dejan fuera a propósito: no están
+      // en `BLOCKED_REASONS`, siguen siendo informativas. Las otras cinco sí
+      // lo están — su detección aquí debe producir exactamente lo que
+      // produciría en el resto del motor: bloqueo, no una nota al margen.
+      //
+      // Sin `tasks` (`gates.calculable === false`) estas cinco dimensiones no
+      // pueden evaluarse — se reportan explícitamente así (ver docstring de
+      // `evaluateGateConflictPrediction`), pero **no bloquean por sí solo**:
+      // `evaluateTaskReadiness`, el único punto de entrada del motor, siempre
+      // provee `tasks` (`listTasks()`); la ausencia sólo ocurre al invocar
+      // `evaluateIntegrationReadiness` directamente sin ese argumento — un
+      // caso de API, no un candidato real sin cobertura. Un cálculo que sí
+      // se intenta y falla (excepción) sigue cayendo en el `catch` de abajo,
+      // que es fail-closed desde antes de esta reparación.
+      if (gates.calculable) {
+        if (gates.dependency_conflict.detected) {
+          const parts = [];
+          if (gates.dependency_conflict.cycle) {
+            parts.push(`ciclo de dependencias: ${gates.dependency_conflict.cycle.join(' -> ')}`);
+          }
+          if (gates.dependency_conflict.malformed.length > 0) {
+            parts.push(`referencias a tarjetas inexistentes: ${gates.dependency_conflict.malformed.join(', ')}`);
+          }
+          if (gates.dependency_conflict.unmet.length > 0) {
+            parts.push(`dependencias sin cerrar: ${gates.dependency_conflict.unmet.join(', ')}`);
+          }
+          fail('DEPENDENCY_CONFLICT', parts.join('; '));
+        }
+
+        if (gates.pending_decision.detected) {
+          fail(
+            'PENDING_DECISION',
+            `decisión(es) sin evidencia de aprobación: ${gates.pending_decision.conflicts
+              .map((c) => `${c.decision_id} (${c.status})`)
+              .join(', ')}`,
+          );
+        }
+
+        if (gates.migration_lock.detected) {
+          fail(
+            'MIGRATION_LOCK_CONFLICT',
+            `cerrojo de migración en conflicto: ${gates.migration_lock.conflicts
+              .map((c) => `${c.check} con "${c.with}"`)
+              .join('; ')}`,
+          );
+        }
+
+        if (gates.shared_contract_collision.detected) {
+          fail(
+            'SHARED_CONTRACT_COLLISION',
+            `colisión de contrato compartido: ${gates.shared_contract_collision.conflicts
+              .map((c) => c.direction)
+              .join('; ')}`,
+          );
+        }
+
+        if (gates.stale_base.stale) {
+          fail(
+            'STALE_BASE',
+            `base_commit ya no coincide con el HEAD destino (${gates.stale_base.status}); ` +
+              'reconstruir sobre base nueva es decisión humana, el motor no rebasa solo (§16).',
+          );
+        }
+      }
     } catch (err) {
       fail('CONFLICT_PREDICTION_FAILED', `no se pudo calcular la predicción de conflicto: ${err.message}`);
     }
