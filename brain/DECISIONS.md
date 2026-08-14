@@ -873,3 +873,375 @@ Las cuatro reconciliaciones anteriores se ejecutan en la misma sesión que esta 
 - **2026-08-13** — se registra `D-014`. Decisión 1 de `CONTAIA-M5-CANONICAL-DECISIONS-DRAFT` aprobada por el responsable de producto (Opción B). `EWO-006` queda parcialmente desbloqueado para redacción: el contrato de autorización de M5 ya no es ambiguo, aunque su implementación sigue pendiente.
 
 ---
+
+## D-015 — Representación canónica de impuestos CFDI 4.0
+
+- **Fecha:** 2026-08-08
+- **Estado:** **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA.** No autoriza implementación, migración, cambio de `schema.prisma` ni inicio de `E5-S3-T08`.
+- **Alcance:** contrato de extracción y persistencia de impuestos CFDI 4.0. No modifica D-007, D-009 ni ningún contrato vigente hasta su aprobación expresa.
+
+### Contexto
+
+`ExtractedTax.tipoFactor` y `CfdiTax.tipoFactor` son actualmente obligatorios. Sin embargo, el XSD oficial de CFDI 4.0 distingue los impuestos de comprobante de los impuestos de concepto: una retención a nivel comprobante solo contiene `Impuesto` e `Importe`. `Base`, `TipoFactor` y `TasaOCuota` no son atributos opcionales de ese nodo: no aplican a su contrato XML.
+
+La implementación de `E5-S3-T08` permanece bloqueada para evitar dos resultados inaceptables: inventar datos fiscales para satisfacer el modelo actual, o rechazar un XML fiscalmente válido.
+
+### Evidencia normativa
+
+Fuente primaria: XSD oficial [`cfdv40.xsd`](http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd) publicado por el SAT. Las declaraciones `use="required"` / `use="optional"` de los cuatro elementos se verificaron directamente contra ese XSD el **2026-08-08**; la matriz de abajo transcribe ese resultado, no una interpretación del contrato interno.
+
+#### Capa 1 — obligatoriedad estructural (XSD)
+
+| Forma XML                | `Impuesto` | `TipoFactor`   | `TasaOCuota`                   | `Base`         | `Importe`                      |
+| ------------------------ | ---------- | -------------- | ------------------------------- | -------------- | ------------------------------- |
+| Retención de comprobante | REQUIRED   | NOT APPLICABLE | NOT APPLICABLE                 | NOT APPLICABLE | REQUIRED                       |
+| Traslado de comprobante  | REQUIRED   | REQUIRED       | OPTIONAL (condicional, capa 2) | REQUIRED       | OPTIONAL (condicional, capa 2) |
+| Retención de concepto    | REQUIRED   | REQUIRED       | REQUIRED                       | REQUIRED       | REQUIRED                       |
+| Traslado de concepto     | REQUIRED   | REQUIRED       | OPTIONAL (condicional, capa 2) | REQUIRED       | OPTIONAL (condicional, capa 2) |
+
+`NOT APPLICABLE` no es sinónimo de `OPTIONAL`: el atributo **no está declarado** en ese elemento del XSD. Un `Comprobante/Impuestos/Retenciones/Retencion` que incluyera `TipoFactor` sería inválido, no permisivo. `Base` es `REQUIRED` en los tres nodos que la declaran — obligatoriedad introducida por CFDI 4.0 y ausente en CFDI 3.3; no debe heredarse ninguna suposición de la versión anterior.
+
+#### Capa 2 — condicionalidad por valor de `TipoFactor`
+
+El XSD declara `TasaOCuota` e `Importe` como `optional` en los dos nodos de traslado, pero las reglas de validación de CFDI 4.0 los condicionan al valor de `TipoFactor` (catálogo `c_TipoFactor`: `Tasa`, `Cuota`, `Exento`):
+
+| Valor de `TipoFactor` en un traslado | `TasaOCuota`                   | `Importe`                      |
+| ------------------------------------- | ------------------------------- | ------------------------------- |
+| `Tasa` o `Cuota`                     | REQUIRED                       | REQUIRED                       |
+| `Exento`                             | PROHIBIDO (debe estar ausente) | PROHIBIDO (debe estar ausente) |
+
+Esta condicionalidad es **bidireccional**: `Exento` no vuelve los atributos meramente omisibles, los prohíbe. Reducirla a "opcional" permitiría representar un traslado exento con importe, que es inválido. La regla ya está reconocida en el contrato vigente (`cfdi-aggregate.types.ts`, `ExtractedTax.tasaOCuota`: «`null` cuando `tipoFactor = 'Exento'`») y **debe conservarse**, no relajarse.
+
+Las retenciones de concepto no admiten `Exento`: sus cinco atributos son `REQUIRED` sin condición. Las retenciones de comprobante no declaran `TipoFactor`, por lo que la capa 2 no les aplica.
+
+Ninguna otra regla de catálogo SAT (validez de la clave de `Impuesto`, congruencia de importes, redondeos) se incorpora a esta decisión: pertenecen a la validación del parser contra la fuente SAT aplicable y no se infieren localmente.
+
+### Problema
+
+El contrato actual no puede construir ni persistir una retención global válida porque `tipoFactor` es `string` y la columna `cfdi_taxes.tipo_factor` es `TEXT NOT NULL`. `base`, `tasa_o_cuota` e `importe` ya son nullable, pero la nulabilidad por sí sola no protege qué combinaciones son válidas para cada forma fiscal.
+
+### Decisión propuesta
+
+Adoptar una unión discriminada TypeScript de cuatro formas fiscales y conservar una sola tabla relacional `CfdiTax`.
+
+`tipoFactor` pasará de `String` a `String?` únicamente para representar la retención de comprobante. Un `null` significa exclusivamente que el atributo no aplica al nodo XML. No significa valor desconocido, ambiguo, no validado, cero, cadena vacía ni inferido.
+
+La identidad idempotente, `scope`, `conceptSlot`, FKs compuestas, índices y Transacción A de D-007 se conservan sin cambio.
+
+### Contrato vinculante propuesto
+
+Si esta propuesta se aprueba, el parser y la persistencia deberán cumplir lo siguiente:
+
+- **Retención global:** `impuesto` e `importe` requeridos; `tipoFactor`, `tasaOCuota` y `base` son `null` porque el XSD no declara esos atributos en ese nodo.
+- **Traslado global:** `impuesto`, `tipoFactor` y `base` requeridos; `tasaOCuota` e `importe` requeridos si `tipoFactor` es `Tasa` o `Cuota`, y `null` si es `Exento` (capa 2).
+- **Retención de concepto:** `impuesto`, `tipoFactor`, `tasaOCuota`, `base` e `importe` requeridos, sin excepción condicional.
+- **Traslado de concepto:** `impuesto`, `tipoFactor` y `base` requeridos; `tasaOCuota` e `importe` con la misma condicionalidad que el traslado global.
+- Los importes permanecen como cadenas decimales exactas en la extracción y `Decimal(18,6)` en persistencia; no se introducen `number` ni `float` (BR-GLB-004).
+
+#### Semántica estricta de `null`
+
+En el contrato de impuestos, `null` tiene exactamente **un** significado:
+
+> **El atributo no aplica / no existe para esa forma XML válida.**
+
+`null` **no** significa, en ningún caso: desconocido, ambiguo, parsing fallido, dato perdido, valor pendiente, error tolerado, cero, ni «no se pudo determinar».
+
+De aquí se derivan dos obligaciones que el implementador no puede relajar:
+
+1. **Un atributo obligatorio ausente nunca se convierte en `null`.** Si falta `Importe` en una retención de comprobante, o `Base` en cualquier traslado, o cualquiera de los cinco atributos de una retención de concepto, la estructura se **rechaza** mediante el contrato de error vigente (`CfdiExtractionError` con `CFDI_STRUCTURE_INVALID`, sin cambios en `cfdi-extraction.errors.ts`). Degradar esa ausencia a `null` convertiría un XML inválido en una fila persistida indistinguible de una retención global legítima.
+2. **La ambigüedad no viaja en `null`.** Todo caso de dato presente pero dudoso pertenece a `ambiguousFields[]`, competencia exclusiva de `E5-S3-T09`. D-015 no adelanta, no implementa y no modifica ese contrato.
+
+#### Prohibición de valores sintéticos
+
+Queda expresamente prohibido escribir, en extracción o en persistencia, cualquier sustituto artificial para satisfacer un tipo interno: `"N/A"`, `""`, `"NONE"`, `"UNKNOWN"`, `"0"`, `0`, `"Exento"` inferido, o cualquier valor derivado, calculado o heredado de otro nodo. La persistencia debe representar fielmente el XML: si el atributo existe se guarda su valor textual exacto; si no existe se guarda `NULL`; si es obligatorio y no existe se rechaza el documento. No hay una cuarta opción.
+
+### TypeScript propuesto
+
+No se modifica código mediante esta decisión. El contrato a implementar es:
+
+```ts
+/** Campos comunes a toda forma fiscal. No se instancia directamente. */
+interface ExtractedTaxBase {
+  /** Orden dentro de su contenedor (1-based); reinicia por contenedor. */
+  readonly position: number;
+  /** Clave SAT del impuesto. Texto libre — sin catálogo hardcodeado. */
+  readonly impuesto: string;
+}
+
+/**
+ * Acoplamiento bidireccional de la capa 2: en un traslado, `tasaOCuota` e
+ * `importe` están ambos presentes o ambos ausentes. Nunca uno sin el otro.
+ */
+type TrasladoConFactor = { readonly tasaOCuota: string; readonly importe: string };
+type TrasladoSinFactor = { readonly tasaOCuota: null; readonly importe: null };
+
+/** `Comprobante/Impuestos/Retenciones/Retencion` — solo Impuesto e Importe. */
+type GlobalRetention = ExtractedTaxBase & {
+  readonly type: 'WITHHOLDING';
+  readonly tipoFactor: null;
+  readonly tasaOCuota: null;
+  readonly base: null;
+  readonly importe: string;
+};
+
+/**
+ * `Traslado`, idéntico en ambos contenedores. El scope lo aporta el arreglo
+ * que lo contiene, no un campo propio.
+ */
+type TransferTax = ExtractedTaxBase & {
+  readonly type: 'TRANSFER';
+  readonly tipoFactor: string;
+  readonly base: string;
+} & (TrasladoConFactor | TrasladoSinFactor);
+
+/** `Concepto/Impuestos/Retenciones/Retencion` — los cinco atributos requeridos. */
+type ConceptRetention = ExtractedTaxBase & {
+  readonly type: 'WITHHOLDING';
+  readonly tipoFactor: string;
+  readonly tasaOCuota: string;
+  readonly base: string;
+  readonly importe: string;
+};
+
+type ExtractedComprobanteTax = GlobalRetention | TransferTax;
+type ExtractedConceptTax = ConceptRetention | TransferTax;
+```
+
+#### Por qué esta forma y no la de cuatro tipos paralelos
+
+La primera redacción de esta propuesta declaraba `GlobalTransfer` y `ConceptTransfer` como dos tipos **estructuralmente idénticos** (mismos campos, mismos tipos): TypeScript los considera el mismo tipo, de modo que la distinción era nominal y no aportaba ninguna garantía. Aquí se unifican en `TransferTax` y la distinción de scope se obtiene donde realmente existe: el arreglo contenedor.
+
+Además, aquella redacción dejaba `tasaOCuota` e `importe` heredados de la base como `string | null` libres en los traslados, lo que permitía representar `tasaOCuota` presente con `importe` nulo — una combinación que ningún CFDI válido puede producir. La intersección con `TrasladoConFactor | TrasladoSinFactor` la vuelve irrepresentable.
+
+El acoplamiento se expresa **estructuralmente**, sin literales de catálogo: el tipo no menciona `'Exento'`, `'Tasa'` ni `'Cuota'`. Verificar que el par presente/ausente corresponde al valor real de `TipoFactor` sigue siendo responsabilidad del parser contra la fuente SAT aplicable — coherente con `CLAUDE.md` regla 6 y con el tratamiento de `impuesto` como texto libre. _(Alternativa evaluada y no adoptada: tipar `tipoFactor` como unión literal `'Tasa' | 'Cuota' | 'Exento'`, que haría el invariante completo en compilación pero incrustaría el catálogo `c_TipoFactor` en el código. Requiere decisión humana — ver «Decisiones humanas pendientes».)_
+
+#### Análisis del discriminador
+
+- **`type` (`'TRANSFER' | 'WITHHOLDING'`): necesario y no derivable.** Un mismo contenedor (`Impuestos`) alberga tanto `Traslados` como `Retenciones`, de modo que la posición en el agregado no revela cuál es. Es el discriminador legítimo de ambas uniones.
+- **`scope`: redundante y deliberadamente ausente.** Es derivable del contenedor (`cfdiTaxes[]` ⇒ `CFDI`; `concept.taxes[]` ⇒ `CONCEPT`). Incluirlo permitiría construir un impuesto con `scope: 'CONCEPT'` dentro del arreglo de comprobante, estado que el CHECK `cfdi_taxes_scope_concept_check` ya prohíbe en base de datos y que la omisión vuelve irrepresentable en el tipo.
+- **`conceptSlot`: derivable, ausente por la misma razón.** La persistencia lo obtiene de `concept.position` (`cfdi-tax.repository.ts` lo deriva hoy y seguirá haciéndolo).
+
+Las cuatro formas fiscales quedan identificadas por el par **(contenedor, `type`)**, no por un campo único. `ExtractedCfdiAggregate.cfdiTaxes` acepta únicamente `ExtractedComprobanteTax[]`; `ExtractedConcept.taxes`, únicamente `ExtractedConceptTax[]`.
+
+### Prisma y persistencia propuestos
+
+El cambio futuro de Prisma es exclusivamente:
+
+```prisma
+tipoFactor String? @map("tipo_factor") @db.Text
+```
+
+Se creará una migración correctiva nueva. Nunca se editarán las migraciones ya aplicadas. `base`, `tasaOCuota` e `importe` ya admiten `NULL`; no se cambia su tipo ni precisión. Los repositorios recibirán las uniones específicas por contenedor y continuarán pasando los valores sin transformarlos. `PersistCfdiAggregateService` no cambia su orden ni abre otra transacción.
+
+### CHECK SQL propuesto
+
+**Verificación previa de viabilidad.** El CHECK solo es legítimo si la propia fila contiene la información necesaria para identificar su forma fiscal, sin consultar otras tablas. Se comprobó contra `schema.prisma`: `cfdi_taxes` tiene `scope` (`CfdiTaxScope`, `NOT NULL`) y `type` (`CfdiTaxType`, `NOT NULL`). El par `(scope, type)` cubre exactamente las cuatro combinaciones y ninguna otra, de modo que las cuatro formas son distinguibles fila a fila. **No se requiere información externa** y el CHECK no es lógicamente incompleto respecto de la capa 1.
+
+La migración futura agregará `cfdi_taxes_cfdi40_tax_shape_check`, después de relajar `tipo_factor NOT NULL` y de verificar previamente que los datos existentes cumplen la nueva forma:
+
+```sql
+CHECK (
+  (
+    "scope" = 'CFDI'
+    AND "type" = 'WITHHOLDING'
+    AND "tipo_factor" IS NULL
+    AND "tasa_o_cuota" IS NULL
+    AND "base" IS NULL
+    AND "importe" IS NOT NULL
+  )
+  OR
+  (
+    "scope" = 'CFDI'
+    AND "type" = 'TRANSFER'
+    AND "tipo_factor" IS NOT NULL
+    AND "base" IS NOT NULL
+  )
+  OR
+  (
+    "scope" = 'CONCEPT'
+    AND "type" = 'WITHHOLDING'
+    AND "tipo_factor" IS NOT NULL
+    AND "tasa_o_cuota" IS NOT NULL
+    AND "base" IS NOT NULL
+    AND "importe" IS NOT NULL
+  )
+  OR
+  (
+    "scope" = 'CONCEPT'
+    AND "type" = 'TRANSFER'
+    AND "tipo_factor" IS NOT NULL
+    AND "base" IS NOT NULL
+  )
+)
+```
+
+`cfdi_taxes_scope_concept_check`, FKs y todos los índices actuales permanecen intactos. Este CHECK es aditivo y ortogonal al existente: aquel gobierna la coherencia `scope` ↔ `cfdi_concept_id` ↔ `concept_slot`; este gobierna la nulabilidad de los atributos fiscales.
+
+#### Frontera explícita del CHECK
+
+El CHECK cubre **la capa 1 completa** y **nada de la capa 2**. Concretamente:
+
+| Responsabilidad                                                         | Dueño                              | Motivo                                                   |
+| ------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| Nulabilidad estructural de las cuatro formas                            | **CHECK SQL**                      | Derivable de `(scope, type)`, columnas de la propia fila |
+| Acoplamiento `tasaOCuota` ↔ `importe` en traslados                      | **CHECK SQL (ver abajo)** o parser | Derivable de la fila; decisión pendiente                 |
+| Correspondencia de ese par con el valor de `TipoFactor`                 | **Parser (T08C)**                  | Exige interpretar el catálogo `c_TipoFactor`             |
+| Validez de la clave de `Impuesto` contra `c_Impuesto`                   | **Parser**                         | Catálogo SAT, fuera del alcance de una constraint        |
+| Congruencia aritmética (`base × tasa ≈ importe`), redondeos, sumatorias | **Parser / reglas SAT**            | Semántica, no forma                                      |
+| Validación XSD completa                                                 | **Etapa previa (T04/T05)**         | Ya cubierta antes de la extracción                       |
+
+**Lo que el CHECK deliberadamente no hace, y por qué.** El acoplamiento bidireccional de la capa 2 (`tasaOCuota` e `importe` ambos presentes o ambos ausentes) **sí es expresable** en SQL sin conocer el catálogo:
+
+```sql
+-- Fragmento candidato, aplicable a las dos formas de traslado:
+AND (("tasa_o_cuota" IS NULL) = ("importe" IS NULL))
+```
+
+Incluirlo cerraría la única combinación imposible que hoy el CHECK permite (traslado con tasa pero sin importe, o viceversa) sin incrustar ningún literal de catálogo. Lo que **no** puede hacer el CHECK, en ninguna variante, es verificar que ese par corresponda al valor concreto de `tipo_factor`: eso exigiría escribir `'Exento'` dentro de la migración, es decir, congelar un valor del catálogo `c_TipoFactor` en una constraint que solo puede cambiarse con otra migración. Esa es la frontera dura.
+
+Se propone **adoptar el fragmento de acoplamiento** y dejar la correspondencia con `TipoFactor` en el parser. Queda sujeto a aprobación humana explícita porque endurece el contrato de persistencia más allá de la propuesta original — ver «Decisiones humanas pendientes».
+
+### Impacto futuro
+
+| Archivo o capa                                              | Clasificación        | Cambio futuro                                                                        |
+| --------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------- |
+| `apps/api/src/modules/cfdi/cfdi-aggregate.types.ts`         | DEBE CAMBIAR         | Unión discriminada y arreglos por contenedor.                                        |
+| `packages/database/prisma/schema.prisma`                    | DEBE CAMBIAR         | `tipoFactor String?`; sin cambios de precisión, identidad o relaciones.              |
+| Nueva migración Prisma                                      | DEBE CAMBIAR         | Relajar `NOT NULL` y crear CHECK de forma; nunca editar migraciones históricas.      |
+| `apps/api/src/modules/cfdi/cfdi-tax.repository.ts`          | DEBE CAMBIAR         | Firmas específicas por contenedor; mapeo fiel de `null`.                             |
+| `apps/api/src/modules/cfdi/persist-cfdi-aggregate.ts`       | PROBABLEMENTE CAMBIA | Solo tipos, pruebas o verificación complementaria; Transacción A y orden no cambian. |
+| `apps/api/src/modules/xml-processing/cfdi-40-extractor.ts`  | DEBE CAMBIAR         | Extracción de las cuatro formas y posiciones contiguas.                              |
+| Pruebas unitarias de extractor/repositorios/persistencia    | DEBE CAMBIAR         | Fixtures de las cuatro formas y rollback por CHECK.                                  |
+| Pruebas de integración PostgreSQL                           | DEBE CAMBIAR         | Aceptación/rechazo físico del CHECK nuevo.                                           |
+| `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` | DEBE CAMBIAR         | Reemplazar la premisa de `tipoFactor NOT NULL` tras aprobar D-015.                   |
+| `docs/engineering/EWO-005_IMPLEMENTATION_CHECKLIST.md`      | DEBE CAMBIAR         | Ejecutar T08A–D tras la aprobación.                                                  |
+
+### Compatibilidad y migración
+
+Los datos existentes con `tipo_factor` no nulo siguen siendo representables: relajar `NOT NULL` es una operación ampliadora que nunca invalida una fila previa. El riesgo no está en la relajación sino en el CHECK que se añade después, que sí puede rechazar filas ya escritas.
+
+#### Preflight obligatorio de T08B
+
+`E5-S3-T08B` **debe** ejecutar este preflight contra la base destino **antes** de relajar `NOT NULL` y **antes** de añadir el CHECK. Es diagnóstico: solo lee, nunca escribe, nunca normaliza y nunca fabrica datos.
+
+1. **Volumen y alcance.** `SELECT COUNT(*) FROM cfdi_taxes;` — si es `0`, el CHECK no puede rechazar nada y el preflight se resuelve trivialmente. Se documenta el conteo obtenido, no se asume.
+2. **Distribución por forma.** Conteo agrupado por `(scope, type)` para confirmar que solo aparecen las cuatro combinaciones esperadas y detectar cualquier fila histórica anómala.
+3. **Filas que incumplirían el CHECK nuevo.** Ejecutar el predicado propuesto **negado** como `SELECT`, antes de crearlo como constraint. Interesan en particular:
+   - `scope = 'CFDI' AND type = 'WITHHOLDING'` con `tipo_factor`, `tasa_o_cuota` o `base` no nulos — imposibles bajo el contrato nuevo, pero escribibles bajo el actual, donde `tipo_factor` era obligatorio; **esta es la categoría con mayor probabilidad de existir**, porque cualquier retención global escrita hasta hoy tuvo que llevar un `tipo_factor` no nulo, muy probablemente sintético. Si aparece, la migración se detiene: son exactamente los datos falsificados que D-015 existe para impedir, y su corrección es una decisión humana, no una normalización automática.
+   - `scope = 'CFDI' AND type = 'TRANSFER'` con `base` nula — inválidas en CFDI 4.0 pero posibles si se escribieron con supuestos de CFDI 3.3.
+   - `scope = 'CONCEPT' AND type = 'WITHHOLDING'` con cualquiera de sus cinco atributos nulo.
+   - Si se adopta el fragmento de acoplamiento: traslados con `tasa_o_cuota IS NULL <> importe IS NULL`.
+4. **Integridad de identidad.** Confirmar que `concept_slot`, `position` y las FKs siguen íntegros y que `cfdi_taxes_scope_concept_check` no reporta violaciones — el CHECK nuevo no debe enmascarar un problema preexistente de otra naturaleza.
+5. **Resultado.** El preflight produce un registro escrito con los conteos obtenidos. Cero filas en incumplimiento habilita la migración; una o más la **detienen** y escalan a decisión humana.
+
+El despliegue futuro será: preflight verde → migración validada → binario compatible con `null` → habilitación de extracción T08. El orden importa: desplegar el binario antes de la migración haría fallar toda escritura de retención global contra `NOT NULL`.
+
+### Alternativas rechazadas
+
+- Solo hacer `tipoFactor: string | null`: no impide `null` inválidos en impuestos de concepto.
+- Un tipo único con `scope` producido por el parser: duplica el contexto ya derivable del contenedor y permite incoherencia entre dato y ubicación.
+- Valores sintéticos: inventan información fiscal.
+- Rechazar una retención global válida: contradice la estructura SAT.
+- Cuatro tablas físicas: multiplican modelos y consultas sin una ganancia de integridad proporcional.
+- **Cuatro tipos TypeScript paralelos** (`GlobalTransfer` y `ConceptTransfer` separados): estructuralmente idénticos, por lo que TypeScript los trata como el mismo tipo; la distinción sería nominal y no impediría ningún error real. Sustituidos por `TransferTax` más la separación por arreglo contenedor.
+- **Dejar `tasaOCuota` e `importe` libres en los traslados**: permitiría representar un traslado con tasa y sin importe, combinación que ningún CFDI válido produce. Sustituido por la intersección `TrasladoConFactor | TrasladoSinFactor`.
+- **Codificar la regla de `Exento` dentro del CHECK SQL**: exigiría escribir el literal `'Exento'` en una migración, congelando un valor del catálogo `c_TipoFactor` en una constraint que solo otra migración podría cambiar. La verificación contra el valor concreto permanece en el parser.
+
+### Pruebas y criterios de aceptación futuros
+
+1. Una retención global válida se extrae y persiste con `tipoFactor`, `tasaOCuota` y `base` nulos.
+2. Una retención de concepto sin cualquiera de sus atributos obligatorios se rechaza antes de persistir.
+3. El CHECK acepta las cuatro formas permitidas y rechaza cada combinación de nulidad prohibida.
+4. Un fallo del CHECK revierte toda la Transacción A: cabecera, hijos, checksum, `Document` y `Job` no quedan parcialmente confirmados.
+5. Se preservan la identidad, posiciones, FKs, aislamiento por empresa e idempotencia de D-007.
+6. `prisma validate`, generación de cliente, pruebas dirigidas e integración PostgreSQL efímera pasan antes de solicitar auditoría independiente READ ONLY.
+
+### Riesgos
+
+- **ALTO:** implementar T08 antes de aprobar este contrato obliga a inventar datos o a rechazar XML válido.
+- **MEDIO:** el CHECK de forma no valida por sí solo todos los catálogos y reglas condicionales del SAT; el parser conserva esa responsabilidad.
+- **MEDIO:** binarios anteriores que asuman `tipoFactor: string` no son compatibles después de persistir `null` legítimos.
+- **BAJO:** documentación o consumidores futuros podrían mostrar `null` como dato faltante; la API deberá conservar su semántica explícita.
+
+### Rollback
+
+El rollback tiene **dos regímenes cualitativamente distintos**, separados por un punto de no retorno. Confundirlos es el error que esta sección existe para impedir.
+
+#### A. Antes de que exista una sola fila con `tipo_factor IS NULL`
+
+Reversible por completo y sin pérdida. No se ha escrito ningún dato que el esquema anterior no pueda representar, de modo que:
+
+- Revertir el binario: seguro.
+- Revertir la migración (`DROP CONSTRAINT` del CHECK nuevo, restaurar `SET NOT NULL`): seguro, porque toda fila existente tiene `tipo_factor` no nulo y la restauración no rechaza ninguna.
+- Coste: nulo.
+
+Este régimen cubre toda la ventana entre T08B y la primera extracción real de una retención global, que solo puede ocurrir después de T08C.
+
+#### B. Después de persistir la primera retención global legítima
+
+**Ya no es reversible sin pérdida ni transformación.** Restaurar `tipo_factor NOT NULL` es imposible mientras exista una sola de esas filas: `ALTER TABLE ... SET NOT NULL` fallaría, y las únicas tres salidas son inaceptables o costosas:
+
+1. **Rellenar los `NULL`** con cualquier valor para que la restauración pase: prohibido sin excepción. Falsifica información fiscal y es exactamente la patología que D-015 elimina.
+2. **Borrar las filas afectadas**: destruye impuestos legítimamente extraídos y rompe la integridad del agregado que D-007 garantiza como atómico.
+3. **Restaurar desde un respaldo verificado anterior al despliegue**: técnicamente viable, pero implica perder todo lo procesado desde entonces. Es una operación de recuperación, no un rollback.
+
+En consecuencia, **el rollback de esquema deja de estar disponible en el régimen B** y la única reversión practicable es la del binario, siempre que la versión anterior tolere leer `NULL` en esa columna — cosa que la actual **no** hace, porque `ExtractedTax.tipoFactor` es `string`. Cualquier binario que deba convivir con datos del régimen B necesita, como mínimo, lectura compatible con `null`.
+
+No se promete un rollback trivial en el régimen B porque no lo hay. La mitigación real es el preflight y una ventana de verificación entre T08B y T08C, no una vía de retorno.
+
+### Relación con D-007
+
+D-015 **no supersede** a D-007 ni en todo ni en parte. La relación, explícita para que ninguna supersesión quede implícita:
+
+- **Conserva sin cambio.** La combinación A + G (creación de cabecera con `create()` más transición condicional terminal del `Document` dentro de la misma transacción); la Transacción A como unidad atómica única; el orden de escritura del agregado; la identidad idempotente `(companyId, cfdiId, conceptSlot, position)`; las FKs compuestas; los índices; el aislamiento por empresa; y la ausencia de SQL crudo como mecanismo de concurrencia.
+- **Especializa.** D-007 fija _cómo_ se persiste el agregado de forma atómica e idempotente; D-015 fija _qué forma_ pueden tener las filas de impuestos dentro de ese agregado. Son capas distintas: una gobierna la transacción, la otra el contenido de una tabla.
+- **Corrige.** Nada de D-007. El defecto que D-015 resuelve nació en AD-5 §4.5.2 y en la migración `20260726020913` (`tipo_factor TEXT NOT NULL`), no en D-007.
+- **Tensión evaluada y descartada.** D-007 exige «ausencia de migración adicional» — pero acotada a _resolver la concurrencia_, y el propio texto de D-007 aclara que ello «**no** prohíbe el SQL de migración necesario para CHECKs u otras constraints de base de datos, como el CHECK `cfdi_taxes_scope_concept_check`». La migración de D-015 es exactamente de esa clase: forma de datos, no exclusión mutua. **No hay conflicto.**
+- **Consecuencia operativa que D-015 hereda.** Un fallo del CHECK nuevo aborta la Transacción A completa, con el mismo rollback total que D-007 ya especifica para cualquier violación de restricción. No se introduce ninguna transacción adicional ni se altera el orden existente.
+
+### Frontera con E5-S3-T09
+
+D-015 se detiene donde empieza T09, sin excepción:
+
+- **T08 (esta decisión):** extracción **estructural** fiel. Una forma es válida y se persiste, o es inválida y se rechaza. No hay estado intermedio.
+- **T09 (fuera de alcance):** `ambiguousFields[]` y la clasificación de ambigüedad — datos presentes cuya interpretación es dudosa.
+
+D-015 **no** implementa `ambiguousFields[]`, no lo puebla, no cambia su contrato y no adelanta ninguna parte de T09. La única mención admisible es la de la frontera: un atributo obligatorio ausente es un **rechazo** de T08, nunca una ambigüedad de T09, y un `null` de D-015 nunca alimenta `ambiguousFields[]`.
+
+### Secuencia de implementación propuesta (DAG T08A–T08D)
+
+La subdivisión original declaraba `T08A → T08B → T08C → T08D` (tipos antes que esquema). **Esa secuencia es técnicamente inviable** y se corrige a:
+
+```text
+T08B  →  T08A  →  T08C  →  T08D
+```
+
+**Evidencia del cambio.** `cfdi-tax.repository.ts` mapea hoy `tipoFactor: tax.tipoFactor` directamente al `create` de Prisma. Si T08A introdujera primero `tipoFactor: string | null` en el contrato de extracción mientras la columna sigue siendo `String` (no nullable) en el cliente Prisma generado, ese mapeo dejaría de compilar: `string | null` no es asignable a `string`. La rama quedaría en un estado intermedio que no pasa `tsc`, lo que contradice el criterio de que cada tarjeta cierre con la suite en verde. Invertir el orden elimina el estado intermedio inválido: cuando el cliente Prisma ya acepta `null`, ampliar el tipo de extracción es una operación compatible.
+
+Razón secundaria: T08B contiene el preflight, que es la única puerta capaz de **cancelar toda la iniciativa** si aparecen retenciones globales con `tipo_factor` sintético. Ejecutarlo primero evita invertir esfuerzo en contratos y parser antes de saber si la migración es siquiera aplicable.
+
+| Tarjeta  | Contenido                                                                                    | Depende de                 | Motivo de la dependencia                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------- |
+| **T08B** | Preflight, `tipoFactor String?`, migración correctiva nueva, CHECK de forma                  | Aprobación humana de D-015 | Puerta de viabilidad; habilita `null` en el cliente Prisma               |
+| **T08A** | Unión discriminada, arreglos por contenedor                                                  | T08B                       | Los tipos solo pueden admitir `null` cuando la persistencia ya lo admite |
+| **T08C** | Extractor de las cuatro formas, repositorio, persistencia                                    | T08A y T08B                | Necesita el contrato y la columna; conserva Transacción A de D-007       |
+| **T08D** | Fixtures de las cuatro formas, integración PostgreSQL efímera, rollback del CHECK, auditoría | T08A–T08C                  | Verifica el comportamiento físico completo                               |
+
+`T08D` cierra en `READY_FOR_AUDIT`, nunca en `PASSED`: la certificación exige auditoría independiente `READ ONLY`.
+
+### Aprobación requerida
+
+La aprobación humana debe confirmar la matriz normativa de dos capas, la semántica estricta de `null`, el alcance del CHECK y su frontera, la estrategia de preflight y migración, el plan de rollback con sus dos regímenes y la secuencia `T08B → T08A → T08C → T08D`. Hasta entonces D-015 sigue siendo una propuesta y `E5-S3-T08A`–`T08D` no pueden iniciarse.
+
+#### Decisiones humanas pendientes
+
+1. **Aprobar o rechazar D-015 en su conjunto.** Sin esto, T08 permanece bloqueada indefinidamente.
+2. **Fragmento de acoplamiento en el CHECK.** ¿Se incluye `("tasa_o_cuota" IS NULL) = ("importe" IS NULL)` en los dos ramos de traslado? Cierra una combinación imposible sin incrustar catálogo, pero endurece el contrato de persistencia. Recomendación: **sí**.
+3. **Literales de `c_TipoFactor` en el tipo TypeScript.** ¿Se tipa `tipoFactor` como `'Tasa' | 'Cuota' | 'Exento'`? Haría el invariante de capa 2 verificable en compilación, a costa de incrustar un catálogo SAT en el código, contra la práctica vigente. Recomendación: **no**; mantener texto libre y validar en el parser.
+4. **Política ante un preflight en rojo.** Si aparecen retenciones globales con `tipo_factor` sintético preexistente, ¿se corrigen manualmente, se purgan o se conserva el dato marcándolo? Es una decisión fiscal y de producto, no técnica.
+5. **Confirmación de la ventana entre T08B y T08C.** Define cuánto dura el régimen A de rollback, el único plenamente reversible.
+
+### Historial
+
+- **2026-08-08** — se registra la propuesta como `D-014` en `codex/d014-cfdi-tax-shape-prepare` (`5ca120c`) y se corrige en `codex/d014-cfdi-tax-shape-fix` (`e27a470`), ambas ramas construidas sobre `HEAD` sin incorporar `D-010`–`D-013`.
+- **2026-08-14** — renumerada a `D-015` al reconstruir el stack canónico `D-001…D-012 → D-013 → D-014 → D-015` (`CONTAIA-D013-D015-CANONICAL-STACK-RECONSTRUCTION`), tras confirmarse que `D-014` ya estaba ocupado por la decisión de autorización de M5, aprobada por el responsable de producto el 2026-08-13. Contenido semántico sin cambios respecto de `e27a470`; solo se actualizan las auto-referencias numéricas. Sigue **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA** — esta renumeración no aprueba T08 ni ningún contenido fiscal.
