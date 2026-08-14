@@ -298,7 +298,7 @@ Ejemplo serializado:
 
 **Problema (PA-3):** El worker no puede devolver un HTTP 409 al cliente. Solo puede actuar sobre estados persistidos.
 
-> ⚠ **BUSINESS RULE PENDIENTE — la política de esta decisión NO está aprobada (D-007, §9.3).** Registrada en `brain/QUESTIONS.md` **Q-001**. Lo que sigue describe el **mecanismo de detección** (aprobado) y una **propuesta de tratamiento** (no aprobada). Hasta que el responsable de producto apruebe la regla, el worker **no debe fijar `REJECTED`/`CFDI_DUPLICATE` de forma automática**: clasifica como **error recuperable con log de incidente y métrica dedicada**, sin transición terminal del `Document`. Motivo: rechazar un comprobante fiscal es una decisión de negocio con consecuencias contables para el usuario, y `CLAUDE.md` regla 6 impide fijarla sin fuente validada.
+> ✅ **BUSINESS RULE APROBADA — D-013 (2026-08-05).** Q-001 resuelta. El responsable de producto aprobó el rechazo automático con `CFDI_DUPLICATE`. El worker **debe fijar `REJECTED (CFDI_DUPLICATE)`** mediante `UnrecoverableError` inmediato — sin reintentos — cuando confirme por evidencia positiva que el `folioFiscal` pertenece a otro documento de la misma empresa. La salvaguarda provisional de §10.2.3 queda **derogada** por esta decisión. Ver `brain/DECISIONS.md` D-013 para justificación completa, contratos vinculantes y riesgos residuales. _(El texto histórico de "propuesta no aprobada" se conserva abajo para trazabilidad del proceso de decisión.)_
 
 **Mecanismo de detección (aprobado):** ver AD-10.2 — evidencia positiva, nunca `meta.target`.
 
@@ -1649,9 +1649,9 @@ Ese trabajo duplicado se **descarta** en el rollback del perdedor: es coste, no 
 
 Ninguna afirmación de este addendum sobre el worker describe código existente. Toda la §7 es especificación.
 
-### 9.3 Business rule pendiente — `folioFiscal` duplicado de otro documento
+### 9.3 Business rule — `folioFiscal` duplicado de otro documento
 
-**No aprobada.** Ver AD-3 y `brain/QUESTIONS.md` **Q-001**. Hasta que exista regla de negocio aprobada por el responsable de producto, el worker **no fija `REJECTED`/`CFDI_DUPLICATE` automáticamente**: registra incidente y clasifica como recuperable. Este es el único punto de D-007 que queda deliberadamente abierto.
+**Aprobada (D-013, 2026-08-05).** Ver AD-3 y `brain/DECISIONS.md` **D-013**. El worker **fija `REJECTED (CFDI_DUPLICATE)`** automáticamente mediante `UnrecoverableError` inmediato cuando confirma por evidencia positiva que el `folioFiscal` pertenece a otro documento de la misma empresa. Q-001 queda resuelta. D-007 ya no tiene puntos abiertos.
 
 ### 9.4 Alternativa futura — _claim_ / _lease_ explícito (post-MVP, NO parte de D-007)
 

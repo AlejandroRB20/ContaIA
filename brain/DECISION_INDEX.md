@@ -17,6 +17,7 @@
 | D-010   | Platform Admin no hereda autorización company-scoped                                                       | **IMPLEMENTADA · PASSED**                                                                         | 2026-08-04 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `docs/engineering/audits/EWO-SEC-NAV-001-T01_FINAL_AUDIT.md` |
 | D-011   | Permisos de lectura de CFDI para Auditor y Supervisor; separación de `document.download`                   | **IMPLEMENTADA · PASSED** (reauditoría independiente `READ ONLY` sobre `6dc846d`; 22/22 pruebas) | 2026-08-08 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `audits/EWO-SEC-NAV-001-T03_REAUDIT.md`                      |
 | D-012   | Identidad canónica de navegación de CFDI mediante `documentId`                                            | **IMPLEMENTADA · PASSED** (reauditoría independiente `READ ONLY` sobre `6dc846d`)                | 2026-08-08 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `audits/EWO-SEC-NAV-001-T04_REAUDIT.md`                      |
+| D-013   | Política de folio fiscal duplicado: rechazo automático con `CFDI_DUPLICATE`                               | **APROBADA** · pendiente de implementación (Sprint 5, Caso F del clasificador AD-10.2)            | 2026-08-05 | `DECISIONS.md`, `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` (AD-3, §9.3), `brain/QUESTIONS.md` (Q-001), `brain/RISKS.md` (R-005) |
 
 ## Convenciones
 

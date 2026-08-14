@@ -19,16 +19,17 @@ Borrador
 ## Q-001 — ¿Qué debe ocurrir cuando se carga un CFDI cuyo folio fiscal ya pertenece a OTRO documento de la misma Empresa?
 
 - **Fecha de registro:** 2026-07-25
+- **Fecha de resolución:** 2026-08-05
 - **Origen:** decisión **D-007** (`brain/DECISIONS.md`) y `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` §9.3 / AD-3.
-- **Bloquea:** el cierre de EWO-005 Bloque E. El worker **no puede** implementar un rechazo automático por duplicado hasta que esta pregunta se resuelva.
-- **Contexto:** la restricción `@@unique([companyId, folioFiscal])` del modelo `Cfdi` impide a nivel de dato que dos documentos de la misma Empresa compartan folio fiscal. El worker detecta la colisión de forma fiable y por evidencia positiva (existe otro `Cfdi`, mismo `folioFiscal`, `documentId` distinto). Lo que **no** está decidido es qué debe hacer el sistema a continuación.
-- **Por qué no puede decidirse técnicamente:** rechazar un comprobante fiscal tiene consecuencias contables para el usuario. Un mismo folio cargado dos veces puede ser un error del usuario, una recarga legítima del mismo archivo, o una sustitución intencional. `CLAUDE.md` regla 6 prohíbe fijar criterios fiscales o contables sin fuente validada por el responsable de producto.
-- **Alternativas a resolver** (ninguna preseleccionada):
-  1. **Rechazar** el documento duplicado (`Document = REJECTED`, `rejectionReason = 'CFDI_DUPLICATE'`, `Job = FAILED`).
-  2. **Aceptarlo y marcarlo** como duplicado no bloqueante, dejando ambos documentos visibles para revisión humana.
-  3. **Escalar a revisión manual** sin estado terminal automático.
-- **Comportamiento provisional mientras siga abierta:** el worker clasifica el caso como **error recuperable con log de incidente y métrica dedicada**, sin transición terminal del `Document`. Riesgo asumido y documentado: los documentos con folio duplicado se reintentan sin resolverse hasta que exista la regla.
-- **Estatus:** **Abierta.** Requiere decisión del responsable de producto.
+- **Bloquea:** ~~el cierre de EWO-005 Bloque E~~ — **desbloqueado.**
+- **Contexto:** la restricción `@@unique([companyId, folioFiscal])` del modelo `Cfdi` impide a nivel de dato que dos documentos de la misma Empresa compartan folio fiscal. El worker detecta la colisión de forma fiable y por evidencia positiva (existe otro `Cfdi`, mismo `folioFiscal`, `documentId` distinto).
+- **Alternativas evaluadas:**
+  1. **Rechazar** el documento duplicado (`Document = REJECTED`, `rejectionReason = 'CFDI_DUPLICATE'`, `Job = FAILED`). ← **ELEGIDA**
+  2. Aceptarlo y marcarlo como duplicado no bloqueante, dejando ambos documentos visibles para revisión humana.
+  3. Escalar a revisión manual sin estado terminal automático.
+- **Resolución:** el responsable de producto aprobó la **Alternativa 1** el 2026-08-05. Cuando el worker detecte un CFDI cuyo `folioFiscal` ya existe para la misma empresa en otro documento, rechazará inmediatamente con `Document = REJECTED (CFDI_DUPLICATE)` y `Job = FAILED` vía `UnrecoverableError`. No se almacenan duplicados. No hay campo `isDuplicate`. No hay migración. No hay revisión manual.
+- **Decisión registrada:** **D-013** (`brain/DECISIONS.md`).
+- **Estatus:** **RESUELTA — D-013 (2026-08-05).**
 
 ---
 

@@ -671,3 +671,85 @@ Una vez aprobada, `docs/14` debe incorporarla en `T05`. La decisión es la autor
 - **2026-08-08** — reauditoría independiente `READ ONLY` de Codex sobre `6dc846d5cd40bbd4b13d21ad9ca6ff646dca5540`: `PASSED`, sin hallazgos. `D-012` pasa a `IMPLEMENTADA · PASSED`; el informe histórico con `REQUIERE CAMBIOS` permanece preservado.
 
 ---
+
+## D-013 — Política de folio fiscal duplicado: rechazo automático con `CFDI_DUPLICATE`
+
+- **Fecha:** 2026-08-05
+- **Origen:** pregunta abierta `brain/QUESTIONS.md` Q-001 · riesgo `brain/RISKS.md` R-005 · `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` AD-3 · D-007 §9.3.
+
+### Contexto
+
+La restricción `@@unique([companyId, folioFiscal])` del modelo `Cfdi` impide a nivel de base de datos que dos documentos de la misma empresa compartan folio fiscal (UUID del Timbre Fiscal Digital). El worker `XmlExtractionProcessor` detecta una colisión cuando, al intentar `create()` el registro `Cfdi`, la transacción aborta por violación de la restricción única y la búsqueda posterior confirma que el `Cfdi` existente pertenece a un `documentId` distinto al que se está procesando (Caso F de AD-10.2).
+
+Q-001 registraba tres alternativas sin preseleccionar ninguna: (A) rechazo automático con `CFDI_DUPLICATE`, (B) aceptar y marcar como duplicado no bloqueante, (C) escalar a revisión manual sin estado terminal. Hasta esta decisión, el comportamiento provisional era clasificar el caso como error recuperable: tras agotar intentos, el `@OnWorkerEvent('failed')` cerraba el documento con `REJECTED (PROCESSING_FAILED)` — un rechazo accidental con motivo genérico que no comunicaba al usuario la causa real.
+
+### Alternativas consideradas
+
+| Alt | Descripción | Costo estimado |
+| --- | ----------- | -------------- |
+| **A — Rechazar automáticamente** | `Document = REJECTED`, `rejectionReason = 'CFDI_DUPLICATE'`, `Job = FAILED` vía `UnrecoverableError` inmediato | ~2 horas (1 `case` en el clasificador) |
+| B — Aceptar y marcar duplicado | Persistir con flag `isDuplicate`; ambos documentos visibles para revisión humana | 3-5 días + migración de schema + filtros en todos los queries contables |
+| C — Escalar a revisión manual | Sin estado terminal automático; espera revisión humana | 1-2 semanas (nuevo estado, sistema de notificaciones, pantalla de revisión) |
+
+### Decisión
+
+**Se adopta la Alternativa A.** Cuando el worker detecte un CFDI cuyo `folioFiscal` ya existe para la misma empresa en otro documento, rechazará inmediatamente la importación:
+
+```
+Document.status          = REJECTED
+Document.rejectionReason = 'CFDI_DUPLICATE'
+Job.status               = FAILED
+Job.error                = mensaje sanitizado (sin datos fiscales en texto plano)
+```
+
+El rechazo se ejecuta mediante `UnrecoverableError` — sin reintentos. La Transacción C de AD-4.2 aplica con `rejectionReason = 'CFDI_DUPLICATE'`.
+
+### Contratos vinculantes
+
+1. El campo `rejectionReason = 'CFDI_DUPLICATE'` ya está definido en AD-4.3 — no requiere nuevo enum ni migración.
+2. No se introduce el campo `isDuplicate` en ningún modelo. No hay migración de base de datos.
+3. No se crea pantalla de revisión manual ni sistema de notificaciones para este caso.
+4. El rechazo es inmediato (`UnrecoverableError`): el job no consume reintentos ni backoff.
+5. Un CFDI rechazado por `CFDI_DUPLICATE` no puede reprocesarse automáticamente. Si el usuario necesita reemplazar el CFDI original, lo hará mediante una operación explícita futura (fuera del alcance del MVP).
+6. El clasificador (AD-10.2) cierra el Caso F: folio de otro documento → `REJECTED (CFDI_DUPLICATE)` + `FAILED`. Esta es ahora la única conducta autorizada para ese caso.
+7. `brain/QUESTIONS.md` Q-001 queda **RESUELTA**. `brain/RISKS.md` R-005 queda **MITIGADO**.
+
+### Justificación
+
+1. **El UUID del SAT es irrepetible por construcción legal.** El UUID del Timbre Fiscal Digital es asignado y sellado criptográficamente por el PAC/SAT; es globalmente único por decreto. Dos documentos en la misma empresa con el mismo UUID solo pueden ser la misma factura cargada dos veces — no son CFDIs distintos.
+2. **El rechazo ya ocurría de todas formas, con el mensaje equivocado.** El comportamiento provisional producía `REJECTED (PROCESSING_FAILED)` tras agotar los 3 intentos. D-013 no cambia el resultado final — cambia el motivo a uno correcto y semánticamente honesto con el usuario.
+3. **La Alternativa B introduce riesgo contable sistémico permanente.** Cualquier query de contabilidad futura que omita el filtro `isDuplicate = false` produciría datos incorrectos en silencio. Ese riesgo crece con cada EWO de contabilidad que se añada.
+4. **La Alternativa C requiere infraestructura inexistente** (nuevo estado, notificaciones, pantalla de revisión) con un costo desproporcionado al valor que añade en el MVP.
+5. **El costo de D-013 es mínimo.** Un `case` en el switch del clasificador (Case F → `UnrecoverableError`). Toda la infraestructura restante (Transacción C, `markAsRejected`, `CFDI_DUPLICATE` enum) ya existe desde Sprint 2.
+
+### Impacto
+
+- **Base de datos:** ninguno. Sin migración. Sin campo nuevo. La restricción `@@unique([companyId, folioFiscal])` permanece intacta — es el mecanismo de detección.
+- **Backend:** 1 `case` en el clasificador de AD-10.2 (Caso F). El resto del flujo de rechazo ya está implementado.
+- **API:** `API-0027`, `API-0028` y `API-0055` no cambian. El usuario recibe el estado `REJECTED` con `rejectionReason = 'CFDI_DUPLICATE'` en la consulta normal de estado.
+- **Frontend:** no requiere cambio de lógica — ya muestra `rejectionReason` en la UI. Podría añadir un mensaje específico para `CFDI_DUPLICATE` (mejora cosmética, no bloqueante).
+- **Documentación:** `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` AD-3 y AD-10.2 Caso F quedan resueltos. `brain/QUESTIONS.md` Q-001 y `brain/RISKS.md` R-005 quedan cerrados.
+
+### Riesgos residuales
+
+- **CFDI original corrupto sin vía de reemplazo.** Si el primer documento quedó en un estado incorrecto por un bug previo, el usuario no tiene mecanismo de reprocesamiento automático. Mitigación: el flujo de reemplazo puede implementarse como operación explícita en una EWO posterior.
+- **Error del PAC que emita el mismo UUID para dos comprobantes distintos.** Extremadamente improbable por diseño del SAT. Si ocurre, se resuelve mediante operación manual de soporte.
+
+### Validación requerida
+
+1. El clasificador implementa Caso F → `UnrecoverableError` con `rejectionReason = 'CFDI_DUPLICATE'`.
+2. El job no consume reintentos ante `UnrecoverableError`.
+3. `Document` queda `REJECTED` con `rejectionReason = 'CFDI_DUPLICATE'`; `Job` queda `FAILED`.
+4. No se crea ningún segundo `Cfdi` para el mismo `folioFiscal` + `companyId`.
+5. La restricción `@@unique([companyId, folioFiscal])` sigue presente en el schema sin modificación.
+
+### Estado
+
+- **Responsable:** Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA).
+- **Estatus:** **APROBADA.** Pendiente de implementación en Sprint 5 (Caso F del clasificador AD-10.2).
+
+### Historial
+
+- **2026-08-05** — se registra `D-013`. Q-001 resuelta. R-005 mitigado. Decisión aprobada por el responsable de producto. Implementación autorizada en el clasificador de Sprint 5.
+
+---
