@@ -107,8 +107,8 @@ La autorización se evalúa por combinación de **rol + membresía vigente + Emp
 | PAGE-0007 | Listado de Empresas | `/empresas` | No | Administrador | Abrir/seleccionar Empresa | Companies · API-0012 | P0 | DRAFT-IA | HEAD exacta |
 | PAGE-0008 | Alta de Empresa | `/empresas/nueva` | No | Administrador | Crear Empresa | Companies · API-0011 | P0 | DRAFT-IA | Variante HEAD: `/crear-empresa` |
 | PAGE-0009 | Detalle de Empresa | `/empresas/{companyId}` | Ruta propia | Administrador; consulta según membresía | Gestionar datos y miembros | Companies/Memberships/Fiscal years · API-0013–0022 | P0 | DRAFT-IA | HEAD exacta |
-| PAGE-0010 | Catálogo de cuentas | `/{companyId}/contabilidad/cuentas` | Sí | Contador; consulta por membresía | Crear/consultar cuentas | Chart of Accounts · API-0029–0032 | P0 | DRAFT-IA | PLANNED |
-| PAGE-0011 | Detalle/edición de Cuenta | `/{companyId}/contabilidad/cuentas/{accountId}` | Sí | Contador | Editar/desactivar cuenta | Chart of Accounts · API-0030–0032 | P0 | DRAFT-IA | PLANNED |
+| PAGE-0010 | Catálogo de cuentas | `/{companyId}/contabilidad/cuentas` | Sí | Administrador, Contador; consulta por membresía | Crear/consultar cuentas | Chart of Accounts · API-0029–0032 | P0 | DRAFT-IA | PLANNED |
+| PAGE-0011 | Detalle/edición de Cuenta | `/{companyId}/contabilidad/cuentas/{accountId}` | Sí | Administrador, Contador | Editar/desactivar cuenta | Chart of Accounts · API-0030–0032 | P0 | DRAFT-IA | PLANNED |
 | PAGE-0012 | Listado de Pólizas | `/{companyId}/contabilidad/polizas` | Sí | Contador, Auxiliar, Supervisor | Filtrar/abrir póliza | Journal Entries · API-0034 | P0 | DRAFT-IA | PLANNED |
 | PAGE-0013 | Detalle de Póliza | `/{companyId}/contabilidad/polizas/{entryId}` | Sí | Contador, Auxiliar, Supervisor | Revisar evidencia y estado | Journal Entries · API-0035–0039 | P0 | DRAFT-IA | PLANNED |
 | PAGE-0014 | Captura de Póliza | `/{companyId}/contabilidad/polizas/nueva` | Sí | Auxiliar, Contador | Guardar borrador/enviar revisión | Journal Entries · API-0033/0036 | P0 | DRAFT-IA | PLANNED |

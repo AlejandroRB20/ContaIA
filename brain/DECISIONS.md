@@ -753,3 +753,123 @@ El rechazo se ejecuta mediante `UnrecoverableError` — sin reintentos. La Trans
 - **2026-08-05** — se registra `D-013`. Q-001 resuelta. R-005 mitigado. Decisión aprobada por el responsable de producto. Implementación autorizada en el clasificador de Sprint 5.
 
 ---
+
+## D-014 — Contrato de autorización del Catálogo de Cuentas (M5): claves `account.*` y rol Administrador
+
+- **Fecha:** 2026-08-13
+- **Origen:** brief de decisión `CONTAIA-M5-CANONICAL-DECISIONS-DRAFT` (Decisión 1 de 2, "M5 Authorization Contract"), preparado para desbloquear la redacción de `EWO-006`.
+
+### Contexto
+
+`EWO-006` (Motor Contable Núcleo, M5 Catálogo de cuentas) no puede redactarse con un contrato de autorización ambiguo. Antes de esta decisión, ninguna tabla `BR-PERM` cubría el recurso Cuenta contable — el precedente más cercano (`BR-PERM-004`) resolvió esta misma clase de problema para Documento/CFDI, pero explícitamente solo para esos dos recursos.
+
+### Problema — contradicción `docs/04` vs. `docs/08` vs. `docs/11`
+
+Tres fuentes documentales dan tres respuestas distintas sobre si el rol **Administrador** puede escribir (crear/editar/desactivar) en el Catálogo de Cuentas:
+
+| Fuente | Afirmación sobre Administrador y Catálogo de Cuentas |
+| --- | --- |
+| `docs/08_API_DESIGN.md` (`API-0029`/`API-0031`/`API-0032`, líneas 199-202) | Autorizado explícitamente: **"Rol Contador o Administrador"**, en las tres rutas de escritura |
+| `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0010`/`PAGE-0011`, líneas 110-111) | Excluido — solo "Contador" aparece en la lista de roles |
+| `docs/11_SECURITY_ARCHITECTURE.md` §9 (matriz de permisos) | Explícitamente **`L`** (solo lectura) para Administrador en la fila "Catálogo de Cuentas" |
+| `docs/04_BUSINESS_RULES.md` `BR-CAT-001`/`BR-CAT-002` (§4.9) | **Actor** declarado únicamente "Contador" — no menciona a Administrador ni lo excluye |
+
+`docs/11` §9 se declara a sí misma **"intencionalmente gruesa"** y cede autoridad final a una tabla `BR-PERM` específica "ante cualquier diferencia de granularidad" — esa tabla no existía para Cuenta hasta esta decisión. `docs/31` se declara **"Draft v0.1 — Propuesta para aprobación"** y cede explícitamente: *"`08_API_DESIGN.md` conserva la autoridad sobre contratos API."*
+
+**Precedente directo, ya resuelto en el mismo sentido:** `BR-PERM-004` (creada por `D-011`) enfrentó el mismo patrón de contradicción para CFDI — `docs/11` §9 dice `L` (solo lectura) para Administrador en CFDI, pero `BR-PERM-004` ya concedió `cfdi.generate`/`cfdi.cancel` a Administrador, contradiciendo esa fila sin que nadie la corrigiera. Esta decisión no inaugura una interpretación nueva: continúa la que `D-011` ya estableció.
+
+### Decisión adoptada
+
+**Se aprueba la Opción B: paridad total de Administrador con Contador** sobre las cuatro claves de acción del Catálogo de Cuentas.
+
+### Permission keys
+
+Cuatro claves, granularidad por acción — sin `account.write` genérico:
+
+```
+account.read
+account.create
+account.update
+account.deactivate
+```
+
+### Matriz por rol
+
+| Rol | `account.read` | `account.create` | `account.update` | `account.deactivate` |
+| --- | --- | --- | --- | --- |
+| Administrador | Sí | Sí | Sí | Sí |
+| Contador | Sí | Sí | Sí | Sí |
+| Auxiliar | Sí | No | No | No |
+| Supervisor | Sí | No | No | No |
+| Auditor | Sí | No | No | No |
+| Estudiante | No (sandbox, sin permisos reales) | No | No | No |
+
+### Fundamento
+
+1. **Precedente `BR-PERM-004`.** Para un conflicto estructuralmente idéntico (docs/08 vs. matriz gruesa de docs/11), el proyecto ya resolvió a favor de incluir a Administrador en las acciones de escritura de un recurso comparable (CFDI).
+2. **Patrón ya implementado, sin excepción por módulo.** `packages/database/prisma/permissions-catalog.ts` define `ADMINISTRADOR: PERMISSION_CATALOG.map((p) => p.key)` — Administrador hereda automáticamente todo permiso sembrado, en los 6 módulos ya existentes, sin ninguna excepción de módulo hoy. Adoptar la Opción A (solo lectura) habría introducido la primera excepción de ese patrón; la Opción B no requiere ninguna.
+3. **Lenguaje del objetivo de M5.** `docs/01_PRD.md` (M5, línea 189) describe el objetivo como *"configurar la estructura contable base de cada empresa"* — el mismo verbo, "configurar", que `docs/04` §5.1 y `docs/11` §9 usan sin restricción para las capacidades de Administrador sobre Empresa/Usuarios/Configuración. El Catálogo de Cuentas es la estructura base de la empresa, no la operación contable diaria (Pólizas), que sigue siendo dominio exclusivo de Contador en todas las fuentes, sin excepción.
+4. **`BR-PERM-001` (denegar por defecto) se satisface por alcance, no se viola.** La regla exige el mínimo acceso necesario para la función del rol; la función documentada de Administrador (configurar su empresa) incluye razonablemente su estructura contable base. El dominio operativo exclusivo de Contador (Pólizas) permanece intacto.
+
+### Alcance
+
+Esta decisión y la tabla `BR-PERM-005` que crea son la **autoridad por acción exclusivamente para el recurso Cuenta contable (Catálogo de Cuentas, M5)**. No se generaliza automáticamente a ningún otro módulo — en particular, no resuelve ni prejuzga la fila "Pólizas" (M6), "Estados Financieros" (M7/M8) ni ningún otro recurso de `docs/11` §9. Cada uno, si presenta una contradicción equivalente, requiere su propia tabla `BR-PERM` y su propia decisión.
+
+### Impacto
+
+- **Base de datos:** ninguno todavía. Cuatro filas nuevas en `Permission` y filas nuevas en `RolePermission` quedan **pendientes de implementación** — requieren seed/migración con Work Order aprobada (`.claude/rules/20-fiscal-data-safety.md` regla 2). Esta decisión no las ejecuta.
+- **Backend:** ninguno todavía. `PermissionGuard` no requiere cambio de lógica (autorización 100% dirigida por datos); el futuro `AccountsController` (`EWO-006`) aplicará `@Permissions('account.create')` etc. por endpoint.
+- **API:** finaliza la columna de autorización de `API-0029`–`API-0032` (`docs/08`), hoy ambigua. Ninguna de las cuatro rutas está implementada — cero riesgo de romper un endpoint existente.
+- **Frontend:** `docs/31` `PAGE-0010`/`PAGE-0011` deben corregirse para no ocultarle a Administrador acciones que el backend autorizará (ver "Documentación a reconciliar").
+- **Documental:** ver "Documentación a reconciliar".
+
+### Compatibilidad con `D-010`/`D-011`
+
+- **`D-010`** ("Platform Admin no hereda autorización company-scoped") no se ve afectado: `D-010` gobierna al Administrador de **plataforma** (sin `Membership` en la empresa); esta decisión gobierna al Administrador **de Empresa** (con `Membership` activa y rol `ADMINISTRADOR` en esa empresa). Son dos sujetos distintos — `D-014` no crea ninguna ruta por la que un Administrador de plataforma sin `Membership` gane acceso a `account.*` de una empresa ajena; `CompanyGuard` sigue denegando antes de que `PermissionGuard` se evalúe, exactamente como documenta `permission.guard.ts:14-19`.
+- **`D-011`** (precedente de `BR-PERM-004`) es compatible y extendido, no contradicho: mismo mecanismo (tabla `BR-PERM` canónica por acción + prueba de sincronización automatizada), mismo criterio de resolución (Administrador puede recibir escritura pese a una matriz gruesa contraria), aplicado ahora a un segundo recurso.
+
+### Riesgos
+
+| Riesgo | Mitigación |
+| --- | --- |
+| Corregir `docs/11` §9 solo para Catálogo de Cuentas deja la fila "CFDI" todavía desincronizada desde `D-011` (nunca se corrigió) | Fuera del alcance de `D-014`; se deja registrado como deuda documental preexistente, no se absorbe aquí |
+| La distinción "configuración vs. operación" que justifica la Opción B podría leerse como *ad hoc* si no queda documentada | Registrada explícitamente en "Fundamento" de esta decisión, no solo como conclusión |
+| Precedente de que Administrador siempre recibe paridad por defecto en futuros módulos, erosionando `BR-PERM-001` | "Alcance" limita expresamente esta decisión al Catálogo de Cuentas; no se declara una regla general |
+
+### Rollback
+
+No aplica todavía en sentido operativo: esta decisión no modifica `permissions-catalog.ts`, `seed`, `schema.prisma` ni ningún endpoint — no hay superficie de código que revertir. Si se implementa `BR-PERM-005` y se necesita revertir después, el rollback es aditivo-inverso: eliminar las 4 filas `Permission`/`RolePermission` de `account.*` vía migración de reversión, sin afectar ningún otro módulo (aislamiento ya verificado en "Compatibilidad").
+
+### Criterios de aceptación
+
+- El catálogo de permisos, una vez implementado, contiene exactamente las 4 claves `account.*` de esta decisión, ninguna más.
+- `ADMINISTRADOR` y `CONTADOR` reciben las 4; `AUXILIAR`/`SUPERVISOR`/`AUDITOR` reciben solo `account.read`; `ESTUDIANTE` ninguna.
+- Existe una prueba de sincronización entre `BR-PERM-005` y el catálogo, análoga a `packages/database/src/permissions-catalog.test.ts` (la que ya sincroniza `BR-PERM-004`).
+- `docs/08` (`API-0029`–`API-0032`), `docs/11` §9 (fila Catálogo de Cuentas) y `docs/31` (`PAGE-0010`/`PAGE-0011`) quedan textualmente consistentes con la matriz de esta decisión.
+
+### Documentación a reconciliar
+
+- `docs/04_BUSINESS_RULES.md` — nueva regla `BR-PERM-005` (Matriz canónica de Cuenta contable), siguiendo el patrón exacto de `BR-PERM-004`; `BR-CAT-001` actualizada para incluir Administrador en "Actor".
+- `docs/11_SECURITY_ARCHITECTURE.md` §9 — fila "Catálogo de Cuentas", columna Administrador: `L` → `L, C, M, E`.
+- `docs/31_MASTER_SCREEN_MAP.md` — `PAGE-0010`/`PAGE-0011`: agregar Administrador a la lista de roles.
+- `brain/DECISION_INDEX.md` — nueva fila `D-014`.
+
+Las cuatro reconciliaciones anteriores se ejecutan en la misma sesión que esta decisión (ver reporte de la misión).
+
+### Implementación posterior requerida (fuera de alcance de esta decisión)
+
+1. Cuatro filas nuevas en `packages/database/prisma/permissions-catalog.ts` (`PERMISSION_CATALOG`) y actualización de `ROLE_PERMISSIONS` (`CONTADOR` recibe las 4 explícitamente; `AUXILIAR`/`SUPERVISOR`/`AUDITOR` reciben `account.read`; `ADMINISTRADOR` las hereda automáticamente vía el `.map()` ya existente).
+2. Seed/migración de datos correspondiente, con Work Order aprobada.
+3. `@Permissions('account.*')` en los endpoints de `AccountsController` cuando `EWO-006` los implemente.
+4. Extensión de `permissions-catalog.test.ts` (o prueba análoga) para sincronizar `BR-PERM-005` con el catálogo.
+
+### Estado
+
+- **Responsable:** Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA).
+- **Estatus:** **APROBADA · PENDIENTE DE IMPLEMENTACIÓN.** No se marca `IMPLEMENTADA` ni `PASSED` — no existe todavía ninguna clave `account.*` en `permissions-catalog.ts`, seed, ni ningún endpoint. La implementación (ver sección anterior) es una tarjeta futura de `EWO-006`.
+
+### Historial
+
+- **2026-08-13** — se registra `D-014`. Decisión 1 de `CONTAIA-M5-CANONICAL-DECISIONS-DRAFT` aprobada por el responsable de producto (Opción B). `EWO-006` queda parcialmente desbloqueado para redacción: el contrato de autorización de M5 ya no es ambiguo, aunque su implementación sigue pendiente.
+
+---

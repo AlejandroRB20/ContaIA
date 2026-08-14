@@ -481,14 +481,14 @@ Toda regla de negocio debe poder trazarse a al menos uno de estos once principio
 - **ID:** BR-CAT-001 · **Nombre:** Versionado del catálogo de cuentas
 - **Objetivo:** Poder reconstruir el estado del catálogo en cualquier momento pasado.
 - **Descripción:** Toda modificación al catálogo de cuentas de una empresa queda registrada con su historial de cambios.
-- **Actor:** Contador.
+- **Actor:** Contador, Administrador (`D-014`, `brain/DECISIONS.md` — Administrador recibe paridad con Contador en `account.create`/`account.update`/`account.deactivate`).
 - **Prioridad:** Media.
 - **Precondiciones:** Se crea, edita o desactiva una cuenta.
 - **Regla:** El sistema DEBE registrar usuario, fecha y valor anterior en cada cambio del catálogo.
 - **Excepciones:** Ninguna.
 - **Resultado esperado:** Es posible reconstruir el estado del catálogo en cualquier momento del pasado.
 - **Impacto técnico:** Historial de cambios como mecanismo dedicado, no solo estado actual.
-- **Dependencias:** BR-VER-003, BR-TRZ-001.
+- **Dependencias:** BR-VER-003, BR-TRZ-001, BR-PERM-005.
 - **Casos afectados:** Módulo Catálogo de cuentas.
 - **Escenarios de prueba:** Dada una cuenta editada, cuando se consulta su historial, entonces se ve el valor anterior y quién lo cambió.
 
@@ -839,6 +839,29 @@ Toda regla de negocio debe poder trazarse a al menos uno de estos once principio
 - **Dependencias:** D-011 (`brain/DECISIONS.md`), BR-CFDI-001, BR-CFDI-002, BR-INT-002, BR-ROL-003, BR-AUD-002.
 - **Casos afectados:** Módulo Documentos, módulo CFDI, módulo Auditoría.
 - **Escenarios de prueba:** Dado un Auditor con Membresía vigente, cuando consulta `cfdi.read`, entonces el catálogo lo autoriza; cuando intenta una acción de escritura sobre CFDI, entonces no existe clave de permiso que la cubra.
+
+#### BR-PERM-005 — Matriz canónica de permisos del Catálogo de Cuentas
+
+- **ID:** BR-PERM-005 · **Nombre:** Matriz canónica Cuenta contable
+- **Objetivo:** Fijar una única fuente normativa por acción para el recurso Cuenta contable (Catálogo de Cuentas, M5), eliminando la contradicción detectada entre `docs/08`, `docs/31` y `docs/11` (`D-014`, `brain/DECISIONS.md`).
+- **Descripción:** El Catálogo de Cuentas tiene cuatro acciones distintas, cada una con su propia clave de permiso. Esta tabla es la autoridad **exclusivamente para el recurso Cuenta contable** — no se generaliza automáticamente a ningún otro módulo (`D-014`, sección "Alcance").
+- **Actor:** Sistema (capa de autorización).
+- **Prioridad:** Alta.
+- **Precondiciones:** Un actor con Membresía vigente solicita un recurso de Cuenta contable.
+- **Regla:** El sistema DEBE autorizar cada acción exclusivamente contra la clave de esta tabla; ningún otro documento puede introducir una asignación distinta sin actualizarla aquí primero.
+
+| Recurso | Acción | Clave de permiso | Roles autorizados | Estado |
+| --- | --- | --- | --- | --- |
+| Cuenta contable | Listar / consultar | `account.read` | Administrador, Contador, Auxiliar, Supervisor, Auditor | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Crear | `account.create` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Editar | `account.update` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Desactivar | `account.deactivate` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+
+- **Resultado esperado:** Ningún documento del corpus (`docs/08`, `docs/11`, `docs/31`) describe una asignación de rol distinta a esta tabla para Cuenta contable.
+- **Impacto técnico:** `packages/database/prisma/permissions-catalog.ts` será la implementación de esta tabla una vez sembrada; `docs/08_API_DESIGN.md` (`API-0029`–`API-0032`) es su contrato de API. Requiere una prueba de sincronización análoga a `packages/database/src/permissions-catalog.test.ts` cuando se implemente.
+- **Dependencias:** D-014 (`brain/DECISIONS.md`), BR-CAT-001, BR-CAT-002, BR-PERM-001.
+- **Casos afectados:** Módulo Catálogo de cuentas.
+- **Escenarios de prueba:** Dado un Administrador con Membresía vigente, cuando el catálogo esté implementado y consulte `account.create`, entonces el sistema lo autoriza; dado un Auxiliar, cuando intenta `account.create`, entonces el sistema lo rechaza.
 
 ## 7. Reglas de autenticación
 

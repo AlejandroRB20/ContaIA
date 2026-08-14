@@ -18,6 +18,7 @@
 | D-011   | Permisos de lectura de CFDI para Auditor y Supervisor; separación de `document.download`                   | **IMPLEMENTADA · PASSED** (reauditoría independiente `READ ONLY` sobre `6dc846d`; 22/22 pruebas) | 2026-08-08 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `audits/EWO-SEC-NAV-001-T03_REAUDIT.md`                      |
 | D-012   | Identidad canónica de navegación de CFDI mediante `documentId`                                            | **IMPLEMENTADA · PASSED** (reauditoría independiente `READ ONLY` sobre `6dc846d`)                | 2026-08-08 | `DECISIONS.md`, `docs/engineering/EWO-SEC-NAV-001_TENANT_ISOLATION_PLAN.md`, `audits/EWO-SEC-NAV-001-T04_REAUDIT.md`                      |
 | D-013   | Política de folio fiscal duplicado: rechazo automático con `CFDI_DUPLICATE`                               | **APROBADA** · pendiente de implementación (Sprint 5, Caso F del clasificador AD-10.2)            | 2026-08-05 | `DECISIONS.md`, `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` (AD-3, §9.3), `brain/QUESTIONS.md` (Q-001), `brain/RISKS.md` (R-005) |
+| D-014   | Contrato de autorización del Catálogo de Cuentas (M5): claves `account.*` y rol Administrador             | **APROBADA · PENDIENTE DE IMPLEMENTACIÓN**                                                        | 2026-08-13 | `DECISIONS.md`, `docs/04_BUSINESS_RULES.md` (`BR-PERM-005`), `docs/11_SECURITY_ARCHITECTURE.md` §9, `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0010`/`PAGE-0011`) |
 
 ## Convenciones
 
