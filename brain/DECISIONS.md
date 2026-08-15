@@ -1245,3 +1245,82 @@ La aprobación humana debe confirmar la matriz normativa de dos capas, la semán
 
 - **2026-08-08** — se registra la propuesta como `D-014` en `codex/d014-cfdi-tax-shape-prepare` (`5ca120c`) y se corrige en `codex/d014-cfdi-tax-shape-fix` (`e27a470`), ambas ramas construidas sobre `HEAD` sin incorporar `D-010`–`D-013`.
 - **2026-08-14** — renumerada a `D-015` al reconstruir el stack canónico `D-001…D-012 → D-013 → D-014 → D-015` (`CONTAIA-D013-D015-CANONICAL-STACK-RECONSTRUCTION`), tras confirmarse que `D-014` ya estaba ocupado por la decisión de autorización de M5, aprobada por el responsable de producto el 2026-08-13. Contenido semántico sin cambios respecto de `e27a470`; solo se actualizan las auto-referencias numéricas. Sigue **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA** — esta renumeración no aprueba T08 ni ningún contenido fiscal.
+
+---
+
+## D-016 — Contrato de dominio Cuenta para M5
+
+- **Fecha:** 2026-08-15
+- **Origen:** Aprobación humana directa del responsable de producto (Alejandro Reyes Bocanegra), sesión `CONTAIA-EWO006A-D016-CANONIZATION`.
+
+### Contexto
+
+`D-014` resolvió el contrato de **autorización** del Catálogo de Cuentas (M5): qué rol puede ejecutar qué acción (`account.read`/`create`/`update`/`deactivate`). No resolvió el contrato de **dominio**: qué campos tiene una Cuenta contable, qué valores admite su naturaleza, y cómo se estructura su jerarquía. Sin esta decisión, `EWO-006A` no puede redactar el esquema Prisma ni los DTO de `AccountsController` sin inventar forma de datos no autorizada — exactamente el tipo de invención que `.claude/rules/00-governance.md` regla 5 prohíbe.
+
+### Campos base aprobados
+
+```
+accountCode
+name
+nature
+parentAccountId
+isActive
+history/versioning
+```
+
+Sin definición de tipos, longitudes, formato de `accountCode` ni mecanismo concreto de `history/versioning` — esta decisión aprueba el **contrato de campos**, no su implementación física (tipos de columna, índices, migraciones), que queda para la tarjeta de implementación de M5 dentro de `EWO-006A`.
+
+### Nature V1 aprobada
+
+Unión cerrada de cinco valores, sin extensión implícita:
+
+```
+ACTIVO
+PASIVO
+CAPITAL
+INGRESO
+GASTO
+```
+
+### Jerarquía aprobada
+
+- `parentAccountId` es la **única** fuente de jerarquía — ningún otro campo (incluido `accountCode`) codifica ni deriva relación padre-hijo.
+- El padre debe pertenecer a la misma `companyId` que el hijo — jerarquía nunca cruza empresa, consistente con el aislamiento multiempresa ya vigente en el resto del esquema.
+- Ciclos directos prohibidos (una cuenta no puede ser su propio padre).
+- Ciclos indirectos prohibidos (una cadena de `parentAccountId` no puede volver sobre sí misma).
+- `level` es **derivado** — se calcula a partir de `parentAccountId`, nunca se declara directamente.
+- `level` **no** es fuente de verdad persistida — si se materializa como columna, es una proyección cacheada de la cadena real de `parentAccountId`, no el dato canónico.
+- Sin límite artificial de profundidad en V1 — ninguna validación rechaza una jerarquía por exceder N niveles.
+- `accountCode` **no** codifica jerarquía — su formato es independiente de la posición de la cuenta en el árbol.
+
+### Diferido a M6 — no se resuelve en esta decisión
+
+- Posting vs. grouping (si una cuenta es de detalle/movimiento o solo agrupadora).
+- Si una cuenta padre puede recibir movimientos directamente.
+- Restricciones contables específicas sobre cuentas hijas.
+- Reglas de Pólizas.
+- Reglas de `MovimientoPoliza`.
+
+**Motivo del diferimiento:** `schema.prisma` no contiene hoy modelos `Poliza` ni `MovimientoPoliza` (verificado — ausentes del esquema actual). Definir reglas de posting/grouping o de movimientos contables sobre tablas que no existen sería inventar alcance de M6 dentro de una decisión de M5, violando `.claude/rules/00-governance.md` regla 4 ("no ampliar... con funcionalidades... no requeridos").
+
+### Relación con `D-014`
+
+Decisiones complementarias sobre el mismo módulo (M5 — Catálogo de Cuentas), sin superposición: `D-014` gobierna **quién** puede actuar sobre una Cuenta contable (autorización, `BR-PERM-005`); `D-016` gobierna **qué forma** tienen los datos sobre los que se actúa (dominio). Ninguna de las dos decide la otra — el contrato de autorización de `D-014` es válido independientemente de la forma final de los campos que `D-016` aprueba aquí.
+
+### Estado
+
+| Campo | Valor |
+| --- | --- |
+| Estado | **APROBADA** |
+| Implementación | **PENDIENTE** |
+| QA | **PENDIENTE** |
+| Integración | **PENDIENTE** |
+| Relación | M5 — Catálogo de Cuentas |
+| Diferido | M6 — Pólizas / movimientos / posting-grouping |
+
+- **Responsable:** Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA).
+- Esta decisión **no** materializa `EWO-006A`, no crea `queue.yaml`, no pone ninguna tarjeta en `READY`, no marca ninguna tarjeta `PASSED` y no autoriza el inicio de implementación de base de datos, backend ni frontend — es exclusivamente la canonización del contrato de dominio ya aprobado humanamente. La implementación (esquema Prisma, migraciones, DTO) queda para tarjetas futuras de `EWO-006A`, cada una con su propio gate de inicio.
+
+### Historial
+
+- **2026-08-15** — se registra y aprueba `D-016`, canonizando el contrato de dominio de Cuenta para M5 (campos base, naturaleza V1, reglas de jerarquía) aprobado humanamente por el responsable de producto. Complementa a `D-014` (autorización, ya `APROBADA`) sin reabrirla. Alcance de M6 (posting/grouping, Pólizas, `MovimientoPoliza`) explícitamente diferido, sin inventar regla contable o fiscal alguna sobre modelos que no existen todavía en `schema.prisma`.

@@ -20,6 +20,7 @@
 | D-013   | Política de folio fiscal duplicado: rechazo automático con `CFDI_DUPLICATE`                               | **APROBADA** · pendiente de implementación (Sprint 5, Caso F del clasificador AD-10.2)            | 2026-08-05 | `DECISIONS.md`, `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md` (AD-3, §9.3), `brain/QUESTIONS.md` (Q-001), `brain/RISKS.md` (R-005) |
 | D-014   | Contrato de autorización del Catálogo de Cuentas (M5): claves `account.*` y rol Administrador             | **APROBADA · PENDIENTE DE IMPLEMENTACIÓN**                                                        | 2026-08-13 | `DECISIONS.md`, `docs/04_BUSINESS_RULES.md` (`BR-PERM-005`), `docs/11_SECURITY_ARCHITECTURE.md` §9, `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0010`/`PAGE-0011`) |
 | D-015   | Representación canónica de impuestos CFDI 4.0 (unión discriminada de cuatro formas fiscales)              | **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA** (no autoriza T08)                                  | 2026-08-08 | `DECISIONS.md`, `docs/engineering/EWO-005_BLOCK_E_ARCHITECTURE_ADDENDUM.md`, `apps/api/src/modules/cfdi/cfdi-aggregate.types.ts` |
+| D-016   | Contrato de dominio de Cuenta para M5 (campos base, naturaleza V1, reglas de jerarquía); diferido a M6: posting/grouping, Pólizas, `MovimientoPoliza` | **APROBADA · PENDIENTE DE IMPLEMENTACIÓN**                                                        | 2026-08-15 | `DECISIONS.md`                                                                                                                            |
 
 ## Convenciones
 
