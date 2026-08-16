@@ -101,7 +101,7 @@ tasks:
     mission_id: EWO-006A
     title: Ratify D-014 traceability in docs/31_MASTER_SCREEN_MAP.md
     risk_class: DOCUMENTATION
-    state: BLOCKED
+    state: READY
     base_commit: 20a20baca126b6c28b29eed645dea49bd301b47c
     agent_role: documentation-engineer
     allowed_write:
@@ -118,10 +118,10 @@ tasks:
       - queue.yaml
     dependencies: []
     test_commands:
-      - rg -q "PAGE-0010" docs/31_MASTER_SCREEN_MAP.md
-      - rg -q "PAGE-0011" docs/31_MASTER_SCREEN_MAP.md
-      - rg -q "Administrador" docs/31_MASTER_SCREEN_MAP.md
-      - rg -q "Contador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "PAGE-0010.*Administrador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "PAGE-0010.*Contador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "PAGE-0011.*Administrador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "PAGE-0011.*Contador" docs/31_MASTER_SCREEN_MAP.md
       - rg -q "D-014" docs/31_MASTER_SCREEN_MAP.md
     reads_contract:
       - brain/DECISIONS.md
