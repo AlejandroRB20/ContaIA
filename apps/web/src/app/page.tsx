@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { HealthStatus } from '@/components/health-status';
 import { getClientEnv } from '@/lib/env';
 
@@ -23,6 +25,10 @@ export default function StatusPage(): React.JSX.Element {
         <p className="text-slate-500">Versión: {env.NEXT_PUBLIC_APP_VERSION}</p>
         <p className="text-slate-500">Ambiente: {process.env.NODE_ENV}</p>
       </div>
+
+      <Link href="/demo" className="text-action mt-md text-sm font-medium hover:underline">
+        Ver dashboard de ContaIA →
+      </Link>
     </main>
   );
 }

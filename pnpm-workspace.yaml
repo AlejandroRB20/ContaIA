@@ -9,5 +9,9 @@ allowBuilds:
   '@scarf/scarf': true
   argon2: true
   esbuild: true
+  msgpackr-extract: false
   prisma: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - bullmq@5.81.1

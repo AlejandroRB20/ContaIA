@@ -34,6 +34,18 @@
 // fisicamente (BR-INT-002) — por eso User/Company usan `deletedAt` en vez de
 // un borrado real; Session/PasswordReset/EmailVerification/Invitation son
 // tecnicas de corta vida y si se purgan (fuera del alcance de EWO-002).
+//
+// EWO-005 (Documents & Fiscal) agrega el bloque Documents/Fiscal: Document
+// (metadatos de archivos cargados; el binario vive en almacenamiento de
+// objetos, nunca en la base — docs/09_DATABASE_DESIGN.md seccion 5), Cfdi
+// (datos estructurados extraidos de un XML fiscal, 1:1 con Document, con la
+// unicidad compuesta (companyId, folioFiscal) que cierra la deduplicacion a
+// nivel de dato — docs/08_API_DESIGN.md seccion 13) y Job (infraestructura
+// tecnica de operaciones asincronas, docs/09 seccion 4). Solo modelos, enums
+// e indices — StorageModule/NestJS/BullMQ/RBAC/XML son fases posteriores del
+// plan (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md). Ningun campo aqui
+// timbra ni valida ante el SAT (BR-CFDI-001), ni almacena XML completo en
+// Cfdi (el XML se referencia via Document.storageReference).
 
 generator client {
   provider = "prisma-client-js"
@@ -137,6 +149,7 @@ model User {
   sentInvitations    Invitation[]        @relation("InvitationInvitedBy")
   mfaRecoveryCodes   MfaRecoveryCode[]
   auditLogsAsActor   AuditLog[]          @relation("AuditLogActor")
+  uploadedDocuments  Document[]          @relation("DocumentUploadedBy")
 
   @@map("users")
 }
@@ -194,6 +207,9 @@ model Company {
   memberships   Membership[]
   invitations   Invitation[]
   auditLogs     AuditLog[]
+  documents     Document[]
+  cfdis         Cfdi[]
+  jobs          Job[]
 
   @@index([organizationId])
   @@map("companies")
@@ -334,9 +350,12 @@ model Membership {
   acceptedAt       DateTime?        @map("accepted_at") @db.Timestamptz(6)
   version          Int              @default(1)
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role    Role    @relation(fields: [roleId], references: [id])
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role              Role       @relation(fields: [roleId], references: [id])
+  /// Documentos cargados por este usuario en esta Empresa — destino de la FK
+  /// compuesta tenant-safe de Document.uploaderMembership (BR-DOC-002).
+  uploadedDocuments Document[] @relation("DocumentUploaderMembership")
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -473,4 +492,344 @@ model AuditLog {
   @@index([companyId])
   @@index([timestamp])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// EWO-005 — Documents & Fiscal
+// ============================================================================
+
+/// Ciclo de vida de un Documento (docs/08_API_DESIGN.md seccion 14, docs/09
+/// seccion 5): PENDING_UPLOAD (creado, esperando la carga directa al
+/// almacenamiento de objetos) -> PROCESSING (carga confirmada, Job de
+/// extraccion en curso) -> PROCESSED (XML valido, CFDI extraido) | REJECTED
+/// (formato invalido u otro motivo, con `rejectionReason`).
+enum DocumentStatus {
+  PENDING_UPLOAD
+  PROCESSING
+  PROCESSED
+  REJECTED
+}
+
+/// Tipo del archivo cargado (docs/09 seccion 7: "se distinguen por el campo
+/// fileType"). Solo el extractor de CFDI actua sobre `XML`. No ampliar
+/// valores sin evidencia funcional (docs/engineering/
+/// EWO-005_DOCUMENTS_FISCAL_PLAN.md seccion 12, punto 8).
+enum DocumentFileType {
+  XML
+  PDF
+  OTHER
+}
+
+/// Estado de una operacion asincrona (docs/08_API_DESIGN.md seccion 15,
+/// docs/09 seccion 4): QUEUED -> PROCESSING -> COMPLETED | FAILED | CANCELLED.
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Tipo de Job. En el MVP de EWO-005 solo existe la extraccion de XML; el
+/// modelo Job es generico (docs/09 seccion 4 lo reutiliza para reportes y
+/// exportaciones futuras), pero esos JobType se agregan cuando su modulo
+/// entre en alcance, no antes.
+enum JobType {
+  XML_EXTRACTION
+}
+
+/// Archivo cargado al repositorio de una Empresa (docs/09_DATABASE_DESIGN.md
+/// seccion 5, BR-DOC-001/002). El binario NUNCA vive aqui: `storageReference`
+/// es la key opaca del objeto en el almacenamiento (MinIO/S3), no una URL
+/// publica ni prefirmada (BR-DOC-001, docs/08_API_DESIGN.md seccion 14.8).
+/// `checksumSha256` permite detectar duplicados y verificar integridad tras
+/// la carga; es un indice por Empresa, nunca una restriccion unica global —
+/// dos Empresas distintas pueden almacenar el mismo archivo (aislamiento
+/// BR-GLB-001). No se modela borrado logico: EWO-005 no expone ninguna
+/// operacion de borrado (BR-INT-002 se respeta por ausencia de borrado
+/// fisico).
+model Document {
+  id               String           @id @default(uuid()) @db.Uuid
+  companyId        String           @map("company_id") @db.Uuid
+  /// Usuario que realizo la carga (BR-DOC-002: metadatos minimos obligatorios
+  /// — fecha via `createdAt`, tipo via `fileType`, y usuario aqui). La FK
+  /// compuesta `uploaderMembership` (abajo) obliga a que exista una Membership
+  /// de este usuario en la Empresa del documento: nadie sin pertenencia a la
+  /// Empresa puede figurar como uploader (BR-GLB-001/BR-USR-002), garantizado
+  /// en el dato, no solo en la aplicacion.
+  uploadedByUserId String           @map("uploaded_by_user_id") @db.Uuid
+  originalFilename String           @map("original_filename") @db.VarChar(255)
+  fileType         DocumentFileType @map("file_type")
+  mimeType         String           @map("mime_type") @db.VarChar(150)
+  /// Tamaño en bytes; nulo hasta que la carga se confirma (en PENDING_UPLOAD
+  /// el archivo todavia no existe en el almacenamiento).
+  sizeBytes        Int?             @map("size_bytes")
+  /// Key opaca del objeto en el almacenamiento — NO una URL. Unica: cada
+  /// Documento apunta a exactamente un objeto.
+  storageReference String           @unique @map("storage_reference") @db.VarChar(500)
+  /// SHA-256 en hex (64 chars) del contenido; nulo hasta que el worker lo
+  /// calcula tras la carga. Detecta duplicados / verifica integridad.
+  checksumSha256   String?          @map("checksum_sha256") @db.VarChar(64)
+  status           DocumentStatus   @default(PENDING_UPLOAD)
+  /// Motivo de rechazo cuando `status = REJECTED` (docs/08 seccion 14.7,
+  /// BR-ERR-001). Nulo en cualquier otro estado.
+  rejectionReason  String?          @map("rejection_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company            Company    @relation(fields: [companyId], references: [id])
+  uploadedBy         User       @relation("DocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  /// Garantiza en la BD que el uploader pertenece a la Empresa del documento:
+  /// FK compuesta (uploadedByUserId, companyId) -> memberships(userId,
+  /// companyId). Comparte columnas con las relaciones `uploadedBy` y `company`
+  /// (Prisma permite escalares en varias relaciones).
+  uploaderMembership Membership @relation("DocumentUploaderMembership", fields: [uploadedByUserId, companyId], references: [userId, companyId])
+  cfdi               Cfdi?
+  jobs               Job[]
+
+  /// Objetivo de las claves foraneas compuestas tenant-safe de Cfdi y Job:
+  /// permite referenciar (documentId, companyId) para que la BD garantice que
+  /// un hijo (CFDI/Job) nunca apunte a un Documento de OTRA Empresa
+  /// (BR-GLB-001, integridad exigida en el dato — no solo en la aplicacion).
+  /// Redundante con la PK a nivel de unicidad de `id`, pero necesaria como
+  /// destino de una FK compuesta en PostgreSQL.
+  @@unique([id, companyId])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, checksumSha256])
+  @@map("documents")
+}
+
+/// Datos estructurados extraidos de un Documento XML fiscal ya timbrado por
+/// su emisor original (docs/09_DATABASE_DESIGN.md seccion 5, BR-CFDI-002).
+/// Relacion 1:1 con Document (todo CFDI extiende exactamente un Documento).
+/// La unicidad compuesta (companyId, folioFiscal) cierra a nivel de dato la
+/// deduplicacion diseñada en docs/08_API_DESIGN.md seccion 13 — debe ser un
+/// indice unico REAL, no solo validacion de aplicacion (docs/09 seccion 16,
+/// riesgo de duplicidad). NUNCA se marca como "timbrado" ni "validado ante el
+/// SAT" (BR-CFDI-001): esos estados no existen aqui. El XML completo NO se
+/// almacena en esta tabla — vive en el almacenamiento via
+/// Document.storageReference. Los importes usan Decimal (BR-GLB-004: nunca
+/// Float, para no introducir error de redondeo). Los campos que el extractor
+/// no puede determinar con certeza se listan en `ambiguousFields`, nunca se
+/// infieren (BR-XML-002). La relacion con Document es una FK COMPUESTA
+/// (documentId, companyId) -> documents(id, companyId): la BD impide que un
+/// CFDI referencie un Documento de otra Empresa (BR-GLB-001) — `companyId`
+/// sirve tanto de ancla de aislamiento como de segunda columna de esa FK.
+model Cfdi {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  documentId      String   @map("document_id") @db.Uuid
+  /// Folio Fiscal (UUID del Timbre Fiscal Digital, 36 chars). Clave de
+  /// deduplicacion junto con companyId.
+  folioFiscal     String   @map("folio_fiscal") @db.VarChar(36)
+  rfcEmisor       String   @map("rfc_emisor") @db.VarChar(13)
+  rfcReceptor     String   @map("rfc_receptor") @db.VarChar(13)
+  /// Fecha y hora local de expedicion del CFDI (atributo Fecha), formato
+  /// AAAA-MM-DDThh:mm:ss, sin offset. Se conserva como texto exacto: el SAT
+  /// define ese atributo como hora local del lugar de expedicion, por lo que
+  /// convertirlo a timestamptz obligaria a asumir una zona horaria implicita
+  /// (D-009). La columna fisica conserva el nombre issued_at.
+  issuedAtLocal   String   @map("issued_at") @db.VarChar(19)
+  subtotal        Decimal  @db.Decimal(18, 6)
+  total           Decimal  @db.Decimal(18, 6)
+  /// Moneda ISO 4217 (ej. MXN, USD) tal como la declara el comprobante.
+  currency        String   @db.VarChar(3)
+  /// TipoDeComprobante del CFDI (codigo I/E/T/N/P). Texto libre, sin catalogo
+  /// SAT hardcodeado (CLAUDE.md regla 6).
+  tipoComprobante String   @map("tipo_comprobante") @db.VarChar(20)
+  /// Campos no determinables marcados explicitamente (BR-XML-002), nunca
+  /// inferidos. Lista vacia cuando la extraccion fue completa.
+  ambiguousFields String[] @map("ambiguous_fields")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company       @relation(fields: [companyId], references: [id])
+  document Document      @relation(fields: [documentId, companyId], references: [id, companyId], onDelete: Cascade)
+  concepts CfdiConcept[]
+  taxes    CfdiTax[]
+
+  /// Prerrequisito estructural del Bloque E (Addendum AD-5 §4.5.1): PostgreSQL
+  /// solo permite declarar la FK compuesta `(cfdiId, companyId) -> cfdis(id,
+  /// companyId)` de `CfdiConcept` si el lado referenciado tiene un indice unico
+  /// sobre exactamente esas columnas. Es inocuo para los datos actuales: `id`
+  /// ya es unico por la PK, asi que esta restriccion no rechaza ninguna fila
+  /// existente — solo habilita la FK compuesta tenant-safe de los hijos.
+  @@unique([id, companyId])
+  /// 1:1 con Document expresado sobre la FK compuesta: un Documento tiene a
+  /// lo sumo un CFDI. `documentId` sigue siendo efectivamente unico porque la
+  /// FK compuesta lo obliga a emparejarse solo con la Empresa real de su
+  /// Documento.
+  @@unique([documentId, companyId])
+  @@unique([companyId, folioFiscal])
+  @@index([companyId, issuedAtLocal])
+  @@map("cfdis")
+}
+
+/// Cada `<cfdi:Concepto>` del XML del comprobante (Addendum EWO-005 Bloque E,
+/// AD-5 §4.5.1). Hijo relacional del agregado CFDI: sostiene los conceptos que
+/// BR-CFDI-002 exige extraer ("emisor, receptor, conceptos, montos e
+/// impuestos") y que el modelo `Cfdi` — solo cabecera — no puede representar.
+/// Los importes usan Decimal (BR-GLB-004: nunca Float, para no introducir error
+/// de redondeo). La relacion con `Cfdi` es una FK COMPUESTA (cfdiId, companyId)
+/// -> cfdis(id, companyId): la BD impide que un concepto referencie un CFDI de
+/// OTRA Empresa (BR-GLB-001) — `companyId` es a la vez ancla de aislamiento y
+/// segunda columna de esa FK. La unicidad (companyId, cfdiId, position) es la
+/// identidad idempotente del concepto (el worker la usa para upsert, AD-10) y
+/// fija el orden determinista dentro del comprobante; (id, cfdiId, companyId)
+/// habilita la FK compuesta de tres columnas que `CfdiTax` declarara despues
+/// hacia este modelo (AD-5 §4.5.2), aun no implementado. Las longitudes de los
+/// campos de texto NO se restringen: AD-5 §4.5.1 no las especifica y fijarlas
+/// seria inventar una restriccion ausente de la fuente de verdad.
+model CfdiConcept {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  cfdiId           String   @map("cfdi_id") @db.Uuid
+  /// Orden original del concepto en el XML (1-based). Parte de la identidad
+  /// idempotente (companyId, cfdiId, position).
+  position         Int
+  claveProdServ    String   @map("clave_prod_serv") @db.Text
+  noIdentificacion String?  @map("no_identificacion") @db.Text
+  cantidad         Decimal  @db.Decimal(18, 6)
+  claveUnidad      String   @map("clave_unidad") @db.Text
+  unidad           String?  @db.Text
+  descripcion      String   @db.Text
+  valorUnitario    Decimal  @map("valor_unitario") @db.Decimal(18, 6)
+  importe          Decimal  @db.Decimal(18, 6)
+  descuento        Decimal? @db.Decimal(18, 6)
+  objetoImp        String   @map("objeto_imp") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cfdi  Cfdi      @relation(fields: [cfdiId, companyId], references: [id, companyId], onDelete: Cascade)
+  taxes CfdiTax[]
+
+  @@unique([companyId, cfdiId, position])
+  @@unique([id, cfdiId, companyId])
+  @@index([cfdiId])
+  @@index([companyId])
+  @@map("cfdi_concepts")
+}
+
+/// Ambito del impuesto CFDI (Addendum EWO-005 Bloque E, AD-5 §4.5.2): `CFDI` =
+/// impuesto a nivel comprobante (`<cfdi:Impuestos>`); `CONCEPT` = impuesto a
+/// nivel concepto (`<cfdi:Concepto><cfdi:Impuestos>`). Coincide exactamente con
+/// la forma de respuesta de API-0027 (Addendum §13.1) — no se inventan variantes.
+enum CfdiTaxScope {
+  CFDI
+  CONCEPT
+}
+
+/// Naturaleza del impuesto CFDI (Addendum AD-5 §4.5.2): `TRANSFER` = impuesto
+/// trasladado; `WITHHOLDING` = impuesto retenido. Coincide con
+/// `"type": "TRANSFER | WITHHOLDING"` de la respuesta de API-0027 (§13.1).
+enum CfdiTaxType {
+  TRANSFER
+  WITHHOLDING
+}
+
+/// Impuesto de un CFDI, a nivel comprobante (`<cfdi:Impuestos>`) o a nivel
+/// concepto (`<cfdi:Concepto><cfdi:Impuestos>`) (Addendum EWO-005 Bloque E,
+/// AD-5 §4.5.2). Segundo hijo relacional del agregado CFDI. `conceptSlot` es el
+/// discriminador de contenedor NOT NULL que hace la identidad idempotente
+/// expresable en Prisma sin nulos: `0` = impuesto de comprobante, `k > 0` =
+/// impuesto del concepto cuya `position = k` — de ahi `@@unique([companyId,
+/// cfdiId, conceptSlot, position])`, la clave que genera el `WhereUniqueInput`
+/// del upsert del worker (AD-10.1). `cfdiConceptId` es SOLO integridad
+/// referencial (no identidad): nulo para impuestos de comprobante, presente
+/// para impuestos de concepto. Dos FK COMPUESTAS: `(cfdiId, companyId) ->
+/// cfdis(id, companyId)` (siempre evaluada, NOT NULL) garantiza que el impuesto
+/// pertenece al mismo CFDI y Empresa; `(cfdiConceptId, cfdiId, companyId) ->
+/// cfdi_concepts(id, cfdiId, companyId)` es OPCIONAL de nulabilidad mixta y se
+/// apoya en la semantica MATCH SIMPLE de PostgreSQL (no se evalua cuando
+/// `cfdiConceptId` es NULL), garantizando —cuando aplica— que el concepto es
+/// del mismo CFDI y Empresa (BR-GLB-001, criterios 35/36). Los importes usan
+/// Decimal(18,6) (BR-GLB-004: nunca Float), nulos cuando `tipoFactor = 'Exento'`
+/// o cuando no aplican al nivel del impuesto. Las longitudes de `impuesto` y
+/// `tipoFactor` NO se restringen: AD-5 §4.5.2 no las especifica y fijarlas seria
+/// inventar una restriccion ausente de la fuente. La coherencia entre `scope`,
+/// `cfdiConceptId` y `conceptSlot` la garantiza el CHECK
+/// `cfdi_taxes_scope_concept_check` — SQL manual de la migracion (AD-5, tarea
+/// E5-S1-T04), NO expresable en `schema.prisma` y por tanto fuera de este modelo.
+model CfdiTax {
+  id            String       @id @default(uuid()) @db.Uuid
+  companyId     String       @map("company_id") @db.Uuid
+  cfdiId        String       @map("cfdi_id") @db.Uuid
+  /// Solo integridad referencial (no identidad): NULL a nivel comprobante,
+  /// presente a nivel concepto. Parte de la FK opcional hacia `CfdiConcept`.
+  cfdiConceptId String?      @map("cfdi_concept_id") @db.Uuid
+  scope         CfdiTaxScope
+  /// Discriminador de contenedor NOT NULL: `0` = comprobante; `k > 0` = concepto
+  /// en `position = k`. Existe para que la identidad sea `@@unique` sin nulos.
+  conceptSlot   Int          @map("concept_slot")
+  /// Orden dentro de su contenedor (1-based), reinicia por contenedor.
+  position      Int
+  type          CfdiTaxType
+  impuesto      String       @db.Text
+  tipoFactor    String       @map("tipo_factor") @db.Text
+  tasaOCuota    Decimal?     @map("tasa_o_cuota") @db.Decimal(18, 6)
+  base          Decimal?     @db.Decimal(18, 6)
+  importe       Decimal?     @db.Decimal(18, 6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cfdi        Cfdi         @relation(fields: [cfdiId, companyId], references: [id, companyId], onDelete: Cascade)
+  cfdiConcept CfdiConcept? @relation(fields: [cfdiConceptId, cfdiId, companyId], references: [id, cfdiId, companyId], onDelete: Cascade)
+
+  @@unique([companyId, cfdiId, conceptSlot, position])
+  @@index([cfdiId])
+  @@index([companyId])
+  @@index([cfdiConceptId])
+  @@map("cfdi_taxes")
+}
+
+/// Operacion asincrona (infraestructura tecnica, docs/09_DATABASE_DESIGN.md
+/// seccion 4 — no es un concepto de dominio de negocio). En EWO-005 el unico
+/// `JobType` es `XML_EXTRACTION`, que SIEMPRE nace desde un Documento: por eso
+/// `documentId` es obligatorio (NOT NULL). Cuando en un EWO futuro exista un
+/// JobType sin documento (reportes, exportaciones), su migracion relajara esta
+/// columna — no se modela esa opcionalidad hoy (YAGNI). `error` guarda un
+/// mensaje SANEADO — nunca stack traces ni secretos (requisito de seguridad).
+/// `result` es el campo del contrato docs/08 seccion 15: nulo hasta que el Job
+/// llega a COMPLETED, cuando referencia el recurso final (para XML_EXTRACTION,
+/// el `documentId` procesado; forma polimorfica {resourceType, resourceId} o
+/// {documentId} segun el JobType) — se guarda como JSON para no rigidizar la
+/// referencia polimorfica que docs/09 seccion 4 exige. La relacion con
+/// Document es una FK COMPUESTA (documentId, companyId) -> documents(id,
+/// companyId): la BD garantiza que el Documento pertenece a la misma Empresa
+/// del Job (BR-GLB-001) — ambas columnas NOT NULL, la FK siempre se evalua.
+///
+/// Restriccion parcial no expresable en Prisma: "a lo sumo un Job activo
+/// (QUEUED|PROCESSING) por Documento" requeriria un indice unico filtrado
+/// (WHERE status IN (...)), que el schema de Prisma no soporta sin introducir
+/// drift de migracion. Se implementa como (a) el indice (documentId, status)
+/// de abajo para la consulta eficiente de jobs activos, y (b) una invariante
+/// de servicio en JobsService (fase posterior) que rechaza encolar un segundo
+/// Job activo para un Documento que ya tiene uno. Un indice unico parcial en
+/// SQL crudo queda como refuerzo opcional para una fase futura.
+model Job {
+  id         String    @id @default(uuid()) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  documentId String    @map("document_id") @db.Uuid
+  type       JobType
+  status     JobStatus @default(QUEUED)
+  /// Referencia al recurso final cuando `status = COMPLETED` (contrato docs/08
+  /// seccion 15). Nulo mientras el Job no termina. JSON para sostener la
+  /// referencia polimorfica sin acoplar el esquema a un unico tipo de recurso.
+  result     Json?
+  error      String?   @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  document Document @relation(fields: [documentId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([documentId, status])
+  @@map("jobs")
 }

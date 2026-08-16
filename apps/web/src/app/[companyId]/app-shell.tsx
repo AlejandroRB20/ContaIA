@@ -2,10 +2,11 @@
 
 import type { MembershipSummary, UserProfile } from '@contaia/types';
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import type { DashboardNavGroup } from '@/components/dashboard/dashboard-sidebar';
 import { useLogout } from '@/hooks/use-logout';
 import { useSessionStore } from '@/store/use-session-store';
 
@@ -18,18 +19,10 @@ const ROLE_LABELS: Record<string, string> = {
   ESTUDIANTE: 'Estudiante',
 };
 
-interface NavItem {
-  label: string;
-  href: string;
-  /** Permiso requerido para mostrar el ítem (undefined = visible para todos los roles). */
-  permission?: string;
-}
-
-function buildNav(companyId: string): NavItem[] {
-  return [
-    { label: 'Inicio', href: `/${companyId}/inicio` },
-    { label: 'Empresas', href: '/empresas', permission: 'company.read' },
-  ];
+function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters = words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '');
+  return letters.join('') || '—';
 }
 
 interface AppShellProps {
@@ -40,10 +33,14 @@ interface AppShellProps {
 }
 
 /**
- * Shell principal de la aplicación: barra lateral + encabezado + contenido.
- * La navegación se filtra por permisos del Rol actual (cosmético — la
- * autorización real siempre ocurre en el servidor,
- * docs/19_FRONTEND_IMPLEMENTATION_PLAN.md sección 11).
+ * Shell principal de la aplicación: barra lateral + encabezado + contenido,
+ * fiel al diseño de `ContaIA Dashboard V2 (standalone) 2.html`
+ * (EWO-frontend-ui-02). La navegación se filtra por permisos del Rol actual
+ * (cosmético — la autorización real siempre ocurre en el servidor,
+ * docs/19_FRONTEND_IMPLEMENTATION_PLAN.md sección 11). Los módulos que
+ * todavía no tienen ruta real (Contabilidad, Documentos, Reportes,
+ * Asistente IA) se muestran sin `href` — visibles pero no navegables, para
+ * no presentar funcionalidad falsa como real.
  */
 export function AppShell({
   user,
@@ -57,12 +54,46 @@ export function AppShell({
   const permissions = useSessionStore((state) => state.permissions);
   const logout = useLogout();
 
-  const nav = buildNav(companyId).filter(
-    (item) => !item.permission || permissions.includes(item.permission),
-  );
+  const inicioHref = `/${companyId}/inicio`;
+  const canReadCompanies = permissions.includes('company.read');
+
+  const navGroups: DashboardNavGroup[] = [
+    {
+      title: 'Principal',
+      items: [
+        { id: 'inicio', label: 'Inicio', href: inicioHref, active: pathname === inicioHref },
+        { id: 'contabilidad', label: 'Contabilidad' },
+        { id: 'documentos', label: 'Documentos' },
+        ...(canReadCompanies
+          ? [
+              {
+                id: 'empresas',
+                label: 'Empresas',
+                href: '/empresas',
+                active: pathname.startsWith('/empresas'),
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      title: 'Inteligencia artificial',
+      items: [{ id: 'asistente', label: 'Asistente IA' }],
+    },
+    {
+      items: [
+        {
+          id: 'configuracion',
+          label: 'Configuración',
+          href: '/configuracion/personal',
+          active: pathname.startsWith('/configuracion'),
+        },
+      ],
+    },
+  ];
 
   function handleSwitchCompany() {
-    router.push(`/seleccionar-empresa?next=/${companyId}/inicio`);
+    router.push(`/seleccionar-empresa?next=${inicioHref}`);
   }
 
   function handleLogout() {
@@ -75,77 +106,28 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Barra lateral */}
-      <aside className="bg-surface dark:bg-surface-dark border-border dark:border-border-dark flex w-56 shrink-0 flex-col border-r">
-        <div className="p-md border-border dark:border-border-dark border-b">
-          <span className="text-brand text-lg font-semibold dark:text-white">ContaIA</span>
-        </div>
-
-        <nav className="p-sm flex-1 space-y-1">
-          {nav.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={
-                  isActive
-                    ? 'bg-action/10 text-action block rounded px-3 py-2 text-sm font-medium'
-                    : 'text-foreground dark:text-foreground-dark hover:bg-muted dark:hover:bg-muted-dark block rounded px-3 py-2 text-sm'
-                }
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Empresa activa + cambio */}
-        <div className="p-sm border-border dark:border-border-dark space-y-1 border-t">
-          <p className="text-muted-foreground dark:text-muted-foreground-dark truncate px-3 text-xs">
+    <DashboardShell
+      navGroups={navGroups}
+      companyName={membership.companyName}
+      companyInitials={initialsOf(membership.companyName)}
+      userName={`${user.firstName} ${user.lastName}`}
+      userRole={ROLE_LABELS[membership.role] ?? membership.role}
+      userInitials={initialsOf(`${user.firstName} ${user.lastName}`)}
+      onLogout={handleLogout}
+      isLoggingOut={logout.isPending}
+      onSwitchCompany={handleSwitchCompany}
+      sidebarFooter={
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[12.5px] font-semibold text-white">
+            {user.firstName} {user.lastName}
+          </span>
+          <span className="text-[11px]" style={{ color: '#7C8AB0' }}>
             {membership.companyName}
-          </p>
-          <button
-            onClick={handleSwitchCompany}
-            className="text-muted-foreground hover:text-foreground dark:text-muted-foreground-dark dark:hover:text-foreground-dark w-full px-3 py-1 text-left text-xs"
-          >
-            Cambiar empresa
-          </button>
+          </span>
         </div>
-      </aside>
-
-      {/* Área principal */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Encabezado */}
-        <header className="bg-surface dark:bg-surface-dark border-border dark:border-border-dark flex h-14 shrink-0 items-center justify-between border-b px-6">
-          <p className="text-foreground dark:text-foreground-dark text-sm font-medium">
-            {membership.companyName}
-            <span className="text-muted-foreground dark:text-muted-foreground-dark ml-2 text-xs font-normal">
-              {ROLE_LABELS[membership.role] ?? membership.role}
-            </span>
-          </p>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/configuracion/personal"
-              className="text-foreground dark:text-foreground-dark hover:text-action text-sm"
-            >
-              {user.firstName} {user.lastName}
-            </Link>
-            <button
-              onClick={handleLogout}
-              disabled={logout.isPending}
-              className="text-muted-foreground hover:text-danger text-sm"
-            >
-              Salir
-            </button>
-          </div>
-        </header>
-
-        {/* Contenido */}
-        <main className="flex-1 overflow-auto p-6">{children}</main>
-      </div>
-    </div>
+      }
+    >
+      {children}
+    </DashboardShell>
   );
 }

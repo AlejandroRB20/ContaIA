@@ -3,7 +3,12 @@
  * consumidores (apps/api) necesitan sin importar directamente desde
  * `generated/client` (detalle de implementacion interno de este paquete).
  */
-export type { Prisma } from '../generated/client/index.js';
+// Exportacion de valor (no `export type`): Bloque D de EWO-005 necesita
+// `Prisma.PrismaClientKnownRequestError` en tiempo de ejecucion (deteccion
+// de P2002, violacion de constraint unico) — un `export type` no expone el
+// namespace como valor. Sigue sirviendo tambien como tipo (ej.
+// `Prisma.JobWhereInput`), sin romper ningun uso existente.
+export { Prisma } from '../generated/client/index.js';
 
 export type {
   User,
@@ -22,6 +27,18 @@ export type {
   Invitation,
   MfaRecoveryCode,
   AuditLog,
+  Document,
+  Job,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T02): CfdiRepository necesita el tipo
+  // de retorno de la cabecera.
+  Cfdi,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T03): CfdiConceptRepository/
+  // CfdiTaxRepository necesitan el tipo de retorno de los hijos. CfdiTaxType
+  // no se exporta: ningun archivo de T03 lo referencia como valor ni como
+  // tipo explicito (ExtractedTaxType, sin dependencia de Prisma, ya cubre
+  // esa unión en el contrato del agregado).
+  CfdiConcept,
+  CfdiTax,
 } from '../generated/client/index.js';
 
 export {
@@ -30,4 +47,11 @@ export {
   MembershipStatus,
   InvitationStatus,
   RoleName,
+  DocumentStatus,
+  DocumentFileType,
+  JobStatus,
+  JobType,
+  // EWO-005 Bloque E, Sprint 2 (E5-S2-T03): discrimina CfdiTax de nivel
+  // comprobante vs. nivel concepto al construir el `data` de cada upsert.
+  CfdiTaxScope,
 } from '../generated/client/index.js';

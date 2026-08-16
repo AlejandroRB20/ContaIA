@@ -1,12 +1,13 @@
-# Infraestructura local de ContaIA (EWO-001).
+# Infraestructura local de ContaIA (EWO-001; MinIO agregado en EWO-005).
 #
-# Alcance deliberado: solo PostgreSQL y Redis. MinIO se excluye a proposito
-# en esta fase — ningun modulo funcional del MVP en EWO-001 usa
-# almacenamiento de objetos todavia (STORAGE_ENABLED=false por defecto,
-# packages/validation/src/env/storage.ts) y docs/22_INFRASTRUCTURE_
-# IMPLEMENTATION_PLAN.md (seccion 9) pide explicitamente no anadir
-# servicios que no aporten valor inmediato al entorno local. Se agregara en
-# el EWO que implemente el modulo Documents/Files.
+# PostgreSQL y Redis desde EWO-001. MinIO se agrega en EWO-005 (modulo
+# Documents/Files) como unico servicio de almacenamiento de objetos
+# autorizado para desarrollo local (docs/engineering/
+# EWO-005_DOCUMENTS_FISCAL_PLAN.md, seccion 12, punto 3) — compatible con la
+# API S3
+# (docs/22_INFRASTRUCTURE_IMPLEMENTATION_PLAN.md, seccion 9) para que
+# `StorageAdapter` (inversion de dependencias) no distinga MinIO de un S3 de
+# produccion futuro.
 #
 # Objetivo principal: desarrollo local estable (docs/22, seccion 9), no
 # produccion.
@@ -48,11 +49,59 @@ services:
     networks:
       - contaia_network
 
+  minio:
+    image: minio/minio:latest
+    container_name: contaia-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-contaia_dev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-contaia_dev_only}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - contaia_minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - contaia_network
+
+  # Job de inicializacion (one-shot): crea el bucket de documentos de forma
+  # idempotente una vez que MinIO esta healthy. Cierra el hueco del Paso 3 del
+  # plan (docs/engineering/EWO-005_DOCUMENTS_FISCAL_PLAN.md, seccion 6.1), que
+  # exige "bucket inicial" ademas del servicio, healthcheck y volumen. `mc mb
+  # --ignore-existing` no falla si el bucket ya existe, asi que el job es
+  # seguro de reejecutar en cada `docker compose up`.
+  minio-init:
+    image: minio/mc:latest
+    container_name: contaia-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-contaia_dev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-contaia_dev_only}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-contaia-documents}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" && mc mb --ignore-existing "local/$${STORAGE_BUCKET}"'
+    restart: 'no'
+    networks:
+      - contaia_network
+
 volumes:
   contaia_postgres_data:
     name: contaia_postgres_data
   contaia_redis_data:
     name: contaia_redis_data
+  contaia_minio_data:
+    name: contaia_minio_data
 
 networks:
   contaia_network:
