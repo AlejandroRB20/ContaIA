@@ -6,14 +6,28 @@ const ACCESS_TOKEN_COOKIE = 'contaia_access_token';
  * Rutas publicas — el resto exige sesion (docs/19_FRONTEND_IMPLEMENTATION_PLAN.md
  * seccion 11). La pagina tecnica de estado de EWO-001 (`/`) tambien es
  * publica: no expone datos de negocio.
+ *
+ * `/demo` es la vista previa visual del panel financiero (EWO-frontend-ui-02):
+ * datos ficticios, sin sesion real detras. Se declara publica unicamente
+ * para que la vista previa sea navegable sin la cookie de sesion real — no
+ * cambia ninguna regla de autenticacion ni autorizacion de la aplicacion
+ * productiva.
  */
-const PUBLIC_PATH_PREFIXES = ['/acceso', '/no-autorizado', '/prohibido', '/sesion-expirada'];
+const PUBLIC_PATH_PREFIXES = [
+  '/acceso',
+  '/no-autorizado',
+  '/prohibido',
+  '/sesion-expirada',
+  '/demo',
+];
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') {
     return true;
   }
-  return PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return PUBLIC_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 /**
