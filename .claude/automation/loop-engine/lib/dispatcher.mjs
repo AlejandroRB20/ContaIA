@@ -1,0 +1,482 @@
+import { taskLockFile } from './paths.mjs';
+import { acquireLock, readLock, releaseLock, refreshHeartbeat, LockHeldError } from './lock.mjs';
+import { loadQueue } from './queue.mjs';
+import { listTasks, getOrCreateTaskState, mutateTaskState } from './store.mjs';
+import { assertTransition, isTerminal } from './state-machine.mjs';
+import { commitTransaction } from './transaction.mjs';
+import { evaluateConcurrency, touchesMigrationSurface } from './concurrency.mjs';
+import { acquireMigrationLock, readMigrationLock, releaseMigrationLock } from './migration-lock.mjs';
+import { assertOperable, describeTaskConditions } from './guard.mjs';
+import { assertSubstrate } from './substrate.mjs';
+import {
+  ensureWorktree,
+  registerWorktreeOwnership,
+  releaseWorktreeOwnership,
+  branchNameFor,
+} from './worktree.mjs';
+import { BLOCKED_REASONS } from './constants.mjs';
+
+/**
+ * Dispatcher del Loop Engine.
+ *
+ * **Lo que este módulo nunca hace, por diseño:** integrar, hacer `merge`,
+ * `push`, `rebase` o `cherry-pick`; marcar `PASSED`; escribir sobre una
+ * rama protegida; borrar un lock o un worktree ajeno. No existe aquí
+ * ninguna función que lo permita, y la máquina de estados rechaza por su
+ * cuenta cualquier intento (transiciones `H`).
+ *
+ * El estado máximo que produce es `READY_FOR_INTEGRATION`.
+ */
+
+export class DispatchError extends Error {
+  constructor(message, detail) {
+    super(message);
+    this.name = 'DispatchError';
+    this.code = 'DISPATCH_ERROR';
+    this.detail = detail;
+  }
+}
+
+/** Actor por defecto: agente. Un humano debe declararse explícitamente. */
+function normalizeActor(actor) {
+  if (!actor) throw new DispatchError('Se requiere un actor ({type, id}).');
+  if (typeof actor === 'string') return { type: 'agent', id: actor };
+  return { type: actor.type ?? 'agent', id: actor.id, holdsLock: actor.holdsLock };
+}
+
+function holdsLock(taskId, agentId) {
+  const lock = readLock(taskLockFile(taskId));
+  return lock !== null && lock.agent_id === agentId;
+}
+
+/**
+ * Libera el cerrojo de migración **sólo si es propio**. Nunca borra el de
+ * otra tarjeta (arquitectura §9.6, extendida a `migration-lock.mjs`): un
+ * lock vencido de un agente distinto no se toca aquí, sigue exigiendo
+ * `releaseMigrationLock` explícita de una persona.
+ */
+function releaseOwnMigrationLock(taskId, agentId) {
+  const lock = readMigrationLock();
+  if (!lock || lock.task_id !== taskId || lock.agent_id !== agentId) return;
+  try {
+    releaseMigrationLock({ agentId, confirmed: true });
+  } catch {
+    /* ya liberado, o ganado por otro proceso entre la lectura y el release */
+  }
+}
+
+/**
+ * Autoridad para transicionar una tarjeta poseída. Son **dos fuentes
+ * distintas y deliberadamente separadas** (hallazgo MEDIO de la auditoría
+ * de `LOOP-001`):
+ *
+ *   - **lock de la tarjeta** → ownership del código y del worktree. Es del
+ *     implementador y nadie se lo quita.
+ *   - **handoff de QA** → ownership del *proceso* de QA. Lo ejerce el
+ *     auditor independiente sin adquirir el lock, sin tocar el worktree y
+ *     sin poder abrir trabajo de implementación.
+ *
+ * Sin esta separación no existía flujo de QA ejecutable: la transición
+ * `READY_FOR_QA → QA` exige lock, y el lock es de quien no puede auditar.
+ */
+function hasQaAuthority(task, agentId, to) {
+  const handoff = task.qa_handoff;
+  if (!handoff) return false;
+  if (handoff.implementer_id === agentId) return false;
+  if (handoff.auditor_id && handoff.auditor_id !== agentId) return false;
+  if (task.qa_owner && task.qa_owner !== agentId) return false;
+
+  if (task.state === 'READY_FOR_QA' || task.state === 'QA') return true;
+  // Desde QA_FAILED el auditor sólo puede escalar. Abrir REPARACIÓN es
+  // trabajo de implementación y le corresponde a quien tiene el lock.
+  if (task.state === 'QA_FAILED') return to.startsWith('BLOCKED');
+  return false;
+}
+
+function hasStateAuthority(task, agentId, to) {
+  return holdsLock(task.task_id, agentId) || hasQaAuthority(task, agentId, to);
+}
+
+/**
+ * PREPARE — valida una transición y calcula, **sin escribir nada**, los
+ * campos de estado que cambian y el evento que los documenta.
+ *
+ * Separar el cálculo de la escritura es lo que permite que una operación de
+ * varios saltos (la sesión de QA) se persista como una sola transacción, en
+ * vez de salto a salto con rollback por truncado del log.
+ *
+ * @returns {{from: string, changes: object, event: object, actor: object}}
+ */
+export function prepareTransition({ task: current, to, actor, commit, reason, blockedReason, limits }) {
+  const who = normalizeActor(actor);
+  const taskId = current.task_id;
+
+  if (isTerminal(current.state)) {
+    throw new DispatchError(
+      `La tarjeta "${taskId}" está en estado terminal (${current.state}); no admite transiciones.`,
+    );
+  }
+
+  if (blockedReason && !BLOCKED_REASONS.includes(blockedReason)) {
+    throw new DispatchError(
+      `blocked_reason "${blockedReason}" no es tipificado. Válidos: ${BLOCKED_REASONS.join(', ')}`,
+    );
+  }
+  if (to.startsWith('BLOCKED') && !blockedReason) {
+    throw new DispatchError(`La transición a ${to} exige un blocked_reason tipificado.`);
+  }
+
+  const actorWithLock = {
+    ...who,
+    holdsLock: who.holdsLock ?? (who.type === 'agent' ? hasStateAuthority(current, who.id, to) : true),
+  };
+
+  const validated = assertTransition(current, to, actorWithLock, limits);
+
+  const changes = {
+    state: to,
+    repair_iteration: validated.repairIteration,
+    qa_iteration: validated.qaIteration,
+    candidate_commit: commit ?? current.candidate_commit,
+    blocked_reason: to.startsWith('BLOCKED') ? blockedReason : null,
+  };
+
+  const event = {
+    task_id: taskId,
+    mission_id: current.mission_id,
+    agent_id: who.id,
+    actor_type: who.type,
+    from_state: validated.from,
+    to_state: to,
+    repair_iteration: changes.repair_iteration,
+    qa_iteration: changes.qa_iteration,
+    commit: commit ?? null,
+    blocked_reason: changes.blocked_reason,
+    note: reason ?? null,
+  };
+
+  return { from: validated.from, changes, event, actor: who };
+}
+
+/**
+ * Único punto de escritura de `state`. Valida la transición (legalidad,
+ * gate humano, posesión de lock, límites) y la persiste junto a su evento
+ * como una sola transacción.
+ *
+ * Ser el único punto de escritura lo convierte también en el punto natural
+ * de la guarda: `transition`, `block`, `release`, `resume`, el `claim` y el
+ * arranque automático del dispatcher pasan todos por aquí, así que una sola
+ * llamada a `assertOperable` los cubre a todos sin dispersar la regla.
+ */
+export function transitionTask({ taskId, to, actor, commit, reason, blockedReason, limits }) {
+  const current = getOrCreateTaskState(taskId);
+  assertOperable(taskId, current);
+  const prepared = prepareTransition({
+    task: current,
+    to,
+    actor,
+    commit,
+    reason,
+    blockedReason,
+    limits,
+  });
+
+  const { task: updated } = commitTransaction({
+    taskId,
+    from: prepared.from,
+    changes: prepared.changes,
+    events: [prepared.event],
+  });
+
+  const who = prepared.actor;
+  if (who.type === 'agent' && holdsLock(taskId, who.id)) {
+    try {
+      refreshHeartbeat(taskLockFile(taskId), who.id);
+    } catch {
+      /* el heartbeat es best-effort; nunca invalida una transición ya válida */
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Reclamo atómico. El lock se crea **antes** de tocar el estado: si ya
+ * existe, otro agente tiene la tarjeta y este intento falla sin efectos.
+ */
+function claim(taskId, agentId, missionId) {
+  const lockPath = taskLockFile(taskId);
+  acquireLock(lockPath, {
+    task_id: taskId,
+    mission_id: missionId ?? null,
+    agent_id: agentId,
+    pid_hint: process.pid,
+  });
+  try {
+    return transitionTask({
+      taskId,
+      to: 'CLAIMED',
+      actor: { type: 'agent', id: agentId, holdsLock: true },
+      reason: 'claim',
+    });
+  } catch (err) {
+    // La transición falló (p.ej. la tarjeta ya no estaba READY): el lock
+    // recién creado es nuestro y no debe quedar huérfano.
+    releaseLock(lockPath, { agentId, confirmed: true });
+    throw err;
+  }
+}
+
+/**
+ * Recuperación de fallo post-claim (misión T9).
+ *
+ * Con la tarjeta en `CLAIMED` no ha empezado ninguna implementación, así
+ * que el rollback es seguro: `CLAIMED → READY` y liberación del **propio**
+ * lock. Si el rollback no puede completarse, la tarjeta queda en `BLOCKED`
+ * con `claim_setup_failed` y **conserva su lock**, para que ninguna otra
+ * ejecución la tome a medio preparar. Nunca se libera un lock ajeno.
+ */
+function rollbackClaim(taskId, agentId, cause) {
+  try {
+    releaseWorktreeOwnership(taskId, { confirmed: true });
+  } catch {
+    /* puede no haberse registrado todavía */
+  }
+  releaseOwnMigrationLock(taskId, agentId);
+
+  try {
+    transitionTask({
+      taskId,
+      to: 'READY',
+      actor: { type: 'agent', id: agentId, holdsLock: true },
+      reason: `rollback de claim: ${cause}`,
+    });
+    mutateTaskState(taskId, (task) => ({ ...task, owner: null, worktree: null, branch: null }));
+    releaseLock(taskLockFile(taskId), { agentId, confirmed: true });
+    return { rolledBack: true, state: 'READY' };
+  } catch (rollbackError) {
+    transitionTask({
+      taskId,
+      to: 'BLOCKED',
+      actor: { type: 'agent', id: agentId, holdsLock: true },
+      reason: `fallo de preparación y de rollback: ${cause} / ${rollbackError.message}`,
+      blockedReason: 'claim_setup_failed',
+    });
+    return { rolledBack: false, state: 'BLOCKED', lockRetained: true };
+  }
+}
+
+/**
+ * Procedimiento de despacho. Pasos: sustrato → cola → filtrar `READY` →
+ * dependencias/ciclos → locks → conflicto de archivos y migración →
+ * seleccionar → claim atómico → asignar agente → preparar worktree →
+ * `CLAIMED`/`IMPLEMENTING`.
+ */
+export function dispatch({
+  agentId,
+  missionId,
+  autoStartImplementing = true,
+  verifyWorktreeSubstrate = true,
+  limits,
+  decisionEvidence,
+} = {}) {
+  if (!agentId) throw new DispatchError('agent_id es obligatorio.');
+
+  const queue = loadQueue();
+  const tasks = listTasks({ queue });
+
+  const ready = tasks.filter((t) => t.state === 'READY');
+  if (ready.length === 0) return { dispatched: false, reason: 'no-ready-tasks' };
+
+  const skipped = [];
+  let selected = null;
+
+  for (const task of ready) {
+    // Fail-closed antes que nada: una tarjeta con recuperación pendiente o
+    // con una transacción sin confirmar no es despachable, aunque su
+    // `state` diga `READY`. Se registra el motivo; no se silencia.
+    const conditions = describeTaskConditions(task.task_id, task);
+    if (!conditions.operable) {
+      skipped.push({
+        task_id: task.task_id,
+        reason: 'not-operable',
+        conditions: conditions.conditions,
+      });
+      continue;
+    }
+    if (readLock(taskLockFile(task.task_id))) {
+      skipped.push({ task_id: task.task_id, reason: 'lock-present' });
+      continue;
+    }
+    const concurrency = evaluateConcurrency(task, tasks, { decisionEvidence });
+    if (!concurrency.eligible) {
+      skipped.push({ task_id: task.task_id, reason: 'concurrency', conflicts: concurrency.conflicts });
+      continue;
+    }
+    selected = task;
+    break;
+  }
+
+  if (!selected) return { dispatched: false, reason: 'no-eligible-task', skipped };
+
+  let claimed;
+  try {
+    claimed = claim(selected.task_id, agentId, missionId ?? selected.mission_id);
+  } catch (err) {
+    if (err instanceof LockHeldError) {
+      return { dispatched: false, reason: 'lost-claim-race', taskId: selected.task_id, skipped };
+    }
+    throw err;
+  }
+
+  // A partir de aquí la tarjeta está reclamada: todo fallo pasa por rollback.
+  try {
+    mutateTaskState(claimed.task_id, (task) => ({ ...task, owner: agentId }));
+
+    const branch = branchNameFor(claimed.task_id);
+    const worktree = ensureWorktree({
+      taskId: claimed.task_id,
+      baseCommit: claimed.base_commit,
+      branch,
+    });
+
+    registerWorktreeOwnership({
+      taskId: claimed.task_id,
+      missionId: claimed.mission_id,
+      agentId,
+      worktree: worktree.dir,
+      branch: worktree.branch,
+    });
+
+    // Cerrojo de migración (§10.3): se adquiere en el mismo punto que el
+    // ownership de worktree, con el mismo destino en caso de fallo — el
+    // catch de más abajo hace rollback de todo lo adquirido hasta aquí,
+    // migración incluida. `evaluateConcurrency` ya debió excluir a esta
+    // tarjeta si el cerrojo estaba ocupado; esto es la adquisición real,
+    // no una segunda comprobación.
+    if (touchesMigrationSurface(claimed)) {
+      acquireMigrationLock({ taskId: claimed.task_id, agentId, missionId: claimed.mission_id });
+    }
+
+    // Fail-closed: sin gobierno en el worktree no se entrega el contrato.
+    if (verifyWorktreeSubstrate) {
+      assertSubstrate(worktree.dir, { agentRole: claimed.agent_role ?? undefined });
+    }
+
+    mutateTaskState(claimed.task_id, (task) => ({
+      ...task,
+      worktree: worktree.dir,
+      branch: worktree.branch,
+    }));
+
+    let finalTask = getOrCreateTaskState(claimed.task_id);
+    if (autoStartImplementing) {
+      finalTask = transitionTask({
+        taskId: claimed.task_id,
+        to: 'IMPLEMENTING',
+        actor: { type: 'agent', id: agentId, holdsLock: true },
+        reason: 'dispatcher-auto-start',
+        limits,
+      });
+    }
+
+    return { dispatched: true, task: finalTask, worktree, skipped };
+  } catch (setupError) {
+    const recovery = rollbackClaim(claimed.task_id, agentId, setupError.message);
+    return {
+      dispatched: false,
+      reason: 'claim-setup-failed',
+      taskId: claimed.task_id,
+      error: setupError.message,
+      blocked_reason: setupError.blocked_reason ?? 'claim_setup_failed',
+      recovery,
+      skipped,
+    };
+  }
+}
+
+/**
+ * Libera una tarjeta poseída por el agente que la reclamó.
+ *
+ * El destino depende de si la implementación llegó a empezar, porque la
+ * matriz §3.3 sólo autoriza `CLAIMED → READY`:
+ *
+ *   - desde `CLAIMED`: nada se construyó todavía → vuelve a `READY`, se
+ *     libera el lock y el ownership del worktree. La tarjeta es reclamable.
+ *   - desde `IMPLEMENTING` en adelante: **puede haber trabajo sin
+ *     commitear en el worktree**, así que devolverla a `READY` permitiría
+ *     que otro agente reclamara un worktree con trabajo ajeno. Va a
+ *     `BLOCKED` (`agent_released_mid_flight`), y sólo un humano la reactiva
+ *     con `resume`. El ownership del worktree **se conserva**.
+ *
+ * En ningún caso se borra el worktree ni su contenido.
+ */
+export function release({ taskId, agentId, reason, confirmed = true }) {
+  const lock = readLock(taskLockFile(taskId));
+  if (lock && lock.agent_id !== agentId) {
+    throw new DispatchError(
+      `El lock de "${taskId}" pertenece a "${lock.agent_id}", no a "${agentId}". ` +
+        'Liberar un lock ajeno exige decisión humana explícita.',
+    );
+  }
+
+  const current = getOrCreateTaskState(taskId);
+  const cleanRollback = current.state === 'CLAIMED';
+  const actor = { type: 'agent', id: agentId, holdsLock: true };
+
+  if (cleanRollback) {
+    transitionTask({ taskId, to: 'READY', actor, reason: reason ?? 'release' });
+  } else {
+    transitionTask({
+      taskId,
+      to: 'BLOCKED',
+      actor,
+      reason: reason ?? 'release con trabajo posiblemente sin commitear',
+      blockedReason: 'agent_released_mid_flight',
+    });
+  }
+
+  releaseLock(taskLockFile(taskId), { agentId, confirmed });
+
+  if (cleanRollback) {
+    try {
+      releaseWorktreeOwnership(taskId, { confirmed });
+    } catch {
+      /* ownership ya liberada */
+    }
+    // Igual que el worktree: sólo se libera en rollback limpio desde CLAIMED.
+    // Un release a medio vuelo dejaría el cerrojo en manos de otra tarjeta
+    // mientras la migración puede seguir sin terminar — se conserva y exige
+    // la misma resolución humana que un cerrojo vencido.
+    releaseOwnMigrationLock(taskId, agentId);
+  }
+
+  return mutateTaskState(taskId, (t) => ({ ...t, owner: null }));
+}
+
+/**
+ * Desbloquea una tarjeta `BLOCKED*` → `READY`. **Exige actor humano**: la
+ * matriz marca esa transición `H` y `assertTransition` la rechaza para un
+ * agente (misión T4, arquitectura §3.3 regla 4).
+ */
+export function resume({ taskId, actor, reason }) {
+  const who = normalizeActor(actor);
+  return transitionTask({
+    taskId,
+    to: 'READY',
+    actor: who,
+    reason: reason ?? 'resume tras decisión humana',
+  });
+}
+
+/** Bloquea una tarjeta con motivo tipificado obligatorio. */
+export function block({ taskId, to = 'BLOCKED', actor, reason, blockedReason }) {
+  if (!reason) throw new DispatchError('block() exige reason.');
+  return transitionTask({
+    taskId,
+    to,
+    actor,
+    reason,
+    blockedReason: blockedReason ?? 'unclassified',
+  });
+}

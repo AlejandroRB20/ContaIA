@@ -75,3 +75,25 @@ coverage/
 
 # Husky (mantener el directorio versionado, no los locks internos)
 .husky/_/
+
+# Gobierno de agentes (LOOP-000): el sustrato compartido de `.claude/` SI se
+# versiona (reglas, agentes, cola nocturna y settings.json) para que todo
+# worktree lo reciba por Git. Las rutas de abajo son la excepcion deliberada.
+#
+# Preferencias locales de una maquina, nunca compartidas. Es el mecanismo
+# nativo de Claude Code: settings.json = proyecto, settings.local.json = local.
+.claude/settings.local.json
+
+# Estado de ejecucion del Loop Engine: cola en curso, locks, eventos y
+# ownership. Se autogenera; nunca es historia del proyecto. El codigo del
+# motor y `queue.yaml` SI se versionan (AUTONOMOUS_LOOP_ENGINE_V1_ARCHITECTURE
+# seccion 8) — la frontera es `state/`, no el directorio completo.
+.claude/automation/loop-engine/state/
+
+# Worktrees efimeros internos de Claude Code (worktree.baseRef: "head" en
+# .claude/settings.json). Distinto de `.worktrees/` (sin punto), que aloja
+# los worktrees de tarea del Loop Engine y de las misiones de este
+# repositorio. Antes solo estaba en .git/info/exclude local — no viajaba
+# con el repositorio ni con un clon nuevo (hallazgo BAJO de la auditoria
+# independiente de LOOP-000, cerrado en LOOP-000_GOVERNANCE_SUBSTRATE.md §14).
+.claude/worktrees/

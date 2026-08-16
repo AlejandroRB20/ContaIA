@@ -1,0 +1,98 @@
+# Cola de tarjetas del Loop Engine — VERSIONADA.
+#
+# Este archivo declara INTENCIÓN: qué tarjetas existen, su contrato, sus
+# dependencias y su estado inicial. NO es estado de ejecución: eso vive en
+# `state/` y está ignorado por Git. El runtime NUNCA reescribe este archivo
+# (arquitectura §8, misión LOOP-001 T7).
+#
+# Fuente de las siete tarjetas de abajo: `.claude/automation/nightly-queue.md`,
+# transcritas SIN cambiar su estado operativo ni sus dependencias, como exige
+# el criterio de aceptación de LOOP-001 (arquitectura §19).
+#
+# Mapeo de vocabulario aplicado (la cola nocturna usa estados operativos
+# propios que no pertenecen a la máquina canónica de §3.2):
+#
+#   READY_FOR_REVIEWS        -> READY_FOR_QA   (≡ READY_FOR_AUDIT, §3.1)
+#   BLOCKED                  -> BLOCKED        (idéntico)
+#   WAITING_FOR_SCOPE_ORDER  -> BLOCKED        (espera autorización humana)
+#
+# Ninguna de las siete queda en READY, así que ninguna es despachable: la
+# autoridad para iniciarlas está reservada a Alejandro (`nightly-queue.md`
+# §"Autoridad reservada a Alejandro"), y el motor no la sustituye.
+#
+# Tampoco declaran `base_commit`, `allowed_write` ni `test_commands`: la cola
+# nocturna no los fija, e inventarlos las volvería despachables con un alcance
+# fabricado. Por eso permanecen BLOCKED — es exactamente la regla de §3.2
+# ("Si falta un campo del contrato → BLOCKED"), no una omisión.
+
+version: 1
+
+tasks:
+  - task_id: E5-S3-T06
+    mission_id: CONTAIA-E5-S3-T06-XML-HEADER
+    title: Cierre de revisiones del extractor de encabezado
+    risk_class: CRITICAL
+    state: READY_FOR_QA
+    dependencies: []
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-1
+
+  - task_id: E5-S3-T07
+    mission_id: CONTAIA-E5-S3-T07-CONCEPTS
+    title: Conceptos con position contigua
+    risk_class: CRITICAL
+    state: BLOCKED
+    dependencies:
+      - E5-S3-T06
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-2
+
+  - task_id: E5-S3-T08
+    mission_id: CONTAIA-E5-S3-T08-TAXES
+    title: Impuestos de comprobante y concepto
+    risk_class: FISCAL
+    state: BLOCKED
+    dependencies:
+      - E5-S3-T07
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-3
+
+  - task_id: E5-S3-T09
+    mission_id: CONTAIA-E5-S3-T09-AMBIGUOUS
+    title: Campos ambiguos y fuera de MVP
+    risk_class: FISCAL
+    state: BLOCKED
+    dependencies:
+      - E5-S3-T06
+      - E5-S3-T07
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-4
+
+  - task_id: E5-S3-T10
+    mission_id: CONTAIA-E5-S3-T10-CHECKSUM
+    title: Checksum SHA-256 del Buffer
+    risk_class: STANDARD
+    state: BLOCKED
+    dependencies: []
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-5
+
+  - task_id: E5-S3-T11
+    mission_id: CONTAIA-E5-S3-T11-PARSER-ERRORS
+    title: Clasificación de errores del parser
+    risk_class: CRITICAL
+    state: BLOCKED
+    dependencies:
+      - E5-S3-T09
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-6
+
+  - task_id: E5-S3-T12
+    mission_id: CONTAIA-E5-S3-T12-FIXTURES
+    title: Fixtures y cobertura integral
+    risk_class: FISCAL
+    state: BLOCKED
+    dependencies:
+      - E5-S3-T11
+    human_gate_required: true
+    card_ref: .claude/automation/nightly-queue.md#orden-7
