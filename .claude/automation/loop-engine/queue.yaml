@@ -25,7 +25,7 @@
 # fabricado. Por eso permanecen BLOCKED — es exactamente la regla de §3.2
 # ("Si falta un campo del contrato → BLOCKED"), no una omisión.
 
-version: 1
+version: 2
 
 tasks:
   - task_id: E5-S3-T06
@@ -96,3 +96,41 @@ tasks:
       - E5-S3-T11
     human_gate_required: true
     card_ref: .claude/automation/nightly-queue.md#orden-7
+
+  - task_id: E6A-S0-T01
+    mission_id: EWO-006A
+    title: Ratify D-014 traceability in docs/31_MASTER_SCREEN_MAP.md
+    risk_class: DOCUMENTATION
+    state: BLOCKED
+    base_commit: 20a20baca126b6c28b29eed645dea49bd301b47c
+    agent_role: documentation-engineer
+    allowed_write:
+      - docs/31_MASTER_SCREEN_MAP.md
+    forbidden_scope:
+      - brain/DECISIONS.md
+      - brain/DECISION_INDEX.md
+      - docs/04_BUSINESS_RULES.md
+      - docs/11_SECURITY_ARCHITECTURE.md
+      - packages/database/prisma/**
+      - apps/api/**
+      - apps/web/**
+      - .claude/automation/**
+      - queue.yaml
+    dependencies: []
+    test_commands:
+      - rg -q "PAGE-0010" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "PAGE-0011" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "Administrador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "Contador" docs/31_MASTER_SCREEN_MAP.md
+      - rg -q "D-014" docs/31_MASTER_SCREEN_MAP.md
+    reads_contract:
+      - brain/DECISIONS.md
+      - brain/DECISION_INDEX.md
+      - docs/31_MASTER_SCREEN_MAP.md
+    qa_required: true
+    human_gate_required: true
+    allow_low_findings: false
+    allow_rebase: false
+    max_repairs: null
+    decision_refs:
+      - D-014
