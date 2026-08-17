@@ -191,7 +191,7 @@ Basado en BR-AUTH-001 a 004 (`docs/04_BUSINESS_RULES.md`) y la sección 6 de `do
 | Usuarios / Membresías             | L, C, M, E    | L          | —        | L          | L       | —             |
 | CFDI                              | L             | L, C*      | L, C*    | L          | L       | — (simulado)  |
 | Documentos                        | L             | L, C       | L, C     | L          | L       | — (simulado)  |
-| Catálogo de Cuentas               | L             | L, C, M, E | L        | L          | L       | — (simulado)  |
+| Catálogo de Cuentas               | L, C, M, E    | L, C, M, E | L        | L          | L       | — (simulado)  |
 | Pólizas                           | L             | L, C, A    | L, C**   | L, A       | L       | — (simulado)  |
 | Estados Financieros               | L, X          | L, X       | L        | L, X       | L, X    | — (simulado)  |
 | Sugerencias de IA                 | L             | L, C       | L, C     | L, A       | L       | L (educativo) |
@@ -200,6 +200,8 @@ Basado en BR-AUTH-001 a 004 (`docs/04_BUSINESS_RULES.md`) y la sección 6 de `do
 | Facturación futura (fuera de MVP) | —             | —          | —        | —          | —       | —             |
 
 `*` Creación de CFDI = carga del Documento origen, no timbrado. `**` Auxiliar solo crea/edita Pólizas en estado `DRAFT`, nunca aprueba (BR-ROL-001).
+
+`L` sobre Documentos y CFDI cubre **metadatos y datos extraídos**, nunca la descarga del binario: obtener el archivo original o el XML es una capacidad separada, gobernada por `document.download` (D-011). Esta matriz es intencionalmente gruesa; la celda de Administrador sobre Catálogo de Cuentas se corrigió a `L, C, M, E` para reflejar **BR-PERM-005** (`D-014`) — la matriz canónica por acción, con su clave de permiso y sus roles, para cada recurso vive en su propia tabla `BR-PERM-00N` de `docs/04_BUSINESS_RULES.md` (**BR-PERM-004** para Documento/CFDI, **BR-PERM-005** para Cuenta contable) — ante cualquier diferencia de granularidad, prevalece esa tabla, no esta matriz.
 
 **Ningún Rol puede aumentarse privilegios a sí mismo** (BR-PERM-002): solo un Administrador modifica Membresías de otros, y nunca la propia hacia un Rol superior sin intervención de otro Administrador.
 
