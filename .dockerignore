@@ -1,0 +1,37 @@
+# Contexto de build de Docker. Se excluye todo lo que la imagen reconstruye
+# por su cuenta (dependencias, artefactos compilados, cliente de Prisma) y
+# todo lo que nunca debe entrar en una imagen (secretos, worktrees, .git).
+
+# Dependencias y artefactos: la imagen los regenera desde el lockfile.
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+**/*.tsbuildinfo
+packages/database/generated
+packages/database/src/generated
+
+# Secretos locales — nunca deben viajar dentro de una imagen.
+.env
+.env.*
+
+# Historia y worktrees de Git: irrelevantes para el runtime.
+.git
+.gitignore
+.worktrees
+.audit-worktrees
+.claude/worktrees
+
+# Documentacion y gobierno: no forman parte del runtime del API.
+docs
+brain
+knowledge
+prompts
+*.md
+
+# Ruido local.
+*.log
+.DS_Store
+coverage
