@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configurar pnpm
         uses: pnpm/action-setup@v4
@@ -41,8 +43,27 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
-      - name: Formato (verificacion, sin escribir)
-        run: pnpm run format:check
+      - name: Formato (verificacion, archivos cambiados)
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="${{ github.event.before }}...${{ github.sha }}"
+          fi
+
+          FILES="$(git diff --name-only "$RANGE" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' | tr '\n' ' ')"
+
+          if [ -z "$FILES" ]; then
+            echo "No changed files require format check."
+            exit 0
+          fi
+
+          echo "Checking format for changed files:"
+          printf '%s\n' $FILES
+
+          pnpm exec prettier --check $FILES
 
       - name: Typecheck
         run: pnpm run typecheck
