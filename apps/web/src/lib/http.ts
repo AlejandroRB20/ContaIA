@@ -11,7 +11,10 @@ export function apiUrl(path: string): string {
 }
 
 export class ApiError extends Error {
-  constructor(public readonly detail: ApiErrorDetail) {
+  constructor(
+    public readonly detail: ApiErrorDetail,
+    public readonly status: number,
+  ) {
     super(detail.message);
     this.name = 'ApiError';
   }
@@ -66,14 +69,17 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (!response.ok) {
     const errorBody = json as ApiErrorResponse | null;
     if (errorBody?.error) {
-      throw new ApiError(errorBody.error);
+      throw new ApiError(errorBody.error, response.status);
     }
-    throw new ApiError({
-      code: 'INTERNAL_ERROR',
-      message: `El servidor respondió con estado ${response.status}.`,
-      correlationId: '',
-      retryable: true,
-    });
+    throw new ApiError(
+      {
+        code: 'INTERNAL_ERROR',
+        message: `El servidor respondió con estado ${response.status}.`,
+        correlationId: '',
+        retryable: true,
+      },
+      response.status,
+    );
   }
 
   return (json as ApiSuccessResponse<T>).data;
