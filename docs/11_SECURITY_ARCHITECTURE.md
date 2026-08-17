@@ -191,7 +191,7 @@ Basado en BR-AUTH-001 a 004 (`docs/04_BUSINESS_RULES.md`) y la sección 6 de `do
 | Usuarios / Membresías             | L, C, M, E    | L          | —        | L          | L       | —             |
 | CFDI                              | L             | L, C*      | L, C*    | L          | L       | — (simulado)  |
 | Documentos                        | L             | L, C       | L, C     | L          | L       | — (simulado)  |
-| Catálogo de Cuentas                | L, C, M, E    | L, C, M, E | L        | L          | L       | — (simulado)  |
+| Catálogo de Cuentas               | L, C, M, E    | L, C, M, E | L        | L          | L       | — (simulado)  |
 | Pólizas                           | L             | L, C, A    | L, C**   | L, A       | L       | — (simulado)  |
 | Estados Financieros               | L, X          | L, X       | L        | L, X       | L, X    | — (simulado)  |
 | Sugerencias de IA                 | L             | L, C       | L, C     | L, A       | L       | L (educativo) |

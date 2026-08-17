@@ -685,11 +685,11 @@ Q-001 registraba tres alternativas sin preseleccionar ninguna: (A) rechazo autom
 
 ### Alternativas consideradas
 
-| Alt | Descripción | Costo estimado |
-| --- | ----------- | -------------- |
-| **A — Rechazar automáticamente** | `Document = REJECTED`, `rejectionReason = 'CFDI_DUPLICATE'`, `Job = FAILED` vía `UnrecoverableError` inmediato | ~2 horas (1 `case` en el clasificador) |
-| B — Aceptar y marcar duplicado | Persistir con flag `isDuplicate`; ambos documentos visibles para revisión humana | 3-5 días + migración de schema + filtros en todos los queries contables |
-| C — Escalar a revisión manual | Sin estado terminal automático; espera revisión humana | 1-2 semanas (nuevo estado, sistema de notificaciones, pantalla de revisión) |
+| Alt                              | Descripción                                                                                                    | Costo estimado                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **A — Rechazar automáticamente** | `Document = REJECTED`, `rejectionReason = 'CFDI_DUPLICATE'`, `Job = FAILED` vía `UnrecoverableError` inmediato | ~2 horas (1 `case` en el clasificador)                                      |
+| B — Aceptar y marcar duplicado   | Persistir con flag `isDuplicate`; ambos documentos visibles para revisión humana                               | 3-5 días + migración de schema + filtros en todos los queries contables     |
+| C — Escalar a revisión manual    | Sin estado terminal automático; espera revisión humana                                                         | 1-2 semanas (nuevo estado, sistema de notificaciones, pantalla de revisión) |
 
 ### Decisión
 
@@ -767,14 +767,14 @@ El rechazo se ejecuta mediante `UnrecoverableError` — sin reintentos. La Trans
 
 Tres fuentes documentales dan tres respuestas distintas sobre si el rol **Administrador** puede escribir (crear/editar/desactivar) en el Catálogo de Cuentas:
 
-| Fuente | Afirmación sobre Administrador y Catálogo de Cuentas |
-| --- | --- |
+| Fuente                                                                     | Afirmación sobre Administrador y Catálogo de Cuentas                                          |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `docs/08_API_DESIGN.md` (`API-0029`/`API-0031`/`API-0032`, líneas 199-202) | Autorizado explícitamente: **"Rol Contador o Administrador"**, en las tres rutas de escritura |
-| `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0010`/`PAGE-0011`, líneas 110-111) | Excluido — solo "Contador" aparece en la lista de roles |
-| `docs/11_SECURITY_ARCHITECTURE.md` §9 (matriz de permisos) | Explícitamente **`L`** (solo lectura) para Administrador en la fila "Catálogo de Cuentas" |
-| `docs/04_BUSINESS_RULES.md` `BR-CAT-001`/`BR-CAT-002` (§4.9) | **Actor** declarado únicamente "Contador" — no menciona a Administrador ni lo excluye |
+| `docs/31_MASTER_SCREEN_MAP.md` (`PAGE-0010`/`PAGE-0011`, líneas 110-111)   | Excluido — solo "Contador" aparece en la lista de roles                                       |
+| `docs/11_SECURITY_ARCHITECTURE.md` §9 (matriz de permisos)                 | Explícitamente **`L`** (solo lectura) para Administrador en la fila "Catálogo de Cuentas"     |
+| `docs/04_BUSINESS_RULES.md` `BR-CAT-001`/`BR-CAT-002` (§4.9)               | **Actor** declarado únicamente "Contador" — no menciona a Administrador ni lo excluye         |
 
-`docs/11` §9 se declara a sí misma **"intencionalmente gruesa"** y cede autoridad final a una tabla `BR-PERM` específica "ante cualquier diferencia de granularidad" — esa tabla no existía para Cuenta hasta esta decisión. `docs/31` se declara **"Draft v0.1 — Propuesta para aprobación"** y cede explícitamente: *"`08_API_DESIGN.md` conserva la autoridad sobre contratos API."*
+`docs/11` §9 se declara a sí misma **"intencionalmente gruesa"** y cede autoridad final a una tabla `BR-PERM` específica "ante cualquier diferencia de granularidad" — esa tabla no existía para Cuenta hasta esta decisión. `docs/31` se declara **"Draft v0.1 — Propuesta para aprobación"** y cede explícitamente: _"`08_API_DESIGN.md` conserva la autoridad sobre contratos API."_
 
 **Precedente directo, ya resuelto en el mismo sentido:** `BR-PERM-004` (creada por `D-011`) enfrentó el mismo patrón de contradicción para CFDI — `docs/11` §9 dice `L` (solo lectura) para Administrador en CFDI, pero `BR-PERM-004` ya concedió `cfdi.generate`/`cfdi.cancel` a Administrador, contradiciendo esa fila sin que nadie la corrigiera. Esta decisión no inaugura una interpretación nueva: continúa la que `D-011` ya estableció.
 
@@ -795,20 +795,20 @@ account.deactivate
 
 ### Matriz por rol
 
-| Rol | `account.read` | `account.create` | `account.update` | `account.deactivate` |
-| --- | --- | --- | --- | --- |
-| Administrador | Sí | Sí | Sí | Sí |
-| Contador | Sí | Sí | Sí | Sí |
-| Auxiliar | Sí | No | No | No |
-| Supervisor | Sí | No | No | No |
-| Auditor | Sí | No | No | No |
-| Estudiante | No (sandbox, sin permisos reales) | No | No | No |
+| Rol           | `account.read`                    | `account.create` | `account.update` | `account.deactivate` |
+| ------------- | --------------------------------- | ---------------- | ---------------- | -------------------- |
+| Administrador | Sí                                | Sí               | Sí               | Sí                   |
+| Contador      | Sí                                | Sí               | Sí               | Sí                   |
+| Auxiliar      | Sí                                | No               | No               | No                   |
+| Supervisor    | Sí                                | No               | No               | No                   |
+| Auditor       | Sí                                | No               | No               | No                   |
+| Estudiante    | No (sandbox, sin permisos reales) | No               | No               | No                   |
 
 ### Fundamento
 
 1. **Precedente `BR-PERM-004`.** Para un conflicto estructuralmente idéntico (docs/08 vs. matriz gruesa de docs/11), el proyecto ya resolvió a favor de incluir a Administrador en las acciones de escritura de un recurso comparable (CFDI).
 2. **Patrón ya implementado, sin excepción por módulo.** `packages/database/prisma/permissions-catalog.ts` define `ADMINISTRADOR: PERMISSION_CATALOG.map((p) => p.key)` — Administrador hereda automáticamente todo permiso sembrado, en los 6 módulos ya existentes, sin ninguna excepción de módulo hoy. Adoptar la Opción A (solo lectura) habría introducido la primera excepción de ese patrón; la Opción B no requiere ninguna.
-3. **Lenguaje del objetivo de M5.** `docs/01_PRD.md` (M5, línea 189) describe el objetivo como *"configurar la estructura contable base de cada empresa"* — el mismo verbo, "configurar", que `docs/04` §5.1 y `docs/11` §9 usan sin restricción para las capacidades de Administrador sobre Empresa/Usuarios/Configuración. El Catálogo de Cuentas es la estructura base de la empresa, no la operación contable diaria (Pólizas), que sigue siendo dominio exclusivo de Contador en todas las fuentes, sin excepción.
+3. **Lenguaje del objetivo de M5.** `docs/01_PRD.md` (M5, línea 189) describe el objetivo como _"configurar la estructura contable base de cada empresa"_ — el mismo verbo, "configurar", que `docs/04` §5.1 y `docs/11` §9 usan sin restricción para las capacidades de Administrador sobre Empresa/Usuarios/Configuración. El Catálogo de Cuentas es la estructura base de la empresa, no la operación contable diaria (Pólizas), que sigue siendo dominio exclusivo de Contador en todas las fuentes, sin excepción.
 4. **`BR-PERM-001` (denegar por defecto) se satisface por alcance, no se viola.** La regla exige el mínimo acceso necesario para la función del rol; la función documentada de Administrador (configurar su empresa) incluye razonablemente su estructura contable base. El dominio operativo exclusivo de Contador (Pólizas) permanece intacto.
 
 ### Alcance
@@ -830,11 +830,11 @@ Esta decisión y la tabla `BR-PERM-005` que crea son la **autoridad por acción 
 
 ### Riesgos
 
-| Riesgo | Mitigación |
-| --- | --- |
+| Riesgo                                                                                                                           | Mitigación                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Corregir `docs/11` §9 solo para Catálogo de Cuentas deja la fila "CFDI" todavía desincronizada desde `D-011` (nunca se corrigió) | Fuera del alcance de `D-014`; se deja registrado como deuda documental preexistente, no se absorbe aquí |
-| La distinción "configuración vs. operación" que justifica la Opción B podría leerse como *ad hoc* si no queda documentada | Registrada explícitamente en "Fundamento" de esta decisión, no solo como conclusión |
-| Precedente de que Administrador siempre recibe paridad por defecto en futuros módulos, erosionando `BR-PERM-001` | "Alcance" limita expresamente esta decisión al Catálogo de Cuentas; no se declara una regla general |
+| La distinción "configuración vs. operación" que justifica la Opción B podría leerse como _ad hoc_ si no queda documentada        | Registrada explícitamente en "Fundamento" de esta decisión, no solo como conclusión                     |
+| Precedente de que Administrador siempre recibe paridad por defecto en futuros módulos, erosionando `BR-PERM-001`                 | "Alcance" limita expresamente esta decisión al Catálogo de Cuentas; no se declara una regla general     |
 
 ### Rollback
 
@@ -893,7 +893,7 @@ Fuente primaria: XSD oficial [`cfdv40.xsd`](http://www.sat.gob.mx/sitio_internet
 #### Capa 1 — obligatoriedad estructural (XSD)
 
 | Forma XML                | `Impuesto` | `TipoFactor`   | `TasaOCuota`                   | `Base`         | `Importe`                      |
-| ------------------------ | ---------- | -------------- | ------------------------------- | -------------- | ------------------------------- |
+| ------------------------ | ---------- | -------------- | ------------------------------ | -------------- | ------------------------------ |
 | Retención de comprobante | REQUIRED   | NOT APPLICABLE | NOT APPLICABLE                 | NOT APPLICABLE | REQUIRED                       |
 | Traslado de comprobante  | REQUIRED   | REQUIRED       | OPTIONAL (condicional, capa 2) | REQUIRED       | OPTIONAL (condicional, capa 2) |
 | Retención de concepto    | REQUIRED   | REQUIRED       | REQUIRED                       | REQUIRED       | REQUIRED                       |
@@ -906,7 +906,7 @@ Fuente primaria: XSD oficial [`cfdv40.xsd`](http://www.sat.gob.mx/sitio_internet
 El XSD declara `TasaOCuota` e `Importe` como `optional` en los dos nodos de traslado, pero las reglas de validación de CFDI 4.0 los condicionan al valor de `TipoFactor` (catálogo `c_TipoFactor`: `Tasa`, `Cuota`, `Exento`):
 
 | Valor de `TipoFactor` en un traslado | `TasaOCuota`                   | `Importe`                      |
-| ------------------------------------- | ------------------------------- | ------------------------------- |
+| ------------------------------------ | ------------------------------ | ------------------------------ |
 | `Tasa` o `Cuota`                     | REQUIRED                       | REQUIRED                       |
 | `Exento`                             | PROHIBIDO (debe estar ausente) | PROHIBIDO (debe estar ausente) |
 
@@ -1082,7 +1082,7 @@ CHECK (
 El CHECK cubre **la capa 1 completa** y **nada de la capa 2**. Concretamente:
 
 | Responsabilidad                                                         | Dueño                              | Motivo                                                   |
-| ------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| ----------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- |
 | Nulabilidad estructural de las cuatro formas                            | **CHECK SQL**                      | Derivable de `(scope, type)`, columnas de la propia fila |
 | Acoplamiento `tasaOCuota` ↔ `importe` en traslados                      | **CHECK SQL (ver abajo)** o parser | Derivable de la fila; decisión pendiente                 |
 | Correspondencia de ese par con el valor de `TipoFactor`                 | **Parser (T08C)**                  | Exige interpretar el catálogo `c_TipoFactor`             |
@@ -1104,7 +1104,7 @@ Se propone **adoptar el fragmento de acoplamiento** y dejar la correspondencia c
 ### Impacto futuro
 
 | Archivo o capa                                              | Clasificación        | Cambio futuro                                                                        |
-| --------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------- |
+| ----------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
 | `apps/api/src/modules/cfdi/cfdi-aggregate.types.ts`         | DEBE CAMBIAR         | Unión discriminada y arreglos por contenedor.                                        |
 | `packages/database/prisma/schema.prisma`                    | DEBE CAMBIAR         | `tipoFactor String?`; sin cambios de precisión, identidad o relaciones.              |
 | Nueva migración Prisma                                      | DEBE CAMBIAR         | Relajar `NOT NULL` y crear CHECK de forma; nunca editar migraciones históricas.      |
@@ -1221,7 +1221,7 @@ T08B  →  T08A  →  T08C  →  T08D
 Razón secundaria: T08B contiene el preflight, que es la única puerta capaz de **cancelar toda la iniciativa** si aparecen retenciones globales con `tipo_factor` sintético. Ejecutarlo primero evita invertir esfuerzo en contratos y parser antes de saber si la migración es siquiera aplicable.
 
 | Tarjeta  | Contenido                                                                                    | Depende de                 | Motivo de la dependencia                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------- |
+| -------- | -------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------ |
 | **T08B** | Preflight, `tipoFactor String?`, migración correctiva nueva, CHECK de forma                  | Aprobación humana de D-015 | Puerta de viabilidad; habilita `null` en el cliente Prisma               |
 | **T08A** | Unión discriminada, arreglos por contenedor                                                  | T08B                       | Los tipos solo pueden admitir `null` cuando la persistencia ya lo admite |
 | **T08C** | Extractor de las cuatro formas, repositorio, persistencia                                    | T08A y T08B                | Necesita el contrato y la columna; conserva Transacción A de D-007       |
@@ -1328,14 +1328,14 @@ Decisiones complementarias sobre el mismo módulo (M5 — Catálogo de Cuentas),
 
 ### Estado
 
-| Campo | Valor |
-| --- | --- |
-| Estado | **APROBADA** |
-| Implementación | **PENDIENTE** |
-| QA | **PENDIENTE** |
-| Integración | **PENDIENTE** |
-| Relación | M5 — Catálogo de Cuentas |
-| Diferido | M6 — Pólizas / movimientos / posting-grouping |
+| Campo          | Valor                                         |
+| -------------- | --------------------------------------------- |
+| Estado         | **APROBADA**                                  |
+| Implementación | **PENDIENTE**                                 |
+| QA             | **PENDIENTE**                                 |
+| Integración    | **PENDIENTE**                                 |
+| Relación       | M5 — Catálogo de Cuentas                      |
+| Diferido       | M6 — Pólizas / movimientos / posting-grouping |
 
 - **Responsable:** Alejandro Reyes Bocanegra (Product Owner y Arquitecto de Producto de ContaIA).
 - Esta decisión **no** materializa `EWO-006A`, no crea `queue.yaml`, no pone ninguna tarjeta en `READY`, no marca ninguna tarjeta `PASSED` y no autoriza el inicio de implementación de base de datos, backend ni frontend — es exclusivamente la canonización del contrato de dominio ya aprobado humanamente. La implementación (esquema Prisma, migraciones, DTO) queda para tarjetas futuras de `EWO-006A`, cada una con su propio gate de inicio.

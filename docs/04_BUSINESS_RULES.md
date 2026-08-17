@@ -850,12 +850,12 @@ Toda regla de negocio debe poder trazarse a al menos uno de estos once principio
 - **Precondiciones:** Un actor con Membresía vigente solicita un recurso de Cuenta contable.
 - **Regla:** El sistema DEBE autorizar cada acción exclusivamente contra la clave de esta tabla; ningún otro documento puede introducir una asignación distinta sin actualizarla aquí primero.
 
-| Recurso | Acción | Clave de permiso | Roles autorizados | Estado |
-| --- | --- | --- | --- | --- |
-| Cuenta contable | Listar / consultar | `account.read` | Administrador, Contador, Auxiliar, Supervisor, Auditor | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
-| Cuenta contable | Crear | `account.create` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
-| Cuenta contable | Editar | `account.update` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
-| Cuenta contable | Desactivar | `account.deactivate` | Administrador, Contador | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Recurso         | Acción             | Clave de permiso     | Roles autorizados                                      | Estado                                                            |
+| --------------- | ------------------ | -------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| Cuenta contable | Listar / consultar | `account.read`       | Administrador, Contador, Auxiliar, Supervisor, Auditor | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Crear              | `account.create`     | Administrador, Contador                                | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Editar             | `account.update`     | Administrador, Contador                                | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
+| Cuenta contable | Desactivar         | `account.deactivate` | Administrador, Contador                                | Aprobado (`D-014`, 2026-08-13); catálogo pendiente de implementar |
 
 - **Resultado esperado:** Ningún documento del corpus (`docs/08`, `docs/11`, `docs/31`) describe una asignación de rol distinta a esta tabla para Cuenta contable.
 - **Impacto técnico:** `packages/database/prisma/permissions-catalog.ts` será la implementación de esta tabla una vez sembrada; `docs/08_API_DESIGN.md` (`API-0029`–`API-0032`) es su contrato de API. Requiere una prueba de sincronización análoga a `packages/database/src/permissions-catalog.test.ts` cuando se implemente.
