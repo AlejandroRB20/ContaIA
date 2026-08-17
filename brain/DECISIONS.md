@@ -876,9 +876,9 @@ Las cuatro reconciliaciones anteriores se ejecutan en la misma sesión que esta 
 
 ## D-015 — Representación canónica de impuestos CFDI 4.0
 
-- **Fecha:** 2026-08-08
-- **Estado:** **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA.** No autoriza implementación, migración, cambio de `schema.prisma` ni inicio de `E5-S3-T08`.
-- **Alcance:** contrato de extracción y persistencia de impuestos CFDI 4.0. No modifica D-007, D-009 ni ningún contrato vigente hasta su aprobación expresa.
+- **Fecha:** 2026-08-08 (propuesta) — **aprobada el 2026-08-17** por el responsable de producto (Alejandro Reyes Bocanegra).
+- **Estado:** **APROBADA · PENDIENTE DE IMPLEMENTACIÓN.** La aprobación **no autoriza iniciar `E5-S3-T08`**: T08A–T08D siguen requiriendo autorización explícita por separado.
+- **Alcance:** contrato de extracción y persistencia de impuestos CFDI 4.0. No modifica D-007 ni D-009.
 
 ### Contexto
 
@@ -1099,7 +1099,7 @@ AND (("tasa_o_cuota" IS NULL) = ("importe" IS NULL))
 
 Incluirlo cerraría la única combinación imposible que hoy el CHECK permite (traslado con tasa pero sin importe, o viceversa) sin incrustar ningún literal de catálogo. Lo que **no** puede hacer el CHECK, en ninguna variante, es verificar que ese par corresponda al valor concreto de `tipo_factor`: eso exigiría escribir `'Exento'` dentro de la migración, es decir, congelar un valor del catálogo `c_TipoFactor` en una constraint que solo puede cambiarse con otra migración. Esa es la frontera dura.
 
-Se propone **adoptar el fragmento de acoplamiento** y dejar la correspondencia con `TipoFactor` en el parser. Queda sujeto a aprobación humana explícita porque endurece el contrato de persistencia más allá de la propuesta original — ver «Decisiones humanas pendientes».
+Se propone **adoptar el fragmento de acoplamiento** y dejar la correspondencia con `TipoFactor` en el parser. **Aprobado el 2026-08-17** (decisión humana 2): el fragmento **se incluye** — ver «Decisiones humanas — RESUELTAS».
 
 ### Impacto futuro
 
@@ -1231,19 +1231,38 @@ Razón secundaria: T08B contiene el preflight, que es la única puerta capaz de 
 
 ### Aprobación requerida
 
-La aprobación humana debe confirmar la matriz normativa de dos capas, la semántica estricta de `null`, el alcance del CHECK y su frontera, la estrategia de preflight y migración, el plan de rollback con sus dos regímenes y la secuencia `T08B → T08A → T08C → T08D`. Hasta entonces D-015 sigue siendo una propuesta y `E5-S3-T08A`–`T08D` no pueden iniciarse.
+La aprobación humana debía confirmar la matriz normativa de dos capas, la semántica estricta de `null`, el alcance del CHECK y su frontera, la estrategia de preflight y migración, el plan de rollback con sus dos regímenes y la secuencia `T08B → T08A → T08C → T08D`. **Todo ello quedó confirmado el 2026-08-17.**
 
-#### Decisiones humanas pendientes
+D-015 ya no es una propuesta. No obstante, **`E5-S3-T08A`–`T08D` siguen sin poder iniciarse**: la aprobación de D-015 fija el contrato, pero el arranque de T08 requiere una autorización humana propia y además está sujeto a la cadena de dependencias vigente del Loop (`E5-S3-T06 → E5-S3-T07 → E5-S3-T08`).
 
-1. **Aprobar o rechazar D-015 en su conjunto.** Sin esto, T08 permanece bloqueada indefinidamente.
-2. **Fragmento de acoplamiento en el CHECK.** ¿Se incluye `("tasa_o_cuota" IS NULL) = ("importe" IS NULL)` en los dos ramos de traslado? Cierra una combinación imposible sin incrustar catálogo, pero endurece el contrato de persistencia. Recomendación: **sí**.
-3. **Literales de `c_TipoFactor` en el tipo TypeScript.** ¿Se tipa `tipoFactor` como `'Tasa' | 'Cuota' | 'Exento'`? Haría el invariante de capa 2 verificable en compilación, a costa de incrustar un catálogo SAT en el código, contra la práctica vigente. Recomendación: **no**; mantener texto libre y validar en el parser.
-4. **Política ante un preflight en rojo.** Si aparecen retenciones globales con `tipo_factor` sintético preexistente, ¿se corrigen manualmente, se purgan o se conserva el dato marcándolo? Es una decisión fiscal y de producto, no técnica.
-5. **Confirmación de la ventana entre T08B y T08C.** Define cuánto dura el régimen A de rollback, el único plenamente reversible.
+#### Decisiones humanas — RESUELTAS el 2026-08-17
+
+Las cinco quedaron resueltas por el responsable de producto. Se conserva el enunciado original de cada una seguido de su resolución vinculante.
+
+1. **Aprobar o rechazar D-015 en su conjunto.** — **RESUELTA: APROBADA.** La aprobación no autoriza iniciar T08.
+2. **Fragmento de acoplamiento en el CHECK.** ¿Se incluye `("tasa_o_cuota" IS NULL) = ("importe" IS NULL)` en los dos ramos de traslado? — **RESUELTA: SÍ**, se incluye.
+3. **Literales de `c_TipoFactor` en el tipo TypeScript.** ¿Se tipa `tipoFactor` como `'Tasa' | 'Cuota' | 'Exento'`? — **RESUELTA: NO.** Se mantiene texto libre y la validación de capa 2 permanece en el parser, sin incrustar el catálogo SAT en el código.
+4. **Política ante un preflight en rojo.** Si aparecen retenciones globales con `tipo_factor` sintético preexistente — **RESUELTA: CORREGIR A `NULL`**, con este alcance exacto y sin excepciones:
+   - se corrigen **únicamente** `TipoFactor`, `TasaOCuota` y `Base`;
+   - **nunca** se toca `Impuesto`;
+   - **nunca** se toca `Importe`;
+   - la corrección debe **re-derivarse del XML original**, nunca inferirse ni normalizarse automáticamente;
+   - debe conservarse **registro y trazabilidad fila por fila** de cada corrección aplicada.
+
+   Purgar las filas y conservar el dato marcándolo quedan **descartadas**: la primera destruye un `Importe` legítimo y rompe la atomicidad del agregado de D-007; la segunda mantiene consultable un dato fiscal falsificado, que es justamente la patología que D-015 elimina.
+
+5. **Confirmación de la ventana entre T08B y T08C.** — **RESUELTA: sin máximo temporal fijo.** El régimen A no caduca por calendario. Para habilitar T08C se exige, de forma acumulativa:
+   - un mínimo de **1 semana natural** de operación observada después de T08B;
+   - el cumplimiento de los **3 criterios de salida**: preflight en verde con conteos documentados; migración aplicada y CHECK verificado sobre datos representativos; binario con lectura compatible con `null` desplegado y observado.
+
+   **Excepción única:** T08C puede continuar de inmediato si `COUNT(*) FROM cfdi_taxes = 0` **y** no existe tráfico productivo. En ese caso el piso de 1 semana no aplica.
+
+   No se fija un máximo deliberadamente: un plazo máximo presionaría a cruzar el punto de no retorno por calendario en lugar de por evidencia, y permanecer en régimen A no tiene coste.
 
 ### Historial
 
 - **2026-08-08** — se registra la propuesta como `D-014` en `codex/d014-cfdi-tax-shape-prepare` (`5ca120c`) y se corrige en `codex/d014-cfdi-tax-shape-fix` (`e27a470`), ambas ramas construidas sobre `HEAD` sin incorporar `D-010`–`D-013`.
+- **2026-08-17** — **aprobada por el responsable de producto** (Alejandro Reyes Bocanegra) y elevada a `APROBADA · PENDIENTE DE IMPLEMENTACIÓN`. Se confirman la matriz normativa de dos capas, la semántica estricta de `null`, el alcance y frontera del CHECK, la estrategia de preflight y migración, el plan de rollback con sus dos regímenes y la secuencia `T08B → T08A → T08C → T08D`. Se resuelven las cinco decisiones humanas pendientes (ver arriba). **La aprobación no autoriza iniciar `E5-S3-T08`.**
 - **2026-08-14** — renumerada a `D-015` al reconstruir el stack canónico `D-001…D-012 → D-013 → D-014 → D-015` (`CONTAIA-D013-D015-CANONICAL-STACK-RECONSTRUCTION`), tras confirmarse que `D-014` ya estaba ocupado por la decisión de autorización de M5, aprobada por el responsable de producto el 2026-08-13. Contenido semántico sin cambios respecto de `e27a470`; solo se actualizan las auto-referencias numéricas. Sigue **PROPUESTA · PENDIENTE DE APROBACIÓN HUMANA** — esta renumeración no aprueba T08 ni ningún contenido fiscal.
 
 ---
