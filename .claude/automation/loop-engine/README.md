@@ -14,10 +14,10 @@ Este directorio es la **ubicación canónica única** (`H3`, ratificada). Unific
 dos implementaciones paralelas previas, ambas construidas sobre `dac9428` sin
 conocer la arquitectura:
 
-| Aporta                                                            | Origen                    |
-| ----------------------------------------------------------------- | ------------------------- |
-| Cola, máquina de estados, locks, worktrees, event log, CLI        | Claude-02 `7bdf159`       |
-| QA, auditor independiente, hallazgos, preflight Git, stale base, integración, recovery | Claude-03 `2e128c7`       |
+| Aporta                                                                                 | Origen              |
+| -------------------------------------------------------------------------------------- | ------------------- |
+| Cola, máquina de estados, locks, worktrees, event log, CLI                             | Claude-02 `7bdf159` |
+| QA, auditor independiente, hallazgos, preflight Git, stale base, integración, recovery | Claude-03 `2e128c7` |
 
 `tools/autonomous-loop-engine/` **no se crea**: `tools/` no existe en el
 repositorio y su `package.json` insinuaba un paquete fuera de
@@ -130,10 +130,10 @@ difiere, bloquea.
 implementador — que por definición no puede auditarse. Sin separar los dos
 ownerships no había flujo de QA ejecutable:
 
-| Ownership          | Quién                    | Sobre qué                                  |
-| ------------------ | ------------------------ | ------------------------------------------ |
-| Lock de la tarjeta | implementador            | código, worktree, commit candidato         |
-| Handoff de QA      | auditor independiente    | proceso de QA y su traza en `state/`       |
+| Ownership          | Quién                 | Sobre qué                            |
+| ------------------ | --------------------- | ------------------------------------ |
+| Lock de la tarjeta | implementador         | código, worktree, commit candidato   |
+| Handoff de QA      | auditor independiente | proceso de QA y su traza en `state/` |
 
 El auditor **nunca adquiere el lock** y nunca escribe en el worktree. Su
 autoridad se limita a `READY_FOR_QA`, `QA` y —sólo para escalar— a salir de
@@ -156,6 +156,40 @@ auditor:        cli.mjs qa      <id> --auditor <aud> --audit veredicto.json
 Todo lo que puede fallar por contrato falla **antes** de la primera
 escritura, porque el ciclo se calcula puro (`qa-loop.mjs`) y sólo después se
 persiste (`qa-session.mjs`).
+
+### Tarjetas que llegan a `READY_FOR_QA` sin haber pasado por `claim`
+
+`handoff` exige el lock del implementador; el lock sólo lo crea `claim`; y
+`claim` sólo selecciona tarjetas en `READY`. Una tarjeta **materializada
+directamente** en `READY_FOR_QA` —por definición en `queue.yaml`,
+importación de trabajo anterior al motor o reconciliación histórica— no
+tenía por tanto ninguna ruta hacia QA: sin lock no hay handoff, y sin
+handoff persistido `qa` tampoco arranca. `E5-S3-T06` lo demostró.
+
+La salida es `adopt`, y es un **gate humano** con la misma forma que
+`resume`, `resolve-recovery` y `resolve-migration-lock`:
+
+```
+humano:  cli.mjs adopt <id> --human <quién> --agent <impl> --reason <por qué> --confirmed
+```
+
+Lo que hace y lo que no:
+
+- **no relaja la regla de posesión.** `handoff` sigue exigiendo el lock; lo
+  que faltaba era la vía legítima para poder cumplirla. La alternativa
+  —que `handoff` materializara el lock al no encontrar ninguno— convierte
+  «sólo el dueño entrega su handoff» en «lo entrega quien llegue primero»,
+  y de forma invisible;
+- **ningún agente gana capacidad.** La adopción es humana, atribuida y
+  registrada en `events.jsonl` como `actor_type: human`;
+- **no transiciona, no crea worktree, no toca el commit candidato**;
+- **nunca sobrescribe un lock ajeno** (`O_CREAT|O_EXCL`, §9.6). Repetirla
+  con el mismo implementador es idempotente y no duplica la traza;
+- **sólo en `READY_FOR_QA`.** Un lock ausente en cualquier otro estado
+  poseído es una anomalía que se investiga, no un hueco que se rellena;
+- **no relaja la independencia auditor/implementador.** Quien es adoptado
+  queda como implementador y `qa` lo seguirá rechazando como auditor de su
+  propia tarjeta.
 
 ## Transacciones: qué garantiza v1 y qué no
 
@@ -211,13 +245,13 @@ Ahora el intervalo es local y verificable: `state/<task_id>.json` lleva
 `transaction_pending` mientras dura, y `lib/guard.mjs` lo convierte en
 fail-closed. Eliminarlo exigiría un journal; hacerlo explícito no.
 
-| Consumidor                                    | Comportamiento                     |
-| --------------------------------------------- | ---------------------------------- |
-| `transition` · `block` · `release` · `resume`  | bloquea (`PENDING_TRANSACTION`)    |
-| `claim` / dispatcher                           | la tarjeta no es elegible          |
-| `handoff` · `qa`                               | bloquea                            |
-| `readiness`                                    | bloquea                            |
-| `status` · `list`                              | **informa**, nunca promueve        |
+| Consumidor                                    | Comportamiento                  |
+| --------------------------------------------- | ------------------------------- |
+| `transition` · `block` · `release` · `resume` | bloquea (`PENDING_TRANSACTION`) |
+| `claim` / dispatcher                          | la tarjeta no es elegible       |
+| `adopt` · `handoff` · `qa`                    | bloquea                         |
+| `readiness`                                   | bloquea                         |
+| `status` · `list`                             | **informa**, nunca promueve     |
 
 Si la marca no puede retirarse en CONFIRM, la transacción fue correcta pero
 no pudimos cerrarla: se deja evidencia de recuperación y la tarjeta queda
@@ -250,14 +284,14 @@ ARCHIVE    sólo ahora se archiva la evidencia y se retira el bloqueo
 ```
 
 **Una recuperación no está resuelta hasta que su evidencia obligatoria está
-persistida.** Antes se archivaba y se borraba *antes* de escribir el evento, y
+persistida.** Antes se archivaba y se borraba _antes_ de escribir el evento, y
 un `appendEvents` fallido dejaba la tarjeta operable, sin traza de quién la
 había desbloqueado y con un archivo en `resolved/` que afirmaba un éxito que
 nunca ocurrió. Las dos rutas de fallo son fail-closed:
 
-| Falla     | Qué pasa                                                                   |
-| --------- | -------------------------------------------------------------------------- |
-| `APPEND`  | no se toca nada; recovery sigue activa. `RESOLUTION_EVENT_NOT_PERSISTED`    |
+| Falla     | Qué pasa                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `APPEND`  | no se toca nada; recovery sigue activa. `RESOLUTION_EVENT_NOT_PERSISTED`                                                                  |
 | `ARCHIVE` | el evento ya es durable y **no se borra**; recovery sigue activa y queda marcada con `resolution_event_appended`. `RESOLUTION_INCOMPLETE` |
 
 En el segundo caso `status` lo reporta como resolución **incompleta**, y
@@ -312,6 +346,7 @@ node cli.mjs block <task_id> --reason <texto> [--to BLOCKED|BLOCKED_ARCHITECTURE
 node cli.mjs release <task_id> --agent <id>
 node cli.mjs resume <task_id> --human <id>          # exige --human
 node cli.mjs validate [--worktree <ruta>] [--role <agent_role>]
+node cli.mjs adopt <task_id> --human <id> --agent <implementer_id> --reason <t> --confirmed
 node cli.mjs handoff <task_id> --agent <implementer_id> --file <f.json> [--auditor <id>]
 node cli.mjs qa <task_id> --auditor <auditor_id> --audit <f.json>
 node cli.mjs readiness <task_id> [--repo <ruta>] [--target <ref>] [--write] [--decisions <f.json>]
@@ -389,7 +424,7 @@ siete dimensiones — `file_collision`, `glob_overlap`,
 se provee (`tasks`); sin ella se reportan `calculable: false`, nunca se
 omiten en silencio. Como el resto de `conflict_prediction`, son
 **informativas**: no bloquean `ready` por sí solas — la elegibilidad para
-*trabajar* una tarjeta ya la decide `evaluateConcurrency` antes del
+_trabajar_ una tarjeta ya la decide `evaluateConcurrency` antes del
 despacho, no el manifest de integración.
 
 ## Limitaciones conocidas de v1

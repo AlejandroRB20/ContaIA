@@ -15,6 +15,8 @@
  *   qa         audita de forma independiente y PERSISTE el resultado
  *   readiness  evalúa READY_FOR_INTEGRATION y genera el manifest
  *
+ *   adopt             designación HUMANA del dueño de una tarjeta
+ *                     READY_FOR_QA que llegó ahí sin pasar por `claim`
  *   resolve-recovery  resolución HUMANA de una recuperación pendiente
  *   resolve-migration-lock  resolución HUMANA de un cerrojo de migración
  */
@@ -28,7 +30,7 @@ import { eventsForTask } from './lib/events.mjs';
 import { verifySubstrate } from './lib/substrate.mjs';
 import { inspectTask, findRecoverableClaims, resolveRecovery } from './lib/recovery.mjs';
 import { describeTaskConditions } from './lib/guard.mjs';
-import { submitHandoff, runQa } from './lib/qa-session.mjs';
+import { submitHandoff, runQa, adoptQaLock } from './lib/qa-session.mjs';
 import { evaluateTaskReadiness } from './lib/integration-readiness.mjs';
 import { manifestsDir } from './lib/paths.mjs';
 import { classifyMigrationLock, releaseMigrationLock } from './lib/migration-lock.mjs';
@@ -218,6 +220,47 @@ const COMMANDS = {
       for (const o of orphans) console.log(`  ${o.lock.task_id}\t${o.status}\t${o.lock.agent_id}`);
     }
     return { queue, substrate, orphans };
+  },
+
+  /**
+   * Designación HUMANA del dueño de una tarjeta `READY_FOR_QA` sin lock.
+   *
+   * Exige `--human`, `--reason` y `--confirmed`, igual que `resume`,
+   * `resolve-recovery` y `resolve-migration-lock`: ningún agente adopta un
+   * lock por su cuenta, y la adopción queda atribuida en el log.
+   */
+  adopt(flags, positional) {
+    const taskId = requireTaskId(flags, positional);
+    if (!flags.human) {
+      throw new Error(
+        'adopt exige --human <id>: designar al dueño de una tarjeta sin lock es un gate ' +
+          'humano. Ningún agente se declara implementador por su cuenta.',
+      );
+    }
+    if (!flags.agent) throw new Error('adopt requiere --agent <implementer_id>');
+    if (!flags.confirmed) {
+      throw new Error('adopt exige --confirmed. Revisar antes la evidencia con `status <task_id>`.');
+    }
+    if (typeof flags.reason !== 'string') {
+      throw new Error(
+        'adopt exige --reason <texto>: por qué la tarjeta llegó a READY_FOR_QA sin lock.',
+      );
+    }
+
+    const result = adoptQaLock({
+      taskId,
+      implementerId: flags.agent,
+      adoptedBy: typeof flags.human === 'string' ? flags.human : 'HUMAN',
+      reason: flags.reason,
+      confirmed: true,
+    });
+    console.log(JSON.stringify(result.lock, null, 2));
+    console.log(
+      result.adopted
+        ? `lock adoptado para "${flags.agent}". La tarjeta sigue en ${result.task.state}: adoptar no transiciona.`
+        : `"${taskId}" ya tenía el lock de "${flags.agent}": nada que hacer.`,
+    );
+    return result;
   },
 
   /** El implementador entrega su evidencia; exige poseer el lock. */

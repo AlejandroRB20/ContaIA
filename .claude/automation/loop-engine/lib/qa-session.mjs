@@ -1,5 +1,5 @@
 import { qaSessionLockFile, taskLockFile } from './paths.mjs';
-import { withLock, readLock } from './lock.mjs';
+import { withLock, readLock, acquireLock, releaseLock } from './lock.mjs';
 import { getOrCreateTaskState } from './store.mjs';
 import { commitTransaction } from './transaction.mjs';
 import {
@@ -91,6 +91,166 @@ export function handoffFromRecord(record) {
   };
 }
 
+// --- adopción humana del lock de una tarjeta sin dueño ----------------------
+
+/**
+ * Estados en los que se admite adoptar el lock. **Uno solo, a propósito.**
+ *
+ * `READY_FOR_QA` es el único estado poseído al que una tarjeta legítima
+ * puede llegar sin haber pasado nunca por `claim`: materialización directa
+ * en `queue.yaml`, importación de trabajo previo al motor, o reconciliación
+ * histórica. En cualquier otro estado poseído, un lock ausente no es un
+ * hueco que rellenar sino una anomalía que se investiga —y para eso está
+ * `resolve-recovery`, no esto.
+ */
+export const ADOPTABLE_STATES = Object.freeze(['READY_FOR_QA']);
+
+/**
+ * Adopción **humana y explícita** del lock de una tarjeta en `READY_FOR_QA`
+ * que no lo tiene.
+ *
+ * ## El vacío que cierra
+ *
+ * `submitHandoff` exige el lock del implementador. El lock sólo lo crea
+ * `claim`, y `dispatch` sólo selecciona tarjetas en `READY`. Una tarjeta
+ * materializada directamente en `READY_FOR_QA` no puede por tanto entregar
+ * handoff, y sin handoff persistido `runQa` tampoco arranca: la tarjeta
+ * queda fuera del ciclo sin ninguna ruta canónica. No es un caso hipotético
+ * —`E5-S3-T06` lo demostró.
+ *
+ * ## Por qué es un gate humano y no una capacidad de agente
+ *
+ * La alternativa aparente —que `submitHandoff` materialice el lock cuando
+ * no hay ninguno— convierte «sólo el dueño entrega su handoff» en «lo
+ * entrega quien llegue primero», y lo hace de forma invisible. Cualquier
+ * agente podría entonces declararse implementador de cualquier tarjeta sin
+ * dueño. La regla de posesión no se relaja aquí: se le da la única vía
+ * legítima que le faltaba para poder cumplirse.
+ *
+ * Por eso esto sigue la forma de las otras tres rutas de recuperación del
+ * motor (`resume`, `resolve-recovery`, `resolve-migration-lock`): exige
+ * `--human`, `--reason` y `--confirmed`, y **ningún agente gana capacidad
+ * alguna**. Lo que un humano puede hacer aquí —designar quién cuenta como
+ * implementador de una tarjeta que nunca tuvo uno— queda atribuido en el
+ * log de eventos.
+ *
+ * ## Lo que NO hace
+ *
+ * No transiciona (la tarjeta sigue en `READY_FOR_QA`), no crea worktree, no
+ * toca el commit candidato, no audita y **nunca sobrescribe un lock ajeno**:
+ * la exclusión la da `acquireLock` con `O_CREAT|O_EXCL`, la misma primitiva
+ * de siempre. Tampoco relaja la independencia auditor/implementador — quien
+ * adopta el lock queda registrado como implementador y `runQa` seguirá
+ * rechazándolo como auditor de su propia tarjeta.
+ *
+ * ## Orden y fallo
+ *
+ *   VALIDATE  confirmación, actor humano, razón, estado adoptable, operable
+ *   LOCK      adquisición atómica; si ya existe y es ajeno, se aborta
+ *   COMMIT    `owner` + evento de adopción, en una sola transacción
+ *
+ * Si el COMMIT falla, se libera el lock **recién creado por nosotros** y se
+ * propaga el error: no queda ni lock ni traza, que es el estado previo. No
+ * se libera ningún lock ajeno en ninguna ruta.
+ *
+ * @param {object}  params
+ * @param {string}  params.taskId
+ * @param {string}  params.implementerId agente que queda como dueño del trabajo
+ * @param {string}  params.adoptedBy identidad humana que autoriza
+ * @param {string}  params.reason justificación, obligatoria
+ * @param {true}    params.confirmed confirmación explícita, sin valor por defecto
+ */
+export function adoptQaLock({ taskId, implementerId, adoptedBy, reason, confirmed }) {
+  if (!taskId) throw new QaSessionError('taskId es obligatorio.', 'TASK_REQUIRED');
+  if (confirmed !== true) {
+    throw new QaSessionError(
+      'adoptQaLock exige confirmación humana explícita (confirmed: true). ' +
+        'Designar al dueño de una tarjeta sin lock nunca ocurre por omisión.',
+      'CONFIRMATION_REQUIRED',
+    );
+  }
+  if (!adoptedBy) {
+    throw new QaSessionError(
+      'adoptQaLock exige adoptedBy: la adopción debe ser atribuible a una persona. ' +
+        'Ningún agente adopta un lock por su cuenta.',
+      'HUMAN_REQUIRED',
+    );
+  }
+  if (typeof reason !== 'string' || reason.trim() === '') {
+    throw new QaSessionError(
+      'adoptQaLock exige reason: por qué esta tarjeta llegó a READY_FOR_QA sin lock.',
+      'REASON_REQUIRED',
+    );
+  }
+  if (!implementerId) {
+    throw new QaSessionError('implementerId es obligatorio.', 'IMPLEMENTER_REQUIRED');
+  }
+
+  const task = getOrCreateTaskState(taskId);
+  assertOperable(taskId, task);
+  if (!ADOPTABLE_STATES.includes(task.state)) {
+    throw new QaSessionError(
+      `La adopción de lock sólo se admite en ${ADOPTABLE_STATES.join(', ')}; ` +
+        `"${taskId}" está en ${task.state}. Un lock ausente en otro estado es una anomalía ` +
+        'que se investiga, no un hueco que se rellena.',
+      'STATE_NOT_ADOPTABLE',
+    );
+  }
+
+  // Idempotencia: adoptar dos veces con el mismo implementador no reescribe
+  // nada ni duplica la traza. Un lock ajeno, en cambio, se respeta siempre.
+  const existing = readLock(taskLockFile(taskId));
+  if (existing) {
+    if (existing.agent_id !== implementerId) {
+      throw new QaSessionError(
+        `El lock de "${taskId}" ya pertenece a "${existing.agent_id}"; se pretende adoptarlo ` +
+          `para "${implementerId}". Nadie sobrescribe un lock ajeno (arquitectura §9.6).`,
+        'LOCK_HELD_BY_OTHER',
+      );
+    }
+    return { task, lock: existing, adopted: false };
+  }
+
+  const lock = acquireLock(taskLockFile(taskId), {
+    task_id: taskId,
+    mission_id: task.mission_id ?? null,
+    agent_id: implementerId,
+    pid_hint: process.pid,
+    adopted_by: adoptedBy,
+    adoption_reason: reason,
+  });
+
+  try {
+    // No es una transición: la tarjeta sigue en READY_FOR_QA. Se registra
+    // porque designar al dueño de una tarjeta es un acto de gobierno.
+    const { task: updated } = commitTransaction({
+      taskId,
+      from: task.state,
+      changes: { owner: implementerId },
+      events: [
+        {
+          task_id: taskId,
+          mission_id: task.mission_id ?? null,
+          agent_id: adoptedBy,
+          actor_type: 'human',
+          from_state: task.state,
+          to_state: task.state,
+          note: `lock adoptado para "${implementerId}": ${reason}`,
+        },
+      ],
+    });
+    return { task: updated, lock, adopted: true };
+  } catch (err) {
+    // El lock lo acabamos de crear nosotros: liberarlo no es tocar uno ajeno.
+    try {
+      releaseLock(taskLockFile(taskId), { agentId: implementerId, confirmed: true });
+    } catch {
+      /* si tampoco puede liberarse, el error original es el que informa */
+    }
+    throw err;
+  }
+}
+
 /**
  * El implementador entrega su evidencia en `READY_FOR_QA`. Exige poseer el
  * lock: el handoff es del dueño del trabajo, de nadie más.
@@ -114,7 +274,12 @@ export function submitHandoff({ taskId, implementerId, handoff, auditorId = null
   const lock = readLock(taskLockFile(taskId));
   if (!lock || lock.agent_id !== implementerId) {
     throw new QaSessionError(
-      `Sólo el dueño del lock de "${taskId}" entrega su handoff (lock=${lock?.agent_id ?? 'ninguno'}).`,
+      `Sólo el dueño del lock de "${taskId}" entrega su handoff (lock=${lock?.agent_id ?? 'ninguno'}).` +
+        (lock
+          ? ''
+          : ' La tarjeta no tiene dueño: si llegó a READY_FOR_QA sin pasar por `claim`' +
+            ' (materialización, importación o reconciliación histórica), un humano debe' +
+            ' designarlo con `adopt --human <id> --agent <implementer_id> --reason <texto> --confirmed`.'),
       'NOT_LOCK_OWNER',
     );
   }
